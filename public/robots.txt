@@ -1,0 +1,26 @@
+# Tharwah Capital - Robots.txt
+User-agent: *
+Allow: /
+
+# Disallow admin and private areas
+Disallow: /Akadmin/
+Disallow: /dashboard/
+Disallow: /api/
+Disallow: /*.json$
+Disallow: /*?*token=*
+Disallow: /*?*session=*
+
+# Allow important pages
+Allow: /$
+Allow: /about$
+Allow: /services$
+Allow: /markets$
+Allow: /news$
+Allow: /contact$
+Allow: /faq$
+
+# Sitemap
+Sitemap: https://tharwah.com/sitemap.xml
+
+# Crawl delay
+Crawl-delay: 1

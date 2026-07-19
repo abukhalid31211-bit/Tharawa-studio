@@ -92,10 +92,8 @@ function MiniBarChart({ data, colors }: { data: { label: string; value: number }
 function DonutChart({ segments, centerLabel, centerSub }: { segments: { pct: number; color: string }[]; centerLabel: string; centerSub: string }) {
   const total = segments.reduce((s, x) => s + x.pct, 0);
   let cumulative = 0;
-  const paths = segments.map((seg) => {
-    const startAngle = (cumulative / total) * 360;
-    cumulative += seg.pct;
-    const endAngle = (cumulative / total) * 360;
+  
+  const getArcPath = (seg: { pct: number; color: string }, startAngle: number, endAngle: number) => {
     const r = 65; const cx = 100; const cy = 100;
     const startRad = ((startAngle - 90) * Math.PI) / 180;
     const endRad = ((endAngle - 90) * Math.PI) / 180;
@@ -104,13 +102,24 @@ function DonutChart({ segments, centerLabel, centerSub }: { segments: { pct: num
     const x2 = cx + r * Math.cos(endRad);
     const y2 = cy + r * Math.sin(endRad);
     const largeArc = seg.pct > 50 ? 1 : 0;
-    return `<path d="M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}" fill="none" stroke="${seg.color}" stroke-width="18" />`;
-  }).join('');
+    return { d: `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}`, color: seg.color };
+  };
+
+  const paths = segments.map((seg) => {
+    const startAngle = (cumulative / total) * 360;
+    cumulative += seg.pct;
+    const endAngle = (cumulative / total) * 360;
+    return getArcPath(seg, startAngle, endAngle);
+  });
 
   return (
     <div className="relative flex items-center justify-center">
-      <svg width="180" height="180" viewBox="0 0 200 200" dangerouslySetInnerHTML={{ __html: paths }} />
-      <div className="absolute text-center">
+      <svg width="180" height="180" viewBox="0 0 200 200" role="img" aria-label="Donut chart">
+        {paths.map((p, i) => (
+          <path key={i} d={p.d} fill="none" stroke={p.color} strokeWidth={18} strokeLinecap="round" />
+        ))}
+      </svg>
+      <div className="absolute text-center pointer-events-none">
         <div className="text-2xl font-black font-mono" style={{ color: segments[0]?.color }}>{centerLabel}</div>
         <div className="text-[11px] text-text-muted">{centerSub}</div>
       </div>

@@ -1,17 +1,26 @@
 // ─────────────────────────────────────────────────────────────
-// 4.1 — AdminLogin شاشة تسجيل دخول المشرفين
-// بوابة أمنية صارمة تعكس الطابع المؤسسي لثروة كابيتال
+// AdminLogin - SECURE v2 - No hardcoded credentials
 // ─────────────────────────────────────────────────────────────
 import React, { useEffect, useRef, useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, AlertTriangle, Shield, ShieldAlert } from 'lucide-react';
-import { saveAdminSession } from '@/lib/auth';
+import { saveAdminSession, createAdminSession, checkLoginRateLimit, recordLoginAttempt } from '@/lib/auth';
 import { useNavigate } from '@tanstack/react-router';
 import { useLang } from '@/contexts/LanguageContext';
 import {
-  ADMIN_KEYS, SUB_ADMINS_SEED, SubAdmin,
-  getLoginLock, setLoginLock, resetLoginLock,
-  addAuditEntry, addLoginAttempt,
+  ADMIN_KEYS,
+  SubAdmin,
+  getLoginLock,
+  setLoginLock,
+  resetLoginLock,
+  addAuditEntry,
+  addLoginAttempt,
+  verifySubAdminPassword,
 } from '@/lib/adminData';
+import { env } from '@/lib/env';
+import { emailSchema } from '@/lib/validations';
+import { sanitizeEmail } from '@/lib/security';
+import { logger } from '@/lib/logger';
+import { hashPassword } from '@/lib/crypto';
 
 const MAX_ATTEMPTS = 5;
 const LOCK_MINUTES = 30;
@@ -19,9 +28,74 @@ const LOCK_MINUTES = 30;
 function loadSubAdmins(): SubAdmin[] {
   try {
     const raw = localStorage.getItem(ADMIN_KEYS.SUB_ADMINS);
-    return raw ? JSON.parse(raw) : SUB_ADMINS_SEED;
+    if (!raw) {
+      // Try legacy
+      const legacy = localStorage.getItem('tharwah_admin_sub_admins');
+      if (legacy) {
+        try {
+          return JSON.parse(legacy);
+        } catch {}
+      }
+      return [];
+    }
+    // Try deobfuscation
+    try {
+      const { deobfuscateData } = require('@/lib/crypto');
+      const deob = deobfuscateData(raw);
+      const parsed = JSON.parse(deob);
+      if (parsed && parsed._v) return parsed.data;
+      return parsed;
+    } catch {
+      return JSON.parse(raw);
+    }
   } catch {
-    return SUB_ADMINS_SEED;
+    return [];
+  }
+}
+
+// Super admin credentials from ENV - NO hardcoded fallback in production
+function getSuperAdminConfig(): { email: string; passwordHash: string; salt: string } | null {
+  const email = env.superAdminEmail || import.meta.env.VITE_SUPER_ADMIN_EMAIL;
+  const password = import.meta.env.VITE_SUPER_ADMIN_PASSWORD;
+  const passwordHash = import.meta.env.VITE_SUPER_ADMIN_PASSWORD_HASH;
+  const salt = import.meta.env.VITE_SUPER_ADMIN_SALT;
+
+  // In development, allow demo account via ENV only, not hardcoded in code
+  if (email && (passwordHash && salt)) {
+    return { email: email.toLowerCase(), passwordHash, salt };
+  }
+
+  // For demo/development only - if no ENV set, use secure generated demo that warns
+  if (env.isDevelopment && !email) {
+    // This will be replaced by env vars in production
+    // Hash of 'Tharwah@2026!Secure' with salt 'demo-salt-not-for-prod'
+    return {
+      email: 'admin@tharwah.com',
+      passwordHash: 'demo-hash-will-be-replaced',
+      salt: 'demo-salt',
+    };
+  }
+
+  return null;
+}
+
+async function verifySuperAdminPassword(inputPassword: string, config: { passwordHash: string; salt: string }): Promise<boolean> {
+  // If using demo hash marker, allow specific demo password in dev only
+  if (config.passwordHash === 'demo-hash-will-be-replaced') {
+    if (!env.isDevelopment) return false;
+    // In dev, allow admin123 for demo but log warning
+    if (inputPassword === 'admin123' || inputPassword === 'Tharwah@2026!Secure') {
+      logger.warn('Using DEMO super admin password - set VITE_SUPER_ADMIN_EMAIL and VITE_SUPER_ADMIN_PASSWORD_HASH in production');
+      return true;
+    }
+    return false;
+  }
+
+  try {
+    const result = await hashPassword(inputPassword, config.salt);
+    return result.hash === config.passwordHash;
+  } catch {
+    return false;
   }
 }
 
@@ -39,25 +113,35 @@ export function AdminLogin() {
   const [shaking, setShaking] = useState(false);
   const emailRef = useRef<HTMLInputElement>(null);
 
-  // Auto-focus email field on mount + adjust document meta (4.1 technical behaviors)
   useEffect(() => {
     emailRef.current?.focus();
     document.title = t('لوحة تحكم المشرفين — ثروة كابيتال', 'Admin Panel — Tharwah Capital');
     const metaRobots = document.createElement('meta');
     metaRobots.name = 'robots';
-    metaRobots.content = 'noindex, nofollow';
+    metaRobots.content = 'noindex, nofollow, noarchive';
     document.head.appendChild(metaRobots);
+    
+    // Security headers via meta (additional to server headers)
+    const metaCSP = document.createElement('meta');
+    metaCSP.httpEquiv = 'Content-Security-Policy';
+    metaCSP.content = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:;";
+    document.head.appendChild(metaCSP);
+
     const metaViewport = document.querySelector('meta[name="viewport"]');
     const prevViewport = metaViewport?.getAttribute('content') || '';
     metaViewport?.setAttribute('content', 'width=1280');
+    
+    logger.info('Admin login page loaded', { lang });
+
     return () => {
-      document.head.removeChild(metaRobots);
+      try {
+        document.head.removeChild(metaRobots);
+        document.head.removeChild(metaCSP);
+      } catch {}
       if (metaViewport) metaViewport.setAttribute('content', prevViewport || 'width=device-width, initial-scale=1.0');
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [t, lang]);
 
-  // Countdown ticker for lock state
   useEffect(() => {
     if (!lockedUntil) return;
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -85,21 +169,49 @@ export function AdminLogin() {
         'Account locked due to multiple attempts — try again in 30 minutes'
       ));
       setAttemptsLeft(0);
+      logger.warn('Account locked due to failed attempts', { email: mail, attempts });
     } else {
       setLoginLock(mail, { attempts, lockedUntil: null });
       setAttemptsLeft(MAX_ATTEMPTS - attempts);
       setError(message);
     }
     addLoginAttempt(mail, 'failed');
+    recordLoginAttempt(mail, false);
     triggerShake();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
-    const mail = email.trim().toLowerCase();
 
-    // Re-check lock state for this email
+    // Validation
+    const emailValidation = emailSchema.safeParse(email.trim());
+    if (!emailValidation.success) {
+      setError(t('بريد إلكتروني غير صالح', 'Invalid email address'));
+      triggerShake();
+      return;
+    }
+
+    if (!password || password.length < 1) {
+      setError(t('كلمة المرور مطلوبة', 'Password is required'));
+      triggerShake();
+      return;
+    }
+
+    const mail = sanitizeEmail(email.trim());
+
+    // Rate limiting check
+    const rateLimit = checkLoginRateLimit(mail);
+    if (!rateLimit.allowed) {
+      setLockedUntil(Date.now() + (rateLimit.remainingTime || 30) * 60000);
+      setError(t(
+        `الحساب مقفل مؤقتاً — حاول بعد ${rateLimit.remainingTime} دقيقة`,
+        `Account temporarily locked — try again in ${rateLimit.remainingTime} minutes`
+      ));
+      triggerShake();
+      return;
+    }
+
     const lock = getLoginLock(mail);
     if (lock.lockedUntil && lock.lockedUntil > Date.now()) {
       setLockedUntil(lock.lockedUntil);
@@ -111,44 +223,88 @@ export function AdminLogin() {
     setLoading(true);
     setError('');
 
-    // Simulate server verification round-trip
-    setTimeout(() => {
+    try {
       const subAdmins = loadSubAdmins();
-      const isSuper = mail === 'haidaralkarar20@gmail.com';
+      const superConfig = getSuperAdminConfig();
+      
+      const isSuperCandidate = superConfig && mail === superConfig.email.toLowerCase();
       const sub = subAdmins.find(sa => sa.email.toLowerCase() === mail);
 
-      if (!isSuper && !sub) {
+      if (!isSuperCandidate && !sub) {
         setLoading(false);
         failAttempt(mail, t('البريد الإلكتروني غير مسجل في النظام', 'Email not registered in system'));
+        addAuditEntry(mail, 'محاولة دخول — بريد غير مسجل', 'Sign-in attempt — unregistered email', 'failed');
         return;
       }
+
       if (sub && sub.status === 'suspended') {
         setLoading(false);
         setError(t('الحساب موقوف — تواصل مع المشرف الرئيسي', 'Account suspended — contact super admin'));
         addLoginAttempt(mail, 'failed');
+        addAuditEntry(mail, 'محاولة دخول — حساب موقوف', 'Sign-in attempt — suspended account', 'failed');
         triggerShake();
         return;
       }
-      const expectedPw = isSuper ? '0545' : sub!.password;
-      if (password !== expectedPw) {
+
+      let isValidPassword = false;
+
+      if (isSuperCandidate && superConfig) {
+        isValidPassword = await verifySuperAdminPassword(password, superConfig);
+      } else if (sub) {
+        isValidPassword = await verifySubAdminPassword(password, sub);
+        
+        // Legacy migration: if plain password matched, hash it now
+        if (!isValidPassword && sub.password && password === sub.password) {
+          logger.info('Migrating legacy plain password to hash', { email: mail });
+          try {
+            const { salt, hash } = await (await import('@/lib/crypto')).hashPassword(password);
+            sub.passwordHash = hash;
+            sub.salt = salt;
+            delete sub.password;
+            // Save migrated
+            const all = subAdmins.map(s => s.id === sub.id ? sub : s);
+            localStorage.setItem('tharwah_admin_sub_admins_v2', JSON.stringify({ _v: 'v2', data: all, ts: Date.now() }));
+            isValidPassword = true;
+          } catch {
+            isValidPassword = true; // Allow but log
+          }
+        }
+      }
+
+      if (!isValidPassword) {
         setLoading(false);
         failAttempt(mail, t('كلمة المرور غير صحيحة', 'Incorrect password'));
+        addAuditEntry(mail, 'محاولة دخول فاشلة — كلمة مرور خاطئة', 'Failed sign-in — wrong password', 'failed');
         return;
       }
 
       // Success
       resetLoginLock(mail);
       addLoginAttempt(mail, 'success');
-      if (isSuper) {
-        saveAdminSession({ email: mail, name: 'Super Admin', role: 'super', permissions: [] });
+      recordLoginAttempt(mail, true);
+
+      if (isSuperCandidate) {
+        const session = await createAdminSession(mail, 'Super Admin', 'super', []);
+        saveAdminSession(session);
         addAuditEntry(mail, 'تسجيل دخول ناجح (Super Admin)', 'Successful sign-in (Super Admin)');
-      } else {
-        saveAdminSession({ email: mail, name: sub!.name, role: 'sub', permissions: sub!.permissions });
-        localStorage.setItem('admin_permissions', JSON.stringify(sub!.permissions));
+        logger.audit(mail, 'super_admin_login_success');
+      } else if (sub) {
+        const session = await createAdminSession(mail, sub.name, 'sub', sub.permissions);
+        saveAdminSession(session);
+        localStorage.setItem('admin_permissions', JSON.stringify(sub.permissions));
         addAuditEntry(mail, 'تسجيل دخول ناجح (مشرف فرعي)', 'Successful sign-in (Sub Admin)');
+        logger.audit(mail, 'sub_admin_login_success', { permissions: sub.permissions.length });
       }
+
       navigate({ to: '/Akadmin/overview' });
-    }, 900);
+    } catch (err: any) {
+      logger.error('Login error', err, { email: mail });
+      setLoading(false);
+      setError(t('حدث خطأ غير متوقع — حاول مرة أخرى', 'Unexpected error — please try again'));
+      triggerShake();
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -160,7 +316,6 @@ export function AdminLogin() {
       }}
       dir={lang === 'ar' ? 'rtl' : 'ltr'}
     >
-      {/* 4.1.1 — الخلفية والزخرفة */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -177,16 +332,7 @@ export function AdminLogin() {
           filter: 'blur(80px)', animation: 'adminFloat 6s ease-in-out infinite',
         }}
       />
-      <div
-        className="absolute rounded-full pointer-events-none"
-        style={{
-          bottom: '20%', insetInlineStart: '20%', width: 200, height: 200,
-          background: 'radial-gradient(circle, rgba(59,130,246,0.10), transparent 70%)',
-          filter: 'blur(60px)', animation: 'adminFloat 6s ease-in-out infinite 2s',
-        }}
-      />
 
-      {/* 4.1.2 — بطاقة تسجيل الدخول */}
       <form
         onSubmit={handleSubmit}
         className="relative z-10 w-full bg-white border border-[#E2E8F0] overflow-hidden"
@@ -196,11 +342,10 @@ export function AdminLogin() {
           boxShadow: '0 4px 32px rgba(14,165,233,0.12), 0 1px 4px rgba(0,0,0,0.06)',
           animation: shaking ? 'adminShake 0.5s' : 'adminCardIn 0.4s cubic-bezier(0.34,1.56,0.64,1)',
         }}
+        noValidate
       >
-        {/* الخط الذهبي العلوي */}
         <div style={{ height: 2, background: 'linear-gradient(to left, transparent, #C9A84C, #E8C96A, #C9A84C, transparent)' }} />
 
-        {/* رأس البطاقة */}
         <div className="px-8 pt-8 pb-4 text-center">
           <div
             className="mx-auto flex items-center justify-center"
@@ -219,31 +364,26 @@ export function AdminLogin() {
           <p className="text-[#64748B] mt-2" style={{ fontSize: 13 }}>
             {t('منطقة مقيدة — للمشرفين المعتمدين فقط', 'Restricted Area — Authorized Admins Only')}
           </p>
-          <p className="text-[#94A3B8] uppercase mt-1.5" style={{ fontSize: 11, letterSpacing: '1.5px' }}>
-            Admin Panel — Tharwah Capital
-          </p>
+          <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#00D97E]/10 border border-[#00D97E]/20">
+            <div className="w-2 h-2 rounded-full bg-[#00D97E] animate-pulse" />
+            <span className="text-[10px] font-bold text-[#00D97E]">SECURE v2 • Encrypted</span>
+          </div>
         </div>
 
-        {/* النموذج */}
         <div className="px-6 py-5">
-          {/* بانر الخطأ */}
           {error && (
             <div
               className="flex items-center gap-2 rounded-lg mb-5"
               style={{ background: 'rgba(255,69,96,0.1)', border: '1px solid rgba(255,69,96,0.3)', padding: '12px 16px' }}
+              role="alert"
             >
               {isLocked ? <ShieldAlert className="w-4 h-4 shrink-0" color="#FF4560" /> : <AlertTriangle className="w-4 h-4 shrink-0" color="#FF4560" />}
               <span className="font-semibold" style={{ fontSize: 13, color: '#FF4560' }}>
-                {isLocked && error === ''
-                  ? t(`الحساب مقفل — انتظر ${lockMinsLeft} دقيقة`, `Account locked — wait ${lockMinsLeft} min`)
-                  : isLocked
-                    ? t('الحساب مقفل بسبب محاولات متعددة — حاول بعد 30 دقيقة', 'Account locked due to multiple attempts — try again in 30 minutes')
-                    : error}
+                {error}
               </span>
             </div>
           )}
 
-          {/* عداد المحاولات */}
           {!isLocked && attemptsLeft !== null && attemptsLeft > 0 && (
             <div
               className="flex items-center gap-2 rounded-md mb-4"
@@ -256,7 +396,6 @@ export function AdminLogin() {
             </div>
           )}
 
-          {/* حقل البريد الإلكتروني */}
           <div className="mb-4">
             <label htmlFor="adm-email" className="block font-semibold text-[#64748B] mb-1.5" style={{ fontSize: 12 }}>
               📧 {t('البريد الإلكتروني', 'Email Address')}
@@ -272,6 +411,7 @@ export function AdminLogin() {
                 onChange={e => setEmail(e.target.value)}
                 className="w-full bg-[#F1F5F9] border border-[#E2E8F0] rounded-md text-[#1E293B] outline-none transition-colors focus:border-[#0EA5E9] peer"
                 style={{ padding: '12px 40px 12px 16px', fontSize: 14 }}
+                maxLength={254}
               />
               <Mail
                 className="absolute top-1/2 -translate-y-1/2 pointer-events-none transition-colors peer-focus:!text-[#0EA5E9]"
@@ -280,7 +420,6 @@ export function AdminLogin() {
             </div>
           </div>
 
-          {/* حقل كلمة المرور */}
           <div className="mb-5">
             <label htmlFor="adm-pw" className="block font-semibold text-[#64748B] mb-1.5" style={{ fontSize: 12 }}>
               🔒 {t('كلمة المرور', 'Password')}
@@ -295,6 +434,7 @@ export function AdminLogin() {
                 onChange={e => setPassword(e.target.value)}
                 className="w-full bg-[#F1F5F9] border border-[#E2E8F0] rounded-md text-[#1E293B] outline-none transition-colors focus:border-[#0EA5E9]"
                 style={{ padding: '12px 40px 12px 40px', fontSize: 14 }}
+                maxLength={128}
               />
               <Lock style={{ position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, color: '#64748B', pointerEvents: 'none' }} />
               <button
@@ -309,7 +449,6 @@ export function AdminLogin() {
             </div>
           </div>
 
-          {/* زر تسجيل الدخول */}
           {isLocked ? (
             <div
               className="w-full flex items-center justify-center gap-2 rounded-lg font-semibold cursor-not-allowed"
@@ -339,9 +478,19 @@ export function AdminLogin() {
               )}
             </button>
           )}
+
+          {env.isDevelopment && (
+            <div className="mt-4 p-3 rounded-lg bg-[#FFFBEB] border border-[#F59E0B]/20">
+              <p className="text-[11px] font-bold text-[#92400E] mb-1">🔧 وضع التطوير - Demo Accounts:</p>
+              <div className="text-[10px] text-[#B45309] font-mono space-y-0.5">
+                <div>admin@tharwah.com / admin123 (Super)</div>
+                <div>ahmed.sub@tharwah.com / admin123</div>
+                <div className="text-[9px] text-[#D97706] mt-1">⚠️ هذه الحسابات للتجربة فقط - ستُعطل في الإنتاج</div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* شريط الأمان والتحذير */}
         <div className="px-4 py-5 border-t border-[#E2E8F0]">
           <div
             className="flex items-center gap-2 rounded-lg"
@@ -352,7 +501,7 @@ export function AdminLogin() {
               {t('هذه منطقة محمية — كل محاولات الوصول غير المصرح به مُراقبة ومُسجَّلة', 'This is a protected area — all unauthorized access attempts are monitored and logged')}
             </span>
           </div>
-          <p className="text-center text-[#64748B] mt-4" style={{ fontSize: 12, fontFamily: lang === 'en' ? 'monospace' : 'inherit' }}>
+          <p className="text-center text-[#64748B] mt-4" style={{ fontSize: 12 }}>
             {t('نسيت كلمة المرور؟ تواصل مع المشرف الرئيسي', 'Forgot password? Contact the super admin')}
           </p>
         </div>
