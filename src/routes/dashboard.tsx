@@ -54,7 +54,7 @@ function DashboardPage() {
   const [transactions, setTransactions] = useState(INITIAL_TRANSACTIONS);
   const [tickets, setTickets] = useState(INITIAL_TICKETS);
   const [meetings, setMeetings] = useState(INITIAL_MEETINGS);
-  const [clientPhone, setClientPhone] = useState('+966 50 123 4567');
+  const [clientPhone, setClientPhone] = useState('');
   const [bankRequestSent, setBankRequestSent] = useState(false);
 
   const [transferModalOpen, setTransferModalOpen] = useState(false);
