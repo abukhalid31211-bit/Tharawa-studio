@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { useLang } from '@/contexts/LanguageContext';
 import { useNavigate, Link } from '@tanstack/react-router';
-import { clearClientSession, isClientAuthed, getClientSession } from '@/lib/auth';
-import { useEffect } from 'react';
+import { clearClientSession, getClientSession } from '@/lib/auth';
 import {
   Home, BarChart3, TrendingUp, Landmark, FileText, BarChart2,
   MessageSquare, UserCircle, Settings, LogOut, Globe,
-  ChevronRight, ChevronLeft, Menu, Bell, Check, X, AlertCircle,
-  Plus, ArrowDownLeft, ArrowUpRight
+  ChevronRight, ChevronLeft, Menu, Bell
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
@@ -61,11 +59,14 @@ export function DashboardLayout({ activeTab, onTabChange, children, isDarkMode, 
     },
   ];
 
+  // Mobile Bottom Nav items
+  const mobileNavItems: DashboardTab[] = ['info', 'investments', 'banking', 'transactions', 'support', 'settings'];
+
   return (
     <div className="min-h-screen bg-[#F4F6F9] dark:bg-[#0D0D1A] flex font-[Cairo] relative text-text-primary transition-colors duration-300" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       {/* Logout Modal */}
       {logoutModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-100 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#1C1C34] border border-border-light dark:border-[#2D2D50] w-full max-w-md rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <h3 className="text-lg font-black mb-2">{t('هل تريد تسجيل الخروج؟', 'Do you want to sign out?')}</h3>
             <p className="text-sm text-text-secondary mb-6">{t('سيتم إنهاء جلستك الحالية وسيتعين عليك تسجيل الدخول مرة أخرى للوصول إلى محفظتك.', 'Your session will be closed and you will have to login again to access your portfolio.')}</p>
@@ -77,8 +78,8 @@ export function DashboardLayout({ activeTab, onTabChange, children, isDarkMode, 
         </div>
       )}
 
-      {/* SIDEBAR */}
-      <aside className={`sticky top-0 h-screen bg-white dark:bg-[#20203A] border-r dark:border-l border-[#E2E8F0] dark:border-[#2D2D50] shadow-xl flex flex-col transition-all duration-300 ${collapsed ? 'w-[72px]' : 'w-[260px]'} z-90`}>
+      {/* SIDEBAR - Hidden on mobile */}
+      <aside className={`hidden lg:flex sticky top-0 h-screen bg-white dark:bg-[#20203A] border-r dark:border-l border-[#E2E8F0] dark:border-[#2D2D50] shadow-xl flex-col transition-all duration-300 ${collapsed ? 'w-[72px]' : 'w-[260px]'} z-90`}>
         {/* Header */}
         <div className="h-[64px] border-b border-[#E2E8F0] dark:border-[#2D2D50] flex items-center px-4 justify-between shrink-0">
           {!collapsed ? (
@@ -162,22 +163,41 @@ export function DashboardLayout({ activeTab, onTabChange, children, isDarkMode, 
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Topbar */}
-        <header className="sticky top-0 z-80 h-[64px] bg-white/80 dark:bg-[#13132A]/80 backdrop-blur-md border-b border-[#E2E8F0] dark:border-[#2D2D50] flex items-center justify-between px-6">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Mobile Header - Fixed on top */}
+        <header className="lg:hidden sticky top-0 z-[100] h-[60px] bg-white dark:bg-[#13132A] border-b border-[#E2E8F0] dark:border-[#2D2D50] flex items-center justify-between px-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg gradient-gold flex items-center justify-center shadow-gold-sm">
+              <span className="font-black text-white text-sm">ر</span>
+            </div>
+            <div className="flex flex-col leading-none">
+              <span className="text-[10px] text-text-muted font-bold">{t('ثروة كابيتال', 'Tharwah Capital')}</span>
+              <span className="text-sm font-black text-text-primary">{tabLabels[activeTab]?.label}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} className="w-8 h-8 flex items-center justify-center rounded-lg bg-secondary text-[10px] font-black">
+              {lang === 'ar' ? 'EN' : 'ع'}
+            </button>
+            <div className="w-9 h-9 rounded-full gradient-gold flex items-center justify-center text-white font-black text-sm shadow-gold-sm border-2 border-white/20">
+              {sessionName[0] || 'A'}
+            </div>
+          </div>
+        </header>
+
+        {/* Desktop Topbar */}
+        <header className="hidden lg:flex sticky top-0 z-80 h-[64px] bg-white/80 dark:bg-[#13132A]/80 backdrop-blur-md border-b border-[#E2E8F0] dark:border-[#2D2D50] items-center justify-between px-6">
           <div className="flex items-center gap-2">
             <span className="text-xs text-text-muted">{t('لوحة المستثمر', 'Investor')}</span>
-            <ChevronLeft className="w-3.5 h-3.5 text-text-muted" />
+            <ChevronLeft className={`w-3.5 h-3.5 text-text-muted ${lang === 'ar' ? 'rotate-180' : ''}`} />
             <span className="text-xs font-black text-gold-deep">{tabLabels[activeTab]?.label}</span>
           </div>
-          <div className="hidden md:flex items-center gap-4">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 mr-4">
               <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
               <span className="text-xs font-bold text-emerald-600">{t('المحفظة نشطة', 'Portfolio Active')}</span>
             </div>
-          </div>
-          <div className="flex items-center gap-4">
             <button onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} className="px-2.5 py-1.5 rounded-lg border border-border-default bg-secondary hover:bg-gold-light text-xs font-black text-text-primary transition-all">
               {lang === 'ar' ? 'English' : 'العربية'}
             </button>
@@ -185,28 +205,34 @@ export function DashboardLayout({ activeTab, onTabChange, children, isDarkMode, 
               <Bell className="w-5 h-5" />
               <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white ring-1 ring-rose-500/20" />
             </button>
-            {notificationsOpen && (
-              <div className="absolute top-14 rtl:left-6 ltr:right-6 w-80 bg-white dark:bg-[#1C1C34] border border-border-light dark:border-[#2D2D50] rounded-xl shadow-2xl p-4 z-95">
-                <h4 className="text-sm font-black border-b border-border-light pb-2 mb-2">{t('الإشعارات الواردة', 'Notifications')}</h4>
-                <div className="space-y-3">
-                  <div className="p-2.5 rounded-lg bg-gold-light/50 border border-border-gold/30">
-                    <p className="text-xs text-text-primary font-bold">{t('مرحباً بك في لوحة تحكم ثروة كابيتال الجديدة', 'Welcome to the new Tharwah Capital Dashboard')}</p>
-                    <span className="text-[10px] text-text-muted">{t('منذ ساعة', '1 hour ago')}</span>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                    <p className="text-xs text-text-primary font-bold">{t('تم استلام دفعة الأرباح الموزعة وإعادة استثمارها', 'Dividend payment received and reinvested')}</p>
-                    <span className="text-[10px] text-text-muted">{t('منذ يومين', '2 days ago')}</span>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </header>
 
-        {/* Content */}
-        <main className="flex-1 p-6 overflow-y-auto space-y-6">
+        {/* Main Content Body */}
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6 pb-24 lg:pb-6 space-y-6">
           {children}
         </main>
+
+        {/* Mobile Bottom Navigation - Fixed on bottom */}
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-[68px] bg-white dark:bg-[#13132A] border-t border-[#E2E8F0] dark:border-[#2D2D50] flex items-center justify-around px-2 z-[100]">
+          {mobileNavItems.map((tab) => {
+            const info = tabLabels[tab];
+            const active = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => onTabChange(tab)}
+                className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-all relative ${
+                  active ? 'text-gold-deep' : 'text-text-muted'
+                }`}
+              >
+                {active && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-gold-primary rounded-b-full" />}
+                <info.icon className={`${active ? 'w-6 h-6 stroke-[2.5]' : 'w-5 h-5'}`} />
+                <span className={`text-[10px] font-bold ${active ? 'font-black' : ''}`}>{info.label}</span>
+              </button>
+            );
+          })}
+        </nav>
       </div>
     </div>
   );

@@ -53,9 +53,11 @@ export function InvestmentsTab({ totalBalance, onExportPDF }: InvestmentsTabProp
         ))}
       </div>
 
-      <Card className="p-6 overflow-hidden">
-        <h3 className="font-black text-base mb-4">{t('أداء وتفاصيل الأصول الفردية', 'Individual Asset Breakdown')}</h3>
-        <div className="overflow-x-auto">
+      <Card className="p-0 overflow-hidden border-none lg:border lg:border-border-default shadow-none lg:shadow-sm">
+        <h3 className="font-black text-base mb-4 hidden lg:block p-6 pb-0">{t('أداء وتفاصيل الأصول الفردية', 'Individual Asset Breakdown')}</h3>
+        
+        {/* Desktop Table View */}
+        <div className="hidden lg:block overflow-x-auto p-6 pt-0">
           <table className="w-full text-sm font-bold text-text-secondary text-right">
             <thead>
               <tr className="border-b text-xs text-text-muted uppercase">
@@ -80,6 +82,32 @@ export function InvestmentsTab({ totalBalance, onExportPDF }: InvestmentsTabProp
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="lg:hidden space-y-3">
+          <h3 className="font-black text-sm px-1 mb-2 text-text-muted uppercase tracking-wider">{t('الأصول الفردية', 'Individual Assets')}</h3>
+          {assets.map((asset, i) => (
+            <div key={i} className="bg-white dark:bg-[#1C1C34] border border-border-light dark:border-[#2D2D50] rounded-xl p-4 shadow-sm">
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex-1">
+                  <h4 className="text-sm font-black text-text-primary mb-1">{asset.name}</h4>
+                  <span className="text-[10px] bg-secondary px-2 py-0.5 rounded text-text-muted font-bold">{asset.type}</span>
+                </div>
+                <span className="text-xs font-black text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-lg">{asset.profit}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-4 pt-3 border-t border-dashed border-border-light">
+                <div>
+                  <span className="text-[10px] text-text-muted block mb-0.5">{t('القيمة الإجمالية', 'Total Value')}</span>
+                  <span className="text-sm font-black text-text-primary font-mono">SAR {asset.val.toLocaleString()}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-text-muted block mb-0.5">{t('نسبة التوزيع', 'Allocation')}</span>
+                  <span className="text-sm font-black text-gold-deep font-mono">{asset.weight}</span>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </Card>
     </div>

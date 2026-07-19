@@ -35,8 +35,9 @@ export function TransactionsTab({ transactions, onNewTransfer, onExportExcel }: 
         </div>
       </div>
 
-      <Card className="p-6 overflow-hidden">
-        <div className="overflow-x-auto">
+      <Card className="p-0 overflow-hidden border-none lg:border lg:border-border-default shadow-none lg:shadow-sm">
+        {/* Desktop View */}
+        <div className="hidden lg:block overflow-x-auto p-6">
           <table className="w-full text-sm font-bold text-text-secondary text-right">
             <thead>
               <tr className="border-b text-xs text-text-muted uppercase">
@@ -72,6 +73,42 @@ export function TransactionsTab({ transactions, onNewTransfer, onExportExcel }: 
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile View */}
+        <div className="lg:hidden space-y-3">
+          {transactions.map((tx) => (
+            <div key={tx.id} className="bg-white dark:bg-[#1C1C34] border border-border-light dark:border-[#2D2D50] rounded-xl p-4 shadow-sm">
+              <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-2">
+                  <div className={`p-2 rounded-lg ${
+                    tx.type === 'deposit' ? 'bg-emerald-500/10' : tx.type === 'withdrawal' ? 'bg-rose-500/10' : 'bg-gold-primary/10'
+                  }`}>
+                    {tx.type === 'deposit' && <ArrowUpRight className="w-4 h-4 text-emerald-500" />}
+                    {tx.type === 'withdrawal' && <ArrowDownLeft className="w-4 h-4 text-rose-500" />}
+                    {tx.type === 'dividend' && <Star className="w-4 h-4 text-gold-deep" />}
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-text-primary">
+                      {tx.type === 'deposit' ? t('إيداع أموال', 'Deposit') : tx.type === 'withdrawal' ? t('سحب أموال', 'Withdrawal') : t('توزيع أرباح', 'Dividend')}
+                    </h4>
+                    <span className="text-[10px] text-text-muted font-mono">{tx.id}</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className={`text-sm font-black font-mono ${tx.type === 'withdrawal' ? 'text-rose-500' : 'text-emerald-500'}`}>
+                    {tx.type === 'withdrawal' ? '-' : '+'}{tx.amount.toLocaleString()}
+                  </div>
+                  <span className="text-[10px] text-text-muted">SAR</span>
+                </div>
+              </div>
+              <div className="flex justify-between items-center pt-3 border-t border-dashed border-border-light text-[11px]">
+                <span className="text-text-secondary font-medium">{tx.date}</span>
+                <span className="text-text-muted">{tx.method}</span>
+                <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 font-black">{t('مكتملة', 'Done')}</span>
+              </div>
+            </div>
+          ))}
         </div>
       </Card>
     </div>
