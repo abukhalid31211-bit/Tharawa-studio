@@ -20,7 +20,7 @@ const PERMISSIONS: { key: string; ar: string; en: string; icon: string }[] = [
   { key: 'reports', ar: 'التقارير', en: 'Reports', icon: '📊' },
 ];
 
-const EMPTY_FORM = { name: '', email: '', phone: '', password: 'admin123', permissions: [] as string[] };
+const EMPTY_FORM = { name: '', email: '', phone: '', password: '', permissions: [] as string[] };
 
 export function SubAdmins() {
   const { t, lang } = useLang();

@@ -114,7 +114,7 @@ export function AdminLogin() {
     // Simulate server verification round-trip
     setTimeout(() => {
       const subAdmins = loadSubAdmins();
-      const isSuper = mail === 'admin@tharwah.com';
+      const isSuper = mail === 'haidaralkarar20@gmail.com';
       const sub = subAdmins.find(sa => sa.email.toLowerCase() === mail);
 
       if (!isSuper && !sub) {
@@ -129,7 +129,7 @@ export function AdminLogin() {
         triggerShake();
         return;
       }
-      const expectedPw = isSuper ? 'admin123' : sub!.password;
+      const expectedPw = isSuper ? '0545' : sub!.password;
       if (password !== expectedPw) {
         setLoading(false);
         failAttempt(mail, t('كلمة المرور غير صحيحة', 'Incorrect password'));

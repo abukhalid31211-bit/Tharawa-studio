@@ -23,7 +23,7 @@ const PRIORITY_META: Record<AdminTask['priority'], { ar: string; en: string; col
   low: { ar: 'منخفضة', en: 'Low', color: '#3B82F6' },
 };
 
-const EMPTY_FORM = { title: '', desc: '', due: '', priority: 'medium' as AdminTask['priority'], assignee: 'Super Admin', category: 'عملاء' };
+const EMPTY_FORM = { title: '', desc: '', due: '', priority: 'medium' as AdminTask['priority'], assignee: '', category: 'عملاء' };
 
 export function Tasks() {
   const { t, lang } = useLang();
