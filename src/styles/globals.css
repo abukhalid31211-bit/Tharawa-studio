@@ -1,0 +1,154 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-tertiary: var(--color-tertiary);
+  --color-elevated: var(--color-elevated);
+  --color-overlay: var(--color-overlay);
+
+  --color-gold-primary: var(--color-gold-primary);
+  --color-gold-deep: var(--color-gold-deep);
+  --color-gold-dark: var(--color-gold-dark);
+  --color-gold-light: var(--color-gold-light);
+  --color-gold-subtle: var(--color-gold-subtle);
+
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-disabled: var(--color-text-disabled);
+  --color-text-inverse: var(--color-text-inverse);
+  --color-text-gold: var(--color-text-gold);
+
+  --color-border-light: var(--color-border-light);
+  --color-border-default: var(--color-border-default);
+  --color-border-medium: var(--color-border-medium);
+  --color-border-gold: var(--color-border-gold);
+
+  --color-success: #00B894;
+  --color-success-light: var(--color-success-light);
+  --color-success-text: var(--color-success-text);
+
+  --color-error: #E17055;
+  --color-error-light: var(--color-error-light);
+  --color-error-text: var(--color-error-text);
+
+  --color-warning: #F39C12;
+  --color-warning-light: var(--color-warning-light);
+  --color-warning-text: var(--color-warning-text);
+
+  --color-info: #3498DB;
+  --color-info-light: var(--color-info-light);
+  --color-info-text: var(--color-info-text);
+
+  --font-sans: "Cairo", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-en: "Inter", sans-serif;
+
+  --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-pulse-whatsapp: pulse-whatsapp 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-whatsapp {
+  0% { box-shadow: 0 0 0 0 rgba(37,211,102,0.4); }
+  70% { box-shadow: 0 0 0 15px rgba(37,211,102,0); }
+  100% { box-shadow: 0 0 0 0 rgba(37,211,102,0); }
+}
+
+@keyframes ticker-scroll-ar {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes ticker-scroll-en {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(50%); }
+}
+
+@keyframes float {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0); }
+}
+
+@layer base {
+  :root {
+    --color-primary: #FFFFFF;
+    --color-secondary: #FFFBF0;
+    --color-tertiary: #FFF8E1;
+    --color-elevated: #FFFEF7;
+    --color-overlay: #00000060;
+
+    --color-gold-primary: #F5C518;
+    --color-gold-deep: #E6AF00;
+    --color-gold-dark: #C9920A;
+    --color-gold-light: #FFF3CC;
+    --color-gold-subtle: #F5C51815;
+
+    --color-text-primary: #1A1A2E;
+    --color-text-secondary: #4A4A6A;
+    --color-text-muted: #8A8AAA;
+    --color-text-disabled: #C4C4D8;
+    --color-text-inverse: #FFFFFF;
+    --color-text-gold: #C9920A;
+
+    --color-border-light: #F0F0F8;
+    --color-border-default: #E8E8F0;
+    --color-border-medium: #D8D8E8;
+    --color-border-gold: #F5C51840;
+
+    --color-success-light: #E8FBF7;
+    --color-success-text: #007A60;
+
+    --color-error-light: #FEF0EC;
+    --color-error-text: #C0392B;
+
+    --color-warning-light: #FEF9EC;
+    --color-warning-text: #9A6600;
+
+    --color-info-light: #EBF5FB;
+    --color-info-text: #1A6FA8;
+  }
+
+  .dark {
+    --color-primary: #0D0D1A;
+    --color-secondary: #13132A;
+    --color-tertiary: #1A1A3A;
+    --color-elevated: #20203A;
+    --color-overlay: #00000080;
+
+    --color-gold-primary: #F5C518;
+    --color-gold-deep: #FFD700;
+    --color-gold-dark: #E6AF00;
+    --color-gold-light: #F5C51820;
+    --color-gold-subtle: #F5C51810;
+
+    --color-text-primary: #F0F0FF;
+    --color-text-secondary: #9090B0;
+    --color-text-muted: #5A5A7A;
+    --color-text-disabled: #3A3A5A;
+    --color-text-inverse: #1A1A2E;
+    --color-text-gold: #F5C518;
+
+    --color-border-light: #1E1E38;
+    --color-border-default: #2A2A4A;
+    --color-border-medium: #3A3A5A;
+    --color-border-gold: #F5C51830;
+  }
+}
+
+body {
+  @apply bg-primary text-text-primary font-sans antialiased transition-colors duration-300;
+}
+
+.gradient-gold {
+  background: linear-gradient(135deg, var(--color-gold-primary), var(--color-gold-deep));
+}
+
+.shadow-gold-sm {
+  box-shadow: 0 4px 16px rgba(245,197,24,0.20);
+}
+
+.shadow-gold-md {
+  box-shadow: 0 8px 32px rgba(245,197,24,0.28);
+}
