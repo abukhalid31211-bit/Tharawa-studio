@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useLang } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/Button';
+import { WhatsappIcon } from '@/components/icons/WhatsappIcon';
 import {
   Megaphone, X, Mail, CheckCircle2, Shield, Award, MapPin, Phone, Clock, Globe,
   Calendar, MessageSquare, Camera, Video, Share2
@@ -73,6 +74,7 @@ export function SiteFooter() {
             </Button>
           </Link>
           <a href="https://wa.me/97141234567" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 border-2 border-white/50 text-white font-bold px-8 py-3.5 rounded-md hover:bg-white/10 transition-colors">
+            <WhatsappIcon className="w-5 h-5 text-white fill-current shrink-0" />
             {t('تواصل عبر واتساب', 'Chat on WhatsApp')}
           </a>
         </div>
