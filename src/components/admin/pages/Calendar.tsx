@@ -293,7 +293,7 @@ export function CalendarPage() {
         <form id="ev-form" onSubmit={saveEvent} className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
             <Field label={t('عنوان الموعد', 'Title')}>
-              <TextInput value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder={t('مثال: استشارة إعادة هيكلة المحفظة', 'e.g. Portfolio restructuring consultation')} />
+              <TextInput value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
             </Field>
           </div>
           <Field label={t('نوع الموعد', 'Type')}>

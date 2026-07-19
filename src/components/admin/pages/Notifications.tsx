@@ -99,7 +99,7 @@ export function Notifications() {
           <PanelHeader icon={Megaphone} iconColor="#C9A84C" title={t('بث إشعار لجميع العملاء', 'Broadcast to All Clients')} subtitle={t('سيظهر الإشعار في لوحة تحكم كل مستثمر فوراً', 'The notification appears instantly in every investor dashboard')} />
           <form onSubmit={sendBroadcast} className="grid grid-cols-2 gap-4 mt-4">
             <Field label={t('العنوان (عربي)', 'Title (Arabic)')}>
-              <TextInput required value={bc.title} onChange={e => setBc({ ...bc, title: e.target.value })} placeholder={t('مثال: اجتماع مجلس الإدارة القادم', 'e.g. Upcoming board meeting')} />
+              <TextInput required value={bc.title} onChange={e => setBc({ ...bc, title: e.target.value })} />
             </Field>
             <Field label={t('العنوان (إنجليزي)', 'Title (English)')}>
               <TextInput value={bc.titleEn} onChange={e => setBc({ ...bc, titleEn: e.target.value })} dir="ltr" />

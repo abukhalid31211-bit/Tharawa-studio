@@ -144,9 +144,9 @@ const OIL_OPTIONS = toOptions(['WTI Crude Oil', 'Brent Crude', 'Natural Gas', 'G
 
 const PERSONAL_FIELDS: FieldConfig[] = [
   { key: 'clientId', labelAr: 'العميل المرتبط *', labelEn: 'Linked Client *', type: 'select' },
-  { key: 'portfolioCode', labelAr: 'كود المحفظة', labelEn: 'Portfolio Code', placeholder: 'PF-007', mono: true },
+  { key: 'portfolioCode', labelAr: 'كود المحفظة', labelEn: 'Portfolio Code', mono: true },
   { key: 'advisor', labelAr: 'المستشار المسؤول', labelEn: 'Responsible Advisor', type: 'select', options: ADVISOR_OPTIONS },
-  { key: 'fullName', labelAr: 'الاسم الكامل', labelEn: 'Full Name', placeholder: 'كما في الهوية' },
+  { key: 'fullName', labelAr: 'الاسم الكامل', labelEn: 'Full Name' },
   { key: 'nationality', labelAr: 'الجنسية', labelEn: 'Nationality', type: 'select', options: NATIONALITY_OPTIONS },
   { key: 'idType', labelAr: 'نوع الهوية', labelEn: 'ID Type', type: 'select', options: ID_TYPE_OPTIONS },
   { key: 'idNumber', labelAr: 'رقم الهوية', labelEn: 'ID Number', mono: true },
@@ -198,12 +198,12 @@ const KYC_FIELDS: FieldConfig[] = [
 ];
 
 const INTERNAL_FIELDS: FieldConfig[] = [
-  { key: 'internalNotes', labelAr: 'ملاحظات داخلية', labelEn: 'Internal Notes', type: 'textarea', placeholder: 'ملاحظات خاصة بالفريق...' },
+  { key: 'internalNotes', labelAr: 'ملاحظات داخلية', labelEn: 'Internal Notes', type: 'textarea' },
   { key: 'specialTerms', labelAr: 'شروط خاصة', labelEn: 'Special Terms', type: 'textarea' },
-  { key: 'feeAdjustment', labelAr: 'تعديل الرسوم', labelEn: 'Fee Adjustment', placeholder: 'مثال: 0.8% بدلاً من 1%' },
+  { key: 'feeAdjustment', labelAr: 'تعديل الرسوم', labelEn: 'Fee Adjustment' },
   { key: 'priorityLevel', labelAr: 'مستوى الأولوية', labelEn: 'Priority Level', type: 'select', options: PRIORITY_OPTIONS },
   { key: 'nextFollowUp', labelAr: 'تاريخ المتابعة التالية', labelEn: 'Next Follow-up Date', type: 'date' },
-  { key: 'tags', labelAr: 'وسوم / Tags', labelEn: 'Tags', placeholder: 'VIP, حساس, عميل قديم...' },
+  { key: 'tags', labelAr: 'وسوم / Tags', labelEn: 'Tags' },
 ];
 
 const DOCUMENTS: { key: DocumentKey; labelAr: string; labelEn: string }[] = [
@@ -1145,7 +1145,7 @@ export function Portfolios() {
           <div className="p-5 space-y-4">
             <h3 className="text-base font-bold text-[#1E293B] dark:text-text-primary">{t('تنبيه انخفاض المحفظة', 'Portfolio Drawdown Alert')}</h3>
             <FlexBare label={t('نسبة الانخفاض التي تُطلق التنبيه', 'Drawdown percentage that triggers alert')}>
-              <input type="number" value={alertForm.threshold} onChange={e => setAlertForm(prev => ({ ...prev, threshold: e.target.value }))} placeholder="15" className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg px-3 py-2.5 text-xs outline-none focus:border-[#0EA5E9]" />
+              <input type="number" value={alertForm.threshold} onChange={e => setAlertForm(prev => ({ ...prev, threshold: e.target.value }))} className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg px-3 py-2.5 text-xs outline-none focus:border-[#0EA5E9]" />
             </FlexBare>
             <FlexBare label={t('قناة التنبيه', 'Alert Channel')}>
               <HybridSelect value={alertForm.channel} onChange={value => setAlertForm(prev => ({ ...prev, channel: value }))} options={CHANNEL_OPTIONS} lang={lang} />

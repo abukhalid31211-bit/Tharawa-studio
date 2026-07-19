@@ -214,7 +214,7 @@ export function Transactions() {
               options={Object.entries(TYPE_STYLE).map(([k, v]) => ({ value: k, label: lang === 'ar' ? v.ar : v.en }))} />
           </Field>
           <Field label={t('المبلغ (ر.س)', 'Amount (SAR)')}>
-            <TextInput required type="number" min="1" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="10,000" dir="ltr" />
+            <TextInput required type="number" min="1" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} dir="ltr" />
           </Field>
           <Field label={t('وسيلة التنفيذ', 'Method')}>
             <SelectBox value={form.method} onChange={e => setForm({ ...form, method: e.target.value })}

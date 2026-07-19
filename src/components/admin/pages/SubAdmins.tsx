@@ -191,14 +191,14 @@ export function SubAdmins() {
         <form id="sa-form" onSubmit={save} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Field label={t('الاسم الكامل', 'Full Name')}>
-              <TextInput required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="أحمد السديري" />
+              <TextInput required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
             </Field>
             <Field label={t('رقم الجوال', 'Phone')}>
-              <TextInput required value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} dir="ltr" placeholder="+966 5x xxx xxxx" />
+              <TextInput required value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} dir="ltr" />
             </Field>
           </div>
           <Field label={t('البريد الإلكتروني (لتسجيل الدخول)', 'Login Email')}>
-            <TextInput required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} dir="ltr" placeholder="name@tharwah.com" />
+            <TextInput required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} dir="ltr" />
           </Field>
           <Field label={t('كلمة المرور المؤقتة', 'Temporary Password')} hint={t('يُنصح بمطالبة المشرف بتغييرها عند أول دخول', 'Recommend requiring a change on first sign-in')}>
             <div className="relative">

@@ -190,7 +190,7 @@ export function Tasks() {
         <form id="task-form" onSubmit={save} className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
             <Field label={t('عنوان المهمة', 'Task Title')}>
-              <TextInput required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder={t('مثال: مراجعة طلبات التسجيل الجديدة', 'e.g. Review new registration requests')} />
+              <TextInput required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
             </Field>
           </div>
           <div className="col-span-2">

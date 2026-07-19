@@ -51,7 +51,7 @@ function LoginPage() {
                 <label className="text-[13px] font-bold text-text-secondary block">{t('البريد الإلكتروني', 'Email Address')}</label>
                 <div className="relative">
                   <Mail className="absolute rtl:right-4 ltr:left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
-                  <input required type="email" placeholder="email@example.com" className="w-full bg-secondary border border-border-default rounded-md py-3 rtl:pr-12 rtl:pl-4 ltr:pl-12 ltr:pr-4 focus:border-gold-primary focus:shadow-[0_0_0_3px_var(--color-gold-subtle)] outline-none transition-all" />
+                  <input required type="email" className="w-full bg-secondary border border-border-default rounded-md py-3 rtl:pr-12 rtl:pl-4 ltr:pl-12 ltr:pr-4 focus:border-gold-primary focus:shadow-[0_0_0_3px_var(--color-gold-subtle)] outline-none transition-all" />
                 </div>
               </div>
             ) : (
@@ -59,7 +59,7 @@ function LoginPage() {
                 <label className="text-[13px] font-bold text-text-secondary block">{t('رقم الحساب', 'Account Number')}</label>
                 <div className="relative">
                   <Hash className="absolute rtl:right-4 ltr:left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
-                  <input required type="text" placeholder="TH-XXXXXXXX" className="w-full bg-secondary border border-border-default rounded-md py-3 rtl:pr-12 rtl:pl-4 ltr:pl-12 ltr:pr-4 focus:border-gold-primary focus:shadow-[0_0_0_3px_var(--color-gold-subtle)] outline-none transition-all font-mono" />
+                  <input required type="text" className="w-full bg-secondary border border-border-default rounded-md py-3 rtl:pr-12 rtl:pl-4 ltr:pl-12 ltr:pr-4 focus:border-gold-primary focus:shadow-[0_0_0_3px_var(--color-gold-subtle)] outline-none transition-all font-mono" />
                 </div>
               </div>
             )}
@@ -71,7 +71,7 @@ function LoginPage() {
               </div>
               <div className="relative">
                 <Lock className="absolute rtl:right-4 ltr:left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
-                <input required type={showPassword ? "text" : "password"} placeholder="••••••••" className="w-full bg-secondary border border-border-default rounded-md py-3 rtl:pr-12 rtl:pl-12 ltr:pl-12 ltr:pr-12 focus:border-gold-primary focus:shadow-[0_0_0_3px_var(--color-gold-subtle)] outline-none transition-all font-mono" />
+                <input required type={showPassword ? "text" : "password"} className="w-full bg-secondary border border-border-default rounded-md py-3 rtl:pr-12 rtl:pl-12 ltr:pl-12 ltr:pr-12 focus:border-gold-primary focus:shadow-[0_0_0_3px_var(--color-gold-subtle)] outline-none transition-all font-mono" />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute rtl:left-4 ltr:right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-gold-primary">
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
