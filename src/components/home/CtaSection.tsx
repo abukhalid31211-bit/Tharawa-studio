@@ -3,6 +3,7 @@ import { useLang } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/Button';
 import { Rocket, Mail, CheckCircle } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
+import { WhatsappIcon } from '@/components/icons/WhatsappIcon';
 
 export function CtaSection() {
   const { t } = useLang();
@@ -33,7 +34,8 @@ export function CtaSection() {
               <Mail className="w-5 h-5" /> {t('احجز استشارتك المجانية الآن', 'Book Your Free Consultation Now')}
             </Button>
           </Link>
-          <a href="https://wa.me/" target="_blank" rel="noreferrer" className="w-full sm:w-auto inline-flex items-center justify-center gap-2 border-2 border-white/50 text-white font-bold px-8 py-4 rounded-md hover:bg-white/10 transition-colors">
+          <a href="https://wa.me/97141234567" target="_blank" rel="noreferrer" className="w-full sm:w-auto inline-flex items-center justify-center gap-2 border-2 border-white/50 text-white font-bold px-8 py-4 rounded-md hover:bg-white/10 transition-colors">
+            <WhatsappIcon className="w-5 h-5 text-white fill-current shrink-0" />
             {t('أو تحدث معنا عبر واتساب', 'Or Chat With Us on WhatsApp')}
           </a>
         </div>
