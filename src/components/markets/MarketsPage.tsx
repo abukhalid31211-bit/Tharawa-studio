@@ -522,7 +522,7 @@ export function MarketsPage() {
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-text-secondary">{t('السعر المستهدف', 'Target Price')}</label>
-                      <input type="number" value={alertPrice} onChange={e => setAlertPrice(e.target.value)} placeholder="0.00" className="w-full bg-secondary border border-border-default rounded-md py-2.5 px-3 text-xs font-bold outline-none focus:border-gold-primary" />
+                      <input type="number" value={alertPrice} onChange={e => setAlertPrice(e.target.value)} className="w-full bg-secondary border border-border-default rounded-md py-2.5 px-3 text-xs font-bold outline-none focus:border-gold-primary" />
                     </div>
                     <Button className="w-full py-3">{t('إضافة التنبيه', 'Add Alert')}</Button>
                   </div>

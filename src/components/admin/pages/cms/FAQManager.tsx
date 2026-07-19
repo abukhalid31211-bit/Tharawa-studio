@@ -147,7 +147,7 @@ export function FAQManager() {
           </Field>
           <div className="grid grid-cols-2 gap-4 items-center">
             <Field label={t('التصنيف', 'Category')}>
-              <TextInput required value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="البداية" list="faq-cats" />
+              <TextInput required value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} list="faq-cats" />
             </Field>
             <div className="pt-5">
               <Toggle checked={form.published} onChange={v => setForm({ ...form, published: v })} label={t('نشر السؤال في الموقع', 'Publish on site')} />

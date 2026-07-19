@@ -120,7 +120,7 @@ export function Team() {
             <TextInput value={form.roleEn} onChange={e => setForm({ ...form, roleEn: e.target.value })} dir="ltr" />
           </Field>
           <Field label={t('سنوات الخبرة', 'Experience')}>
-            <TextInput required value={form.experience} onChange={e => setForm({ ...form, experience: e.target.value })} placeholder="10 أعوام" />
+            <TextInput required value={form.experience} onChange={e => setForm({ ...form, experience: e.target.value })} />
           </Field>
           <Field label={t('الحالة', 'Status')}>
             <SelectBox value={form.status} onChange={e => setForm({ ...form, status: e.target.value as TeamMember['status'] })}

@@ -270,7 +270,6 @@ export function AdminLogin() {
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="admin@tharwah.com"
                 className="w-full bg-[#F1F5F9] border border-[#E2E8F0] rounded-md text-[#1E293B] outline-none transition-colors focus:border-[#0EA5E9] peer"
                 style={{ padding: '12px 40px 12px 16px', fontSize: 14 }}
               />
@@ -294,7 +293,6 @@ export function AdminLogin() {
                 required
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
                 className="w-full bg-[#F1F5F9] border border-[#E2E8F0] rounded-md text-[#1E293B] outline-none transition-colors focus:border-[#0EA5E9]"
                 style={{ padding: '12px 40px 12px 40px', fontSize: 14 }}
               />

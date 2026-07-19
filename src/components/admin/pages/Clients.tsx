@@ -197,16 +197,16 @@ export function Clients() {
       >
         <form id="add-client-form" onSubmit={handleAdd} className="grid grid-cols-2 gap-4">
           <Field label={t('الاسم الكامل (عربي)', 'Full Name (Arabic)')}>
-            <TextInput required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="أحمد الغامدي" />
+            <TextInput required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
           </Field>
           <Field label={t('الاسم (إنجليزي)', 'Name (English)')}>
-            <TextInput value={form.nameEn} onChange={e => setForm({ ...form, nameEn: e.target.value })} placeholder="Ahmed Al-Ghamdi" dir="ltr" />
+            <TextInput value={form.nameEn} onChange={e => setForm({ ...form, nameEn: e.target.value })} dir="ltr" />
           </Field>
           <Field label={t('البريد الإلكتروني', 'Email')}>
-            <TextInput required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="client@example.com" dir="ltr" />
+            <TextInput required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} dir="ltr" />
           </Field>
           <Field label={t('رقم الجوال', 'Phone')}>
-            <TextInput required value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+966 5x xxx xxxx" dir="ltr" />
+            <TextInput required value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} dir="ltr" />
           </Field>
           <Field label={t('الدولة', 'Country')}>
             <SelectBox value={form.country} onChange={e => setForm({ ...form, country: e.target.value })}
@@ -227,7 +227,7 @@ export function Clients() {
               ]} />
           </Field>
           <Field label={t('الرصيد الافتتاحي (ر.س)', 'Opening Balance (SAR)')}>
-            <TextInput type="number" min="0" value={form.initialBalance} onChange={e => setForm({ ...form, initialBalance: e.target.value })} placeholder="0" dir="ltr" />
+            <TextInput type="number" min="0" value={form.initialBalance} onChange={e => setForm({ ...form, initialBalance: e.target.value })} dir="ltr" />
           </Field>
         </form>
       </Modal>

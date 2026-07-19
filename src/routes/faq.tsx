@@ -123,7 +123,7 @@ function FAQPage() {
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder={t('ابحث عن سؤالك هنا... مثلاً: ما الحد الأدنى للاستثمار؟', 'Search for your question here... e.g., minimum investment?')}
+                placeholder={t('ابحث عن سؤالك هنا...', 'Search for your question here...')}
                 className="flex-1 bg-transparent border-none outline-none px-4 text-text-primary placeholder-text-muted"
               />
               {search && <Button size="sm" className="h-8 px-4 rounded-lg">{t('بحث', 'Search')}</Button>}

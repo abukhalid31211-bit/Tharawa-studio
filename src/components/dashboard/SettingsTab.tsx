@@ -30,11 +30,11 @@ export function SettingsTab({ clientPhone, onClientPhoneChange, onShowToast }: S
           <form onSubmit={(e) => { e.preventDefault(); onShowToast(t('تم تحديث كلمة المرور بنجاح', 'Password updated successfully')); }} className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-text-secondary block">{t('كلمة المرور الحالية', 'Current Password')}</label>
-              <input required type="password" placeholder="••••••••" className="w-full bg-secondary border border-border-default rounded-md py-2.5 px-3 focus:border-gold-primary outline-none text-xs font-bold" />
+              <input required type="password" className="w-full bg-secondary border border-border-default rounded-md py-2.5 px-3 focus:border-gold-primary outline-none text-xs font-bold" />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-text-secondary block">{t('كلمة المرور الجديدة', 'New Password')}</label>
-              <input required type="password" placeholder="••••••••" className="w-full bg-secondary border border-border-default rounded-md py-2.5 px-3 focus:border-gold-primary outline-none text-xs font-bold" />
+              <input required type="password" className="w-full bg-secondary border border-border-default rounded-md py-2.5 px-3 focus:border-gold-primary outline-none text-xs font-bold" />
             </div>
             <Button type="submit" className="w-full py-2.5 text-xs font-bold">{t('حفظ وتحديث كلمة المرور', 'Update Password')}</Button>
           </form>

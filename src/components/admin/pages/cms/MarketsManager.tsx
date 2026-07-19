@@ -133,20 +133,20 @@ export function MarketsManager() {
       >
         <form id="mkt-form" onSubmit={save} className="grid grid-cols-2 gap-4">
           <Field label={t('الاسم (عربي)', 'Name (Arabic)')}>
-            <TextInput required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="أرامكو السعودية" />
+            <TextInput required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
           </Field>
           <Field label="Name (English)">
-            <TextInput required value={form.nameEn} onChange={e => setForm({ ...form, nameEn: e.target.value })} dir="ltr" placeholder="Saudi Aramco" />
+            <TextInput required value={form.nameEn} onChange={e => setForm({ ...form, nameEn: e.target.value })} dir="ltr" />
           </Field>
           <Field label={t('الرمز', 'Symbol')}>
-            <TextInput required value={form.symbol} onChange={e => setForm({ ...form, symbol: e.target.value })} dir="ltr" placeholder="2222.SR" />
+            <TextInput required value={form.symbol} onChange={e => setForm({ ...form, symbol: e.target.value })} dir="ltr" />
           </Field>
           <Field label={t('الفئة', 'Category')}>
             <SelectBox value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
               options={CATEGORIES.map(c => ({ value: c.v, label: lang === 'ar' ? c.ar : c.en }))} />
           </Field>
-          <Field label={t('السعر الحالي', 'Current Price')} hint={t('اكتبه بصيغة العرض مثل: $67,240 أو 35.20 ر.س', 'Display format, e.g. $67,240 or SAR 35.20')}>
-            <TextInput required value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} dir="ltr" placeholder="$67,240" />
+          <Field label={t('السعر الحالي', 'Current Price')} hint={t('أدخل السعر بالصيغة التي تريد عرضها', 'Enter the price in the format you want displayed')}>
+            <TextInput required value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} dir="ltr" />
           </Field>
           <Field label={t('التغير اليومي %', 'Daily Change %')}>
             <TextInput required type="number" step="0.1" value={form.change} onChange={e => setForm({ ...form, change: Number(e.target.value) })} dir="ltr" />

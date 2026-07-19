@@ -502,7 +502,6 @@ export function NewsPage() {
                           required
                           value={subName}
                           onChange={e => setSubName(e.target.value)}
-                          placeholder={t('محمد أحمد', 'John Smith')}
                           className="w-full bg-secondary border border-border-default rounded-md py-2.5 px-4 text-xs font-bold outline-none focus:border-gold-primary transition-colors"
                         />
                       </div>
@@ -513,7 +512,6 @@ export function NewsPage() {
                           required
                           value={subEmail}
                           onChange={e => setSubEmail(e.target.value)}
-                          placeholder="email@example.com"
                           className="w-full bg-secondary border border-border-default rounded-md py-2.5 px-4 text-xs font-bold outline-none focus:border-gold-primary transition-colors"
                         />
                       </div>

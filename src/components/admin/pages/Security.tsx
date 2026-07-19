@@ -122,13 +122,13 @@ export function Security() {
           <PanelHeader icon={KeyRound} iconColor="#C9A84C" title={t('كلمة مرور المشرف الرئيسي', 'Super Admin Password')} subtitle={t('تُطبق فوراً على كل جلسات الدخول المستقبلية', 'Applies to all future sign-in sessions')} />
           <form onSubmit={changePassword} className="space-y-4 mt-4">
             <Field label={t('كلمة المرور الحالية', 'Current Password')}>
-              <TextInput required type="password" value={oldPw} onChange={e => setOldPw(e.target.value)} placeholder="••••••••" />
+              <TextInput required type="password" value={oldPw} onChange={e => setOldPw(e.target.value)} />
             </Field>
             <Field label={t('كلمة المرور الجديدة', 'New Password')} hint={t('8 أحرف على الأقل مع رموز وأرقام', 'At least 8 characters with symbols & numbers')}>
-              <TextInput required type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="••••••••" />
+              <TextInput required type="password" value={newPw} onChange={e => setNewPw(e.target.value)} />
             </Field>
             <Field label={t('تأكيد كلمة المرور', 'Confirm Password')}>
-              <TextInput required type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} placeholder="••••••••" />
+              <TextInput required type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
             </Field>
             <PrimaryBtn icon={KeyRound} type="submit" onClick={() => {}}>{t('تغيير كلمة المرور', 'Change Password')}</PrimaryBtn>
           </form>

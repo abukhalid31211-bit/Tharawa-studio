@@ -37,7 +37,7 @@ export function SupportTab({ tickets, newTicketTitle, newTicketMessage, onTicket
           <form onSubmit={onCreateTicket} className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-text-secondary block">{t('موضوع الطلب', 'Subject')}</label>
-              <input required type="text" value={newTicketTitle} onChange={e => onTicketTitleChange(e.target.value)} placeholder={t('مثال: استفسار بخصوص الأرباح', 'e.g. Dividend inquiry')} className="w-full bg-secondary border border-border-default rounded-md py-2 px-3 focus:border-gold-primary outline-none text-xs font-bold" />
+              <input required type="text" value={newTicketTitle} onChange={e => onTicketTitleChange(e.target.value)} className="w-full bg-secondary border border-border-default rounded-md py-2 px-3 focus:border-gold-primary outline-none text-xs font-bold" />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-text-secondary block">{t('رسالتك', 'Message')}</label>

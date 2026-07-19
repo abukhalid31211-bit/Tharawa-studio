@@ -246,7 +246,7 @@ function DashboardPage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-text-secondary block">{t('المبلغ', 'Amount')}</label>
                 <div className="relative">
-                  <input required type="number" min="100" placeholder="0.00" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} className="w-full bg-[#F8FAFC] dark:bg-[#13132A] border border-border-default rounded-md py-3 px-4 focus:border-gold-primary outline-none text-lg font-bold" />
+                  <input required type="number" min="100" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} className="w-full bg-[#F8FAFC] dark:bg-[#13132A] border border-border-default rounded-md py-3 px-4 focus:border-gold-primary outline-none text-lg font-bold" />
                   <span className="absolute rtl:left-4 ltr:right-4 top-1/2 -translate-y-1/2 text-sm text-text-muted font-bold">SAR</span>
                 </div>
               </div>
