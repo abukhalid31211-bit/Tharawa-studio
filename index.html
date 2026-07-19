@@ -3,7 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ثروة كابيتال</title>
+    
+    <!-- Security -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+    
+    <!-- Primary Meta -->
+    <title>ثروة كابيتال | منصة الاستثمار المتوافقة مع الشريعة</title>
+    <meta name="title" content="ثروة كابيتال | منصة الاستثمار المتوافقة مع الشريعة" />
+    <meta name="description" content="منصة استثمارية سعودية متكاملة تجمع بين خبرة المستشارين الماليين وقوة التحليلات الذكية لبناء مستقبلك المالي بثقة وبما يتوافق مع أحكام الشريعة." />
+    <meta name="keywords" content="ثروة كابيتال, استثمار, محافظ استثمارية, أسهم سعودية, تداول, متوافق مع الشريعة, CMA, تاسي" />
+    <meta name="author" content="Tharwah Capital" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#0EA5E9" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://tharwah.com/" />
+    <meta property="og:title" content="ثروة كابيتال | منصة الاستثمار المتوافقة مع الشريعة" />
+    <meta property="og:description" content="منصة استثمارية سعودية متكاملة تجمع بين خبرة المستشارين الماليين وقوة التحليلات الذكية." />
+    <meta property="og:image" content="/android-chrome-512x512.png" />
+    <meta property="og:locale" content="ar_SA" />
+    <meta property="og:locale:alternate" content="en_US" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://tharwah.com/" />
+    <meta property="twitter:title" content="ثروة كابيتال | منصة الاستثمار المتوافقة مع الشريعة" />
+    <meta property="twitter:description" content="منصة استثمارية سعودية متكاملة تجمع بين خبرة المستشارين الماليين وقوة التحليلات الذكية." />
+    <meta property="twitter:image" content="/android-chrome-512x512.png" />
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
@@ -12,13 +41,27 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png">
+    <link rel="manifest" href="/site.webmanifest">
     
-    <!-- Google Fonts: Cairo & JetBrains Mono -->
+    <!-- Preconnect for performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    
+    <!-- Fonts with display=swap for performance -->
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Preload critical -->
+    <link rel="preload" href="/src/styles/globals.css" as="style">
   </head>
   <body>
+    <noscript>
+      <div style="padding: 40px; text-align: center; font-family: Cairo, sans-serif; background: #FFFBF0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <h1 style="color: #C9A84C; font-size: 24px; margin-bottom: 16px;">ثروة كابيتال</h1>
+        <p style="color: #4A4A6A;">يجب تفعيل JavaScript لتشغيل هذه المنصة</p>
+        <p style="color: #8A8AAA; font-size: 14px; margin-top: 8px;">Please enable JavaScript to run this application</p>
+      </div>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

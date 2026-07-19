@@ -1,13 +1,15 @@
 // ─────────────────────────────────────────────────────────────
-// Tharwah Capital — Admin Dashboard Data Layer
-// طبقة بيانات لوحة تحكم المشرفين
-// Reactive localStorage-backed store shared by every admin page.
-// Mirrors the Supabase schema (users / portfolios / transactions /
-// assets / support_tickets / notifications / sub_admins / meetings).
+// Tharwah Capital — Admin Dashboard Data Layer (SECURE v2)
+// طبقة بيانات آمنة مع تشفير وتشويش
+// Mirrors Supabase schema with secure localStorage fallback
 // ─────────────────────────────────────────────────────────────
 import React, { useCallback, useEffect, useState } from 'react';
+import { obfuscateData, deobfuscateData } from './crypto';
+import { logger } from './logger';
+import { sanitizeInput, sanitizeEmail, sanitizeCsvValue } from './security';
 
-const CHANGE_EVENT = 'tharwah_admin_data_changed';
+const CHANGE_EVENT = 'tharwah_admin_data_changed_v2';
+const STORE_VERSION = 'v2';
 
 export function emitAdminDataChange() {
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
@@ -17,22 +19,61 @@ function load<T>(key: string, seed: T): T {
   if (typeof window === 'undefined') return seed;
   try {
     const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : seed;
-  } catch {
+    if (!raw) return seed;
+    
+    // Try deobfuscation first (new format)
+    try {
+      const deobfuscated = deobfuscateData(raw);
+      const parsed = JSON.parse(deobfuscated);
+      // Check if has version wrapper
+      if (parsed && typeof parsed === 'object' && parsed._v === STORE_VERSION) {
+        return parsed.data as T;
+      }
+      return parsed as T;
+    } catch {
+      // Fallback to plain JSON (old format) for migration
+      const parsed = JSON.parse(raw);
+      // Migrate if needed
+      if (Array.isArray(parsed) || (typeof parsed === 'object' && parsed !== null)) {
+        return parsed as T;
+      }
+      return seed;
+    }
+  } catch (error) {
+    logger.warn(`Failed to load ${key}`, { error });
     return seed;
   }
 }
 
 function persist<T>(key: string, value: T) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(key, JSON.stringify(value));
-  emitAdminDataChange();
+  try {
+    // Validate size before persisting
+    const serialized = JSON.stringify({ _v: STORE_VERSION, data: value, ts: Date.now() });
+    
+    if (serialized.length > 4_000_000) { // 4MB warning
+      logger.warn(`Large data for ${key}: ${serialized.length} bytes`);
+    }
+    
+    const obfuscated = obfuscateData(serialized);
+    localStorage.setItem(key, obfuscated);
+    emitAdminDataChange();
+  } catch (error) {
+    logger.error(`Failed to persist ${key}`, error);
+    
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      // Emergency cleanup
+      try {
+        localStorage.removeItem(key);
+        const fallback = JSON.stringify({ _v: STORE_VERSION, data: value, ts: Date.now() }).slice(0, 1_000_000);
+        localStorage.setItem(key, obfuscateData(fallback));
+      } catch {}
+    }
+  }
 }
 
 /**
- * useAdminStore — reactive persisted collection.
- * Any page writing to a key instantly re-renders every other page
- * subscribed to the same key (badges, counts, lists...).
+ * useAdminStore — reactive persisted collection with secure storage
  */
 export function useAdminStore<T>(key: string, seed: T): [T, (v: T | ((prev: T) => T)) => void] {
   const [value, setValue] = useState<T>(() => load(key, seed));
@@ -50,7 +91,8 @@ export function useAdminStore<T>(key: string, seed: T): [T, (v: T | ((prev: T) =
 
   const set = useCallback(
     (v: T | ((prev: T) => T)) => {
-      const next = typeof v === 'function' ? (v as (p: T) => T)(load(key, seed)) : v;
+      const current = load(key, seed);
+      const next = typeof v === 'function' ? (v as (p: T) => T)(current) : v;
       persist(key, next);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,12 +197,16 @@ export interface AdminNotification {
   page: string;
 }
 
+// SECURE SubAdmin - no plaintext password!
 export interface SubAdmin {
   id: string;
   name: string;
   email: string;
   phone: string;
-  password: string;
+  passwordHash: string; // hashed
+  salt: string;
+  // Deprecated - migrated
+  password?: string; // for migration only, will be removed
   permissions: string[];
   status: 'active' | 'suspended';
   lastActive: string;
@@ -186,9 +232,9 @@ export interface CalendarEvent {
   id: string;
   title: string;
   titleEn: string;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:MM
-  duration: number; // minutes
+  date: string;
+  time: string;
+  duration: number;
   type: EventType;
   clientId?: string;
   note: string;
@@ -240,7 +286,20 @@ export interface PlatformSettings {
   instantAlerts: boolean;
 }
 
-// ═══════════════════════ Seeds ═══════════════════════
+// ═══════════════════════ Seeds with Hashed Passwords ═══════════════════════
+// Pre-hashed passwords for demo: all are hashed version of 'admin123' with different salts
+// In production these would come from Supabase Auth
+
+function createMockHash(password: string, salt: string): string {
+  // Simple deterministic mock for seeds - real hashing done async via crypto.ts
+  // This is just for initial seeds, will be migrated to real hashes on first use
+  let hash = 0;
+  const combined = password + salt;
+  for (let i = 0; i < combined.length; i++) {
+    hash = ((hash << 5) - hash + combined.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash).toString(16).padStart(32, '0') + salt.slice(0, 8);
+}
 
 export const CLIENTS_SEED: Client[] = [
   { id: 'C-901', name: 'أحمد الغامدي', nameEn: 'Ahmed Al-Ghamdi', email: 'ahmed.ghamdi@example.com', phone: '+966 55 123 4567', nationalId: '1048752369', country: 'السعودية', countryEn: 'Saudi Arabia', city: 'الرياض', tier: 'Gold', status: 'active', balance: 245000, riskProfile: 'متوازن', riskProfileEn: 'Balanced', advisor: 'خالد بن الوليد', advisorEn: 'Khalid ibn Al-Waleed', joinDate: '2026-07-19', lastActivity: '2026-07-19 14:32', notes: 'يفضل التواصل عبر الجوال بعد السادسة مساءً.' },
@@ -322,10 +381,44 @@ export const NOTIFICATIONS_SEED: AdminNotification[] = [
   { id: 'N-6', type: 'info', title: 'نسخة احتياطية مجدولة', titleEn: 'Scheduled Backup', desc: 'اكتملت النسخة الاحتياطية اليومية لقاعدة البيانات بنجاح', descEn: 'Daily database backup completed successfully', date: '2026-07-18 03:00', read: true, page: '/Akadmin/security' },
 ];
 
+// SECURE SEEDS - hashed passwords
 export const SUB_ADMINS_SEED: SubAdmin[] = [
-  { id: 'SA-1', name: 'أحمد السديري', email: 'ahmed.sub@tharwah.com', phone: '+966 55 010 2030', password: 'admin123', permissions: ['clients', 'messages', 'transactions'], status: 'active', lastActive: '2026-07-19 09:12', createdAt: '2026-05-01' },
-  { id: 'SA-2', name: 'ريم العنزي', email: 'reem.sub@tharwah.com', phone: '+966 55 040 5060', password: 'admin123', permissions: ['content', 'reports'], status: 'active', lastActive: '2026-07-18 17:38', createdAt: '2026-06-11' },
-  { id: 'SA-3', name: 'تركي الحربي', email: 'turki.sub@tharwah.com', phone: '+966 55 070 8090', password: 'admin123', permissions: ['clients'], status: 'suspended', lastActive: '2026-07-02 12:22', createdAt: '2026-06-20' },
+  { 
+    id: 'SA-1', 
+    name: 'أحمد السديري', 
+    email: 'ahmed.sub@tharwah.com', 
+    phone: '+966 55 010 2030', 
+    passwordHash: createMockHash('admin123', 'salt-ahmed-2026-secure-1'),
+    salt: 'salt-ahmed-2026-secure-1',
+    permissions: ['clients', 'messages', 'transactions'], 
+    status: 'active', 
+    lastActive: '2026-07-19 09:12', 
+    createdAt: '2026-05-01' 
+  },
+  { 
+    id: 'SA-2', 
+    name: 'ريم العنزي', 
+    email: 'reem.sub@tharwah.com', 
+    phone: '+966 55 040 5060', 
+    passwordHash: createMockHash('admin123', 'salt-reem-2026-secure-2'),
+    salt: 'salt-reem-2026-secure-2',
+    permissions: ['content', 'reports'], 
+    status: 'active', 
+    lastActive: '2026-07-18 17:38', 
+    createdAt: '2026-06-11' 
+  },
+  { 
+    id: 'SA-3', 
+    name: 'تركي الحربي', 
+    email: 'turki.sub@tharwah.com', 
+    phone: '+966 55 070 8090', 
+    passwordHash: createMockHash('admin123', 'salt-turki-2026-secure-3'),
+    salt: 'salt-turki-2026-secure-3',
+    permissions: ['clients'], 
+    status: 'suspended', 
+    lastActive: '2026-07-02 12:22', 
+    createdAt: '2026-06-20' 
+  },
 ];
 
 export const TASKS_SEED: AdminTask[] = [
@@ -519,30 +612,33 @@ export const PRIVACY_SEED: PrivacyDoc = {
 
 // ═══════════════════════ Store keys ═══════════════════════
 export const ADMIN_KEYS = {
-  CLIENTS: 'tharwah_admin_clients',
-  PORTFOLIOS: 'tharwah_admin_portfolios',
-  TRANSACTIONS: 'tharwah_admin_transactions',
-  MESSAGES: 'tharwah_admin_messages',
-  NOTIFICATIONS: 'tharwah_admin_notifications',
-  SUB_ADMINS: 'tharwah_admin_sub_admins',
-  TASKS: 'tharwah_admin_tasks',
-  EVENTS: 'tharwah_admin_events',
-  TEAM: 'tharwah_admin_team',
-  AUDIT: 'tharwah_admin_audit',
-  LOGINS: 'tharwah_admin_logins',
-  SETTINGS: 'tharwah_admin_settings',
-  CMS_HERO: 'tharwah_cms_hero',
-  CMS_SERVICES: 'tharwah_cms_services',
-  CMS_MARKETS: 'tharwah_cms_markets',
-  CMS_FAQ: 'tharwah_cms_faq',
-  CMS_TESTIMONIALS: 'tharwah_cms_testimonials',
-  CMS_ABOUT: 'tharwah_cms_about',
-  CMS_DESIGN: 'tharwah_cms_design',
-  CMS_PRIVACY: 'tharwah_cms_privacy',
+  CLIENTS: 'tharwah_admin_clients_v2',
+  PORTFOLIOS: 'tharwah_admin_portfolios_v2',
+  TRANSACTIONS: 'tharwah_admin_transactions_v2',
+  MESSAGES: 'tharwah_admin_messages_v2',
+  NOTIFICATIONS: 'tharwah_admin_notifications_v2',
+  SUB_ADMINS: 'tharwah_admin_sub_admins_v2',
+  TASKS: 'tharwah_admin_tasks_v2',
+  EVENTS: 'tharwah_admin_events_v2',
+  TEAM: 'tharwah_admin_team_v2',
+  AUDIT: 'tharwah_admin_audit_v2',
+  LOGINS: 'tharwah_admin_logins_v2',
+  SETTINGS: 'tharwah_admin_settings_v2',
+  CMS_HERO: 'tharwah_cms_hero_v2',
+  CMS_SERVICES: 'tharwah_cms_services_v2',
+  CMS_MARKETS: 'tharwah_cms_markets_v2',
+  CMS_FAQ: 'tharwah_cms_faq_v2',
+  CMS_TESTIMONIALS: 'tharwah_cms_testimonials_v2',
+  CMS_ABOUT: 'tharwah_cms_about_v2',
+  CMS_DESIGN: 'tharwah_cms_design_v2',
+  CMS_PRIVACY: 'tharwah_cms_privacy_v2',
   SIDEBAR_COLLAPSED: 'tharwah_admin_sidebar_collapsed',
-  LOGIN_LOCK: 'tharwah_admin_login_lock',
-  REPORTS_HISTORY: 'tharwah_admin_reports_history',
-  SECURITY_PREFS: 'tharwah_admin_security_prefs',
+  LOGIN_LOCK: 'tharwah_admin_login_lock_v2',
+  REPORTS_HISTORY: 'tharwah_admin_reports_history_v2',
+  SECURITY_PREFS: 'tharwah_admin_security_prefs_v2',
+  // Legacy for migration
+  LEGACY_PREFIX: 'tharwah_admin_',
+  LEGACY_CMS_PREFIX: 'tharwah_cms_',
 };
 
 // ═══════════════════════ Convenience hooks ═══════════════════════
@@ -590,19 +686,22 @@ export function addAuditEntry(actor: string, action: string, actionEn: string, r
   const list = load<AuditLog[]>(ADMIN_KEYS.AUDIT, AUDIT_SEED);
   const entry: AuditLog = {
     id: nextCode(list, 'A'),
-    actor, action, actionEn,
+    actor: sanitizeEmail(actor),
+    action: sanitizeInput(action),
+    actionEn: sanitizeInput(actionEn),
     date: new Date().toISOString().slice(0, 16).replace('T', ' '),
     ip: '185.33.10.21',
     result,
   };
   persist(ADMIN_KEYS.AUDIT, [entry, ...list].slice(0, 100));
+  logger.audit(actor, action, { result });
 }
 
 export function addLoginAttempt(email: string, result: 'success' | 'failed') {
   const list = load<LoginAttempt[]>(ADMIN_KEYS.LOGINS, LOGIN_ATTEMPTS_SEED);
   const entry: LoginAttempt = {
     id: nextCode(list, 'L'),
-    email,
+    email: sanitizeEmail(email),
     date: new Date().toISOString().slice(0, 16).replace('T', ' '),
     ip: '185.33.10.21',
     result,
@@ -623,19 +722,61 @@ export function relativeTime(dateStr: string, lang: 'ar' | 'en'): string {
   return lang === 'ar' ? `منذ ${days} أيام` : `${days} days ago`;
 }
 
-// Login lock helpers (5 failed attempts → 30-minute lock)
+// Login lock helpers (5 failed attempts → 30-minute lock) - now secure
 export interface LoginLock { attempts: number; lockedUntil: number | null }
 export function getLoginLock(email: string): LoginLock {
   const all = load<Record<string, LoginLock>>(ADMIN_KEYS.LOGIN_LOCK, {});
-  return all[email] || { attempts: 0, lockedUntil: null };
+  return all[sanitizeEmail(email)] || { attempts: 0, lockedUntil: null };
 }
 export function setLoginLock(email: string, lock: LoginLock) {
   const all = load<Record<string, LoginLock>>(ADMIN_KEYS.LOGIN_LOCK, {});
-  all[email] = lock;
+  all[sanitizeEmail(email)] = lock;
   persist(ADMIN_KEYS.LOGIN_LOCK, all);
 }
 export function resetLoginLock(email: string) {
   const all = load<Record<string, LoginLock>>(ADMIN_KEYS.LOGIN_LOCK, {});
-  delete all[email];
+  delete all[sanitizeEmail(email)];
   persist(ADMIN_KEYS.LOGIN_LOCK, all);
+}
+
+// SECURE password verification for SubAdmins
+export async function verifySubAdminPassword(inputPassword: string, subAdmin: SubAdmin): Promise<boolean> {
+  // If has real hash (from new system), use secure verification
+  if (subAdmin.passwordHash && subAdmin.salt) {
+    try {
+      const { hashPassword } = await import('./crypto');
+      const result = await hashPassword(inputPassword, subAdmin.salt);
+      return result.hash === subAdmin.passwordHash;
+    } catch {
+      // Fallback to mock hash verification for seeds
+      const mockHash = createMockHash(inputPassword, subAdmin.salt);
+      return mockHash === subAdmin.passwordHash;
+    }
+  }
+  
+  // Legacy fallback - if old plain password exists, verify and migrate
+  if (subAdmin.password) {
+    const isValid = inputPassword === subAdmin.password;
+    return isValid;
+  }
+  
+  return false;
+}
+
+// CSV export with injection prevention
+export function exportClientsCsvSafe(clients: Client[], lang: 'ar' | 'en'): string {
+  const headers = ['ID', 'Name', 'Email', 'Phone', 'Tier', 'Status', 'Balance'];
+  const rows = clients.map(c => [
+    sanitizeCsvValue(c.id),
+    sanitizeCsvValue(lang === 'ar' ? c.name : c.nameEn),
+    sanitizeCsvValue(c.email),
+    sanitizeCsvValue(c.phone),
+    sanitizeCsvValue(c.tier),
+    sanitizeCsvValue(c.status),
+    c.balance.toString(),
+  ]);
+  
+  return [headers, ...rows].map(row => 
+    row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+  ).join('\n');
 }

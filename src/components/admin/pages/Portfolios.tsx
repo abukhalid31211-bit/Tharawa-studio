@@ -616,13 +616,16 @@ export function Portfolios() {
   };
 
   const updateField = (section: FieldSection, key: string, patch: Partial<FlexState>) => {
-    setForm(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        [key]: { value: '', visible: true, ...(prev[section][key] || {}), ...patch },
-      },
-    }));
+    setForm(prev => {
+      const existing = prev[section][key] || { value: '', visible: true };
+      return {
+        ...prev,
+        [section]: {
+          ...prev[section],
+          [key]: { ...existing, ...patch },
+        },
+      };
+    });
   };
 
   const updateNote = (section: string, value: string) => setForm(prev => ({ ...prev, sectionNotes: { ...prev.sectionNotes, [section]: value } }));
@@ -1078,7 +1081,7 @@ export function Portfolios() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
                   <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748B' }} />
                   <YAxis tick={{ fontSize: 11, fill: '#64748B' }} />
-                  <Tooltip formatter={(value: number) => value.toLocaleString()} />
+                  <Tooltip formatter={(value: any) => typeof value === 'number' ? value.toLocaleString() : value} />
                   <Area type="monotone" dataKey="value" stroke="#0EA5E9" strokeWidth={2} fill="url(#portfolioArea)" />
                 </AreaChart>
               </ResponsiveContainer>

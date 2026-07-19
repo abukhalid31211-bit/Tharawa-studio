@@ -1,17 +1,40 @@
 {
   "name": "tharwah-capital",
-  "version": "1.0.0",
-  "description": "",
+  "version": "2.0.0",
+  "description": "Tharwah Capital - Sharia-Compliant Investment Platform - منصة ثروة كابيتال الاستثمارية المتوافقة مع الشريعة",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx --report-unused-disable-directives --max-warnings 50",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "hash-password": "node scripts/hash-password.js",
+    "db:types": "supabase gen types typescript --local > src/types/supabase.ts",
+    "prepare": "husky install || true"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "investment",
+    "portfolio",
+    "sharia-compliant",
+    "fintech",
+    "saudi",
+    "tadawul",
+    "tharwah",
+    "capital"
+  ],
+  "author": "Tharwah Capital Team",
+  "license": "UNLICENSED",
+  "private": true,
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
@@ -38,12 +61,19 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/router-devtools": "^1.167.0",
     "@tanstack/router-plugin": "^1.168.22",
+    "@testing-library/jest-dom": "^6.4.8",
+    "@testing-library/react": "^16.0.1",
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "eslint": "^9.11.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "jsdom": "^25.0.1",
+    "prettier": "^3.3.3",
     "tailwindcss": "^4.3.3",
     "typescript": "~5.9.2",
-    "vite": "^8.1.5"
+    "vite": "^8.1.5",
+    "vitest": "^2.1.3"
   }
 }

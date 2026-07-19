@@ -2,9 +2,14 @@ import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useLang } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Mail, Lock, Eye, EyeOff, LogIn, ArrowLeft, ArrowRight, Shield, Hash } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, LogIn, ArrowLeft, ArrowRight, Shield, Hash, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
-import { saveClientSession } from '@/lib/auth';
+import { createClientSession, saveClientSession } from '@/lib/auth';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { emailSchema } from '@/lib/validations';
+import { sanitizeEmail, loginRateLimiter } from '@/lib/security';
+import { logger } from '@/lib/logger';
+import { env } from '@/lib/env';
 
 export const Route = createFileRoute('/login')({ component: LoginPage });
 
@@ -14,24 +19,134 @@ function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loginMethod, setLoginMethod] = useState<'email' | 'account'>('email');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [error, setError] = useState('');
+  const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+
+    // Rate limiting
+    const identifier = loginMethod === 'email' ? email : accountNumber;
+    const rateCheck = loginRateLimiter.isBlocked(sanitizeEmail(identifier || 'unknown'));
+    if (rateCheck.blocked) {
+      setError(t(`محاولات كثيرة — انتظر ${rateCheck.remainingTime} دقيقة`, `Too many attempts — wait ${rateCheck.remainingTime} min`));
+      return;
+    }
+
+    // Validation
+    if (loginMethod === 'email') {
+      const validation = emailSchema.safeParse(email);
+      if (!validation.success) {
+        setError(t('بريد إلكتروني غير صالح', 'Invalid email'));
+        return;
+      }
+      if (!password || password.length < 1) {
+        setError(t('كلمة المرور مطلوبة', 'Password required'));
+        return;
+      }
+    } else {
+      if (!accountNumber.trim()) {
+        setError(t('رقم الحساب مطلوب', 'Account number required'));
+        return;
+      }
+      if (!password) {
+        setError(t('كلمة المرور مطلوبة', 'Password required'));
+        return;
+      }
+    }
+
     setLoading(true);
-    setTimeout(() => {
-      saveClientSession({ id: '123', name: 'أحمد الغامدي', email: 'ahmed@example.com' });
-      navigate({ to: '/dashboard' });
-    }, 1500);
+
+    try {
+      // Try Supabase Auth if configured
+      if (isSupabaseConfigured()) {
+        if (loginMethod === 'email') {
+          const { data, error: authError } = await supabase.auth.signInWithPassword({
+            email: sanitizeEmail(email),
+            password,
+          });
+
+          if (authError) {
+            throw new Error(authError.message);
+          }
+
+          if (data.user) {
+            const session = await createClientSession(
+              data.user.id,
+              data.user.email || email,
+              data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'Client',
+              data.user.user_metadata?.tier || 'Regular'
+            );
+            saveClientSession(session);
+            loginRateLimiter.recordAttempt(sanitizeEmail(email), true);
+            logger.audit(email, 'client_login_success');
+            navigate({ to: '/dashboard' });
+            return;
+          }
+        }
+      }
+
+      // Fallback to demo mode (for development)
+      if (env.isDevelopment || !isSupabaseConfigured()) {
+        logger.warn('Using DEMO login mode - configure Supabase for production');
+        
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Demo credentials - in production this would be removed
+        const demoEmail = loginMethod === 'email' ? email : 'ahmed@example.com';
+        const demoId = loginMethod === 'account' ? accountNumber.replace(/[^A-Z0-9-]/g, '') : 'C-901';
+        
+        // Simple demo validation: any email with password >= 6 chars
+        if (password.length < 6) {
+          throw new Error(t('كلمة المرور قصيرة جداً', 'Password too short'));
+        }
+
+        const session = await createClientSession(
+          demoId || 'demo-123',
+          demoEmail,
+          demoEmail.split('@')[0] || 'أحمد الغامدي',
+          'Gold'
+        );
+        
+        saveClientSession(session);
+        loginRateLimiter.recordAttempt(sanitizeEmail(demoEmail), true);
+        
+        logger.info('Demo login successful', { email: demoEmail, method: loginMethod });
+        navigate({ to: '/dashboard' });
+        return;
+      }
+
+      throw new Error(t('فشل تسجيل الدخول — تحقق من البيانات', 'Login failed — check credentials'));
+
+    } catch (err: any) {
+      const message = err.message || t('حدث خطأ غير متوقع', 'Unexpected error');
+      setError(message);
+      
+      const identifier = loginMethod === 'email' ? email : accountNumber;
+      loginRateLimiter.recordAttempt(sanitizeEmail(identifier), false);
+      const remaining = loginRateLimiter.isBlocked(sanitizeEmail(identifier));
+      if (!remaining.blocked && remaining.attemptsLeft < 5) {
+        setAttemptsLeft(remaining.attemptsLeft);
+      }
+      
+      logger.warn('Client login failed', { identifier, error: message });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-secondary dark:bg-[#13132A] flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Decor */}
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gold-primary/5 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gold-deep/5 rounded-full blur-[100px] pointer-events-none" />
 
-      <div className="w-full max-w-[480px] relative z-10 animate-in fade-in zoom-in-95 duration-500">
-        <Link to="/" className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-gold-deep transition-colors mb-6 mx-auto w-max">
+      <div className="w-full max-w-[480px] relative z-10">
+        <Link to="/" className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-gold-deep transition-colors mb-6">
           {lang === 'ar' ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
           {t('العودة للموقع الرئيسي', 'Return to Main Website')}
         </Link>
@@ -43,23 +158,60 @@ function LoginPage() {
             </div>
             <h1 className="font-black text-2xl text-text-primary mb-2">{t('تسجيل دخول العميل', 'Client Login')}</h1>
             <p className="text-sm text-text-muted">{t('مرحباً بعودتك لمحفظتك الاستثمارية', 'Welcome back to your investment portfolio')}</p>
+            
+            {!isSupabaseConfigured() && (
+              <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F59E0B]/10 border border-[#F59E0B]/20">
+                <div className="w-2 h-2 rounded-full bg-[#F59E0B] animate-pulse" />
+                <span className="text-[10px] font-bold text-[#F59E0B]">DEMO MODE - Configure Supabase for production</span>
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
+            {error && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-[#FEF0EC] border border-[#FF4560]/20 text-[#FF4560] text-sm">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {attemptsLeft !== null && attemptsLeft > 0 && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-[#FFFBEB] border border-[#F59E0B]/20 text-[#92400E] text-xs">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{t(`تحذير: باقي ${attemptsLeft} محاولات`, `Warning: ${attemptsLeft} attempts left`)}</span>
+              </div>
+            )}
+
             {loginMethod === 'email' ? (
               <div className="space-y-1.5">
                 <label className="text-[13px] font-bold text-text-secondary block">{t('البريد الإلكتروني', 'Email Address')}</label>
                 <div className="relative">
                   <Mail className="absolute rtl:right-4 ltr:left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
-                  <input required type="email" className="w-full bg-secondary border border-border-default rounded-md py-3 rtl:pr-12 rtl:pl-4 ltr:pl-12 ltr:pr-4 focus:border-gold-primary focus:shadow-[0_0_0_3px_var(--color-gold-subtle)] outline-none transition-all" />
+                  <input 
+                    required 
+                    type="email" 
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="ahmed@example.com"
+                    maxLength={254}
+                    className="w-full bg-secondary border border-border-default rounded-md py-3 rtl:pr-12 rtl:pl-4 ltr:pl-12 ltr:pr-4 focus:border-gold-primary focus:shadow-[0_0_0_3px_var(--color-gold-subtle)] outline-none transition-all" 
+                  />
                 </div>
               </div>
             ) : (
-              <div className="space-y-1.5 animate-in fade-in">
+              <div className="space-y-1.5">
                 <label className="text-[13px] font-bold text-text-secondary block">{t('رقم الحساب', 'Account Number')}</label>
                 <div className="relative">
                   <Hash className="absolute rtl:right-4 ltr:left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
-                  <input required type="text" className="w-full bg-secondary border border-border-default rounded-md py-3 rtl:pr-12 rtl:pl-4 ltr:pl-12 ltr:pr-4 focus:border-gold-primary focus:shadow-[0_0_0_3px_var(--color-gold-subtle)] outline-none transition-all font-mono" />
+                  <input 
+                    required 
+                    type="text" 
+                    value={accountNumber}
+                    onChange={e => setAccountNumber(e.target.value)}
+                    placeholder="TH-9842105"
+                    maxLength={20}
+                    className="w-full bg-secondary border border-border-default rounded-md py-3 rtl:pr-12 rtl:pl-4 ltr:pl-12 ltr:pr-4 focus:border-gold-primary focus:shadow-[0_0_0_3px_var(--color-gold-subtle)] outline-none transition-all font-mono" 
+                  />
                 </div>
               </div>
             )}
@@ -71,7 +223,15 @@ function LoginPage() {
               </div>
               <div className="relative">
                 <Lock className="absolute rtl:right-4 ltr:left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
-                <input required type={showPassword ? "text" : "password"} className="w-full bg-secondary border border-border-default rounded-md py-3 rtl:pr-12 rtl:pl-12 ltr:pl-12 ltr:pr-12 focus:border-gold-primary focus:shadow-[0_0_0_3px_var(--color-gold-subtle)] outline-none transition-all font-mono" />
+                <input 
+                  required 
+                  type={showPassword ? "text" : "password"} 
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  maxLength={128}
+                  className="w-full bg-secondary border border-border-default rounded-md py-3 rtl:pr-12 rtl:pl-12 ltr:pl-12 ltr:pr-12 focus:border-gold-primary focus:shadow-[0_0_0_3px_var(--color-gold-subtle)] outline-none transition-all font-mono" 
+                />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute rtl:left-4 ltr:right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-gold-primary">
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -86,6 +246,14 @@ function LoginPage() {
             <Button type="submit" className="w-full py-3.5 gap-2 text-base mt-2" isLoading={loading}>
               <LogIn className="w-5 h-5" /> {t('دخول لمحفظتي', 'Enter My Portfolio')}
             </Button>
+
+            {env.isDevelopment && (
+              <div className="p-3 rounded-lg bg-[#F0FDF4] border border-[#00D97E]/20 text-xs">
+                <p className="font-bold text-[#065F46] mb-1">🔧 Demo Credentials (DEV):</p>
+                <p className="text-[#047857] font-mono">ahmed@example.com / any password (min 6 chars)</p>
+                <p className="text-[10px] text-[#059669] mt-1">⚠️ Set up Supabase for real auth in production</p>
+              </div>
+            )}
           </form>
 
           <div className="flex items-center gap-4 my-6">
