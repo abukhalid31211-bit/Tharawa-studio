@@ -8,7 +8,27 @@ import { createSecureSessionPayload, isSessionExpired, loginRateLimiter, sanitiz
 import { logger } from './logger';
 import { env } from './env';
 
-const SESSION_SECRET = (import.meta.env.VITE_SESSION_SECRET as string) || 'tharwah-dev-secret-change-in-production';
+const SESSION_SECRET = (import.meta.env.VITE_SESSION_SECRET as string) || (import.meta.env.PROD ? '' : 'tharwah-dev-secret-change-in-production');
+
+// JWT token storage — connected to backend (مرن لأي دومين عبر env)
+export function getJwtToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem('tharwah_jwt_token') || null;
+  } catch {
+    return null;
+  }
+}
+
+export function setJwtToken(token: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('tharwah_jwt_token', token);
+}
+
+export function removeJwtToken(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('tharwah_jwt_token');
+}
 
 export interface AdminSession {
   email: string;

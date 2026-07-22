@@ -5,8 +5,9 @@
 import { env } from './env';
 import { logger } from './logger';
 import { sanitizeInput } from './security';
+import { getJwtToken } from './auth';
 
-const BASE_URL = env.apiUrl;
+const BASE_URL = env.apiUrl || import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://api.your-domain.com' : '/api');
 
 interface ApiOptions extends RequestInit {
   params?: Record<string, string>;
@@ -27,7 +28,13 @@ class ApiError extends Error {
 
 async function getAuthToken(): Promise<string | null> {
   try {
-    // Try Supabase session first
+    // New JWT-based auth from backend
+    const jwtToken = getJwtToken();
+    if (jwtToken) return jwtToken;
+  } catch {}
+
+  // Try Supabase session (fallback for legacy)
+  try {
     const { supabase } = await import('./supabase');
     const { data } = await supabase.auth.getSession();
     if (data.session?.access_token) {
@@ -35,9 +42,9 @@ async function getAuthToken(): Promise<string | null> {
     }
   } catch {}
 
-  // Fallback to local token (old system)
+  // Legacy local tokens
   if (typeof window !== 'undefined') {
-    return localStorage.getItem('token') || localStorage.getItem('tharwah-auth-token');
+    return localStorage.getItem('token') || localStorage.getItem('tharwah-auth-token') || null;
   }
   
   return null;
@@ -132,46 +139,42 @@ export async function request<T = any>(endpoint: string, options: ApiOptions = {
 // Typed API methods
 export const api = {
   // Public
-  getHomeData: () => request('/home', { skipAuth: true }),
-  getMarketsTicker: () => request('/markets/ticker', { skipAuth: true }),
-  getContent: (key: string) => request(`/content/${key}`, { skipAuth: true }),
+  getHomeData: () => request('/api/home', { skipAuth: true }),
+  getMarketsTicker: () => request('/api/markets/ticker', { skipAuth: true }),
+  getContent: (key: string) => request(`/api/content/${key}`, { skipAuth: true }),
   
-  // Services
-  getServices: () => request('/services', { skipAuth: true }),
-  getService: (id: string) => request(`/services/${id}`, { skipAuth: true, params: { id: sanitizeInput(id) } }),
-  
-  // Auth (delegated to Supabase)
+  // Auth (delegated to backend JWT)
   login: (email: string, password: string) => 
-    request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }), skipAuth: true }),
+    request('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }), skipAuth: true }),
   
   adminLogin: (email: string, password: string) =>
-    request('/auth/admin/login', { method: 'POST', body: JSON.stringify({ email, password }), skipAuth: true }),
+    request('/api/auth/admin/login', { method: 'POST', body: JSON.stringify({ email, password }), skipAuth: true }),
 
   // Protected - Clients
-  getClients: (params?: Record<string, string>) => request('/clients', { params }),
-  getClient: (id: string) => request(`/clients/${id}`),
-  createClient: (data: any) => request('/clients', { method: 'POST', body: JSON.stringify(data) }),
-  updateClient: (id: string, data: any) => request(`/clients/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteClient: (id: string) => request(`/clients/${id}`, { method: 'DELETE' }),
+  getClients: (params?: Record<string, string>) => request('/api/clients', { params }),
+  getClient: (id: string) => request(`/api/clients/${id}`),
+  createClient: (data: any) => request('/api/clients', { method: 'POST', body: JSON.stringify(data) }),
+  updateClient: (id: string, data: any) => request(`/api/clients/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteClient: (id: string) => request(`/api/clients/${id}`, { method: 'DELETE' }),
 
-  // Protected - Portfolios
-  getPortfolios: (params?: Record<string, string>) => request('/portfolios', { params }),
-  getPortfolio: (id: string) => request(`/portfolios/${id}`),
-  createPortfolio: (data: any) => request('/portfolios', { method: 'POST', body: JSON.stringify(data) }),
-  updatePortfolio: (id: string, data: any) => request(`/portfolios/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deletePortfolio: (id: string) => request(`/portfolios/${id}`, { method: 'DELETE' }),
+  // Protected - Portfolios (need to implement backend routes for these)
+  getPortfolios: (params?: Record<string, string>) => request('/api/portfolios', { params }),
+  getPortfolio: (id: string) => request(`/api/portfolios/${id}`),
+  createPortfolio: (data: any) => request('/api/portfolios', { method: 'POST', body: JSON.stringify(data) }),
+  updatePortfolio: (id: string, data: any) => request(`/api/portfolios/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deletePortfolio: (id: string) => request(`/api/portfolios/${id}`, { method: 'DELETE' }),
 
   // Transactions
-  getTransactions: (params?: Record<string, string>) => request('/transactions', { params }),
-  createTransaction: (data: any) => request('/transactions', { method: 'POST', body: JSON.stringify(data) }),
-  updateTransaction: (id: string, data: any) => request(`/transactions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  getTransactions: (params?: Record<string, string>) => request('/api/transactions', { params }),
+  createTransaction: (data: any) => request('/api/transactions', { method: 'POST', body: JSON.stringify(data) }),
+  updateTransaction: (id: string, data: any) => request(`/api/transactions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
   // Messages
-  getMessages: () => request('/messages'),
-  createMessage: (data: any) => request('/messages', { method: 'POST', body: JSON.stringify(data) }),
+  getMessages: () => request('/api/messages'),
+  createMessage: (data: any) => request('/api/messages', { method: 'POST', body: JSON.stringify(data) }),
   
   // Health
-  healthCheck: () => request('/health', { skipAuth: true }),
+  healthCheck: () => request('/api/health', { skipAuth: true }),
 };
 
 export { ApiError };
