@@ -52,15 +52,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader(key, value);
   });
 
-  // CORS
+  // CORS — مرن من Environment Variables (لا هاردكود نهائياً)
   const origin = req.headers.origin;
-  const allowedOrigins = [
-    'https://tharwah.com',
-    'https://www.tharwah.com',
-    'https://tharwah-capital.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:5173',
-  ];
+  const allowedOriginsRaw = process.env.ALLOWED_ORIGINS || '';
+  const allowedOrigins: string[] = allowedOriginsRaw
+    .split(',')
+    .map((o) => o.trim())
+    .filter((o) => o.length > 0);
+  // إذا لم يُحدد ALLOWED_ORIGINS، نسمح فقط لـ localhost في التطوير
+  if (allowedOrigins.length === 0 && process.env.NODE_ENV !== 'production') {
+    allowedOrigins.push('http://localhost:3000', 'http://localhost:5173');
+  }
   
   if (origin && (allowedOrigins.includes(origin) || origin.includes('localhost'))) {
     res.setHeader('Access-Control-Allow-Origin', origin);

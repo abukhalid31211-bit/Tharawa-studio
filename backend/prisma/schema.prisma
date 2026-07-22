@@ -1,0 +1,263 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/@prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model User {
+  id             String    @id @default(uuid()) @db.Uuid
+  email          String    @unique @db.Text
+  name           String    @db.Text
+  role           String    @default("client") @db.Text
+  tier           String?   @default("Regular") @db.Text
+  status         String    @default("pending") @db.Text
+  portfolio_code String?   @unique @db.Text
+  phone          String?   @db.Text
+  kyc_status     String?   @default("pending") @db.Text
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz
+
+  portfolios     Portfolio[]
+  transactions   Transaction[]
+  tickets        SupportTicket[]
+  notifications  Notification[]
+  meetings       Meeting[]
+  auditLogs      AuditLog[]
+  subAdmin      SubAdmin?
+
+  @@map("users")
+  @@index([email], name: "idx_users_email")
+  @@index([role], name: "idx_users_role")
+  @@index([status], name: "idx_users_status")
+  @@index([tier], name: "idx_users_tier")
+}
+
+model Portfolio {
+  id               String    @id @default(uuid()) @db.Uuid
+  user_id          String    @db.Uuid
+  name             String    @default("المحفظة الرئيسية") @db.Text
+  name_en          String?   @db.Text
+  total_valuation  Decimal   @default(0) @db.Decimal(18, 2)
+  risk_profile     String    @default("balanced") @db.Text
+  currency         String    @default("SAR") @db.Text
+  growth_percent   Decimal?  @default(0) @db.Decimal(5, 2)
+  inception_date   DateTime? @default(now()) @db.Date
+  is_active        Boolean   @default(true)
+  portfolio_data   Json?     @db.JsonB
+  created_at       DateTime  @default(now()) @db.Timestamptz
+  updated_at       DateTime  @default(now()) @updatedAt @db.Timestamptz
+
+  user             User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  transactions     Transaction[]
+  assets           Asset[]
+
+  @@map("portfolios")
+  @@index([user_id], name: "idx_portfolios_user_id")
+  @@index([risk_profile], name: "idx_portfolios_risk")
+  @@index([is_active], name: "idx_portfolios_active")
+}
+
+model Transaction {
+  id             String    @id @default(uuid()) @db.Uuid
+  user_id        String    @db.Uuid
+  portfolio_id   String?   @db.Uuid
+  type           String    @db.Text
+  amount         Decimal   @db.Decimal(18, 2)
+  currency       String    @default("SAR") @db.Text
+  method         String?   @db.Text
+  status         String    @default("pending") @db.Text
+  reference_code String?   @unique @db.Text
+  notes          String?   @db.Text
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz
+
+  user           User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  portfolio      Portfolio? @relation(fields: [portfolio_id], references: [id], onDelete: SetNull)
+
+  @@map("transactions")
+  @@index([user_id], name: "idx_transactions_user_id")
+  @@index([portfolio_id], name: "idx_transactions_portfolio_id")
+  @@index([type], name: "idx_transactions_type")
+  @@index([status], name: "idx_transactions_status")
+  @@index([created_at], name: "idx_transactions_created_at")
+}
+
+model Asset {
+  id              String    @id @default(uuid()) @db.Uuid
+  portfolio_id    String    @db.Uuid
+  symbol          String    @db.Text
+  name            String    @db.Text
+  name_en         String?   @db.Text
+  asset_class     String    @db.Text
+  weight_percent  Decimal   @default(0) @db.Decimal(5, 2)
+  quantity        Decimal   @default(0) @db.Decimal(18, 6)
+  avg_price       Decimal   @default(0) @db.Decimal(18, 6)
+  valuation       Decimal   @default(0) @db.Decimal(18, 2)
+  annual_yield    Decimal?  @default(0) @db.Decimal(5, 2)
+  status          String    @default("active") @db.Text
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz
+
+  portfolio       Portfolio @relation(fields: [portfolio_id], references: [id], onDelete: Cascade)
+
+  @@map("assets")
+  @@index([portfolio_id], name: "idx_assets_portfolio_id")
+  @@index([asset_class], name: "idx_assets_class")
+  @@index([symbol], name: "idx_assets_symbol")
+}
+
+model SupportTicket {
+  id             String    @id @default(uuid()) @db.Uuid
+  user_id        String    @db.Uuid
+  assigned_to    String?   @db.Uuid
+  title          String    @db.Text
+  message        String    @db.Text
+  status         String    @default("pending") @db.Text
+  priority       String    @default("medium") @db.Text
+  reply          String?   @db.Text
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz
+
+  user           User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  assignee       User?     @relation("AssignedTickets", fields: [assigned_to], references: [id], onDelete: SetNull)
+
+  @@map("support_tickets")
+  @@index([user_id], name: "idx_tickets_user_id")
+  @@index([status], name: "idx_tickets_status")
+  @@index([priority], name: "idx_tickets_priority")
+}
+
+model Notification {
+  id             String    @id @default(uuid()) @db.Uuid
+  user_id        String?   @db.Uuid
+  title          String    @db.Text
+  title_en       String?   @db.Text
+  message        String    @db.Text
+  message_en     String?   @db.Text
+  type           String    @default("info") @db.Text
+  is_read        Boolean   @default(false)
+  action_url     String?   @db.Text
+  created_at     DateTime  @default(now()) @db.Timestamptz
+
+  user           User?     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+  @@index([user_id], name: "idx_notifications_user_id")
+  @@index([is_read], name: "idx_notifications_read")
+  @@index([type], name: "idx_notifications_type")
+}
+
+model ContentSection {
+  id             String    @id @default(uuid()) @db.Uuid
+  section_key    String    @unique @db.Text
+  title_ar       String?   @db.Text
+  title_en       String?   @db.Text
+  content_ar     String?   @db.Text
+  content_en     String?   @db.Text
+  content_data   Json?     @db.JsonB
+  is_active      Boolean   @default(true)
+  order_index    Int?      @default(0)
+  updated_by     String?   @db.Uuid
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz
+
+  updater        User?     @relation(fields: [updated_by], references: [id], onDelete: SetNull)
+
+  @@map("content_sections")
+  @@index([section_key], name: "idx_content_key")
+  @@index([is_active], name: "idx_content_active")
+}
+
+model SiteSetting {
+  id           String    @id @default(uuid()) @db.Uuid
+  key          String    @unique @db.Text
+  value        Json?     @db.JsonB
+  description  String?   @db.Text
+  updated_by   String?   @db.Uuid
+  updated_at   DateTime  @default(now()) @db.Timestamptz
+
+  @@map("site_settings")
+}
+
+model SubAdmin {
+  id              String    @id @default(uuid()) @db.Uuid
+  user_id         String    @unique @db.Uuid
+  name            String    @db.Text
+  email           String    @unique @db.Text
+  phone           String?   @db.Text
+  permissions     Json?     @db.JsonB
+  status          String    @default("active") @db.Text
+  last_active_at  DateTime? @db.Timestamptz
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz
+
+  user            User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("sub_admins")
+}
+
+model Meeting {
+  id              String    @id @default(uuid()) @db.Uuid
+  user_id         String    @db.Uuid
+  advisor_id      String?   @db.Uuid
+  advisor_name    String    @db.Text
+  meeting_date    DateTime  @db.Date
+  meeting_time    DateTime  @db.Time(6)
+  duration_minutes Int      @default(60)
+  type            String    @default("consultation") @db.Text
+  status          String    @default("confirmed") @db.Text
+  notes           String?   @db.Text
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz
+
+  user            User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  advisor         User?     @relation("AdvisorMeetings", fields: [advisor_id], references: [id], onDelete: SetNull)
+
+  @@map("meetings")
+  @@index([user_id], name: "idx_meetings_user_id")
+  @@index([meeting_date], name: "idx_meetings_date")
+  @@index([status], name: "idx_meetings_status")
+}
+
+model AuditLog {
+  id             String    @id @default(uuid()) @db.Uuid
+  user_id        String?   @db.Uuid
+  actor_email    String    @db.Text
+  action         String    @db.Text
+  action_en      String?   @db.Text
+  resource_type  String?   @db.Text
+  resource_id    String?   @db.Text
+  details        Json?     @db.JsonB
+  ip_address     String?   @db.Inet
+  user_agent     String?   @db.Text
+  result         String    @default("success") @db.Text
+  created_at     DateTime  @default(now()) @db.Timestamptz
+
+  user           User?     @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+  @@index([actor_email], name: "idx_audit_actor")
+  @@index([action], name: "idx_audit_action")
+  @@index([created_at], name: "idx_audit_created_at")
+  @@index([user_id], name: "idx_audit_user_id")
+}
+
+model LoginAttempt {
+  id             String    @id @default(uuid()) @db.Uuid
+  email          String    @db.Text
+  ip_address     String?   @db.Inet
+  user_agent     String?   @db.Text
+  result         String    @db.Text
+  failure_reason String?   @db.Text
+  created_at     DateTime  @default(now()) @db.Timestamptz
+
+  @@map("login_attempts")
+  @@index([email], name: "idx_login_email")
+  @@index([created_at], name: "idx_login_created_at")
+  @@index([result], name: "idx_login_result")
+}

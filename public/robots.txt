@@ -20,7 +20,7 @@ Allow: /contact$
 Allow: /faq$
 
 # Sitemap
-Sitemap: https://tharwah.com/sitemap.xml
+Sitemap: /sitemap.xml
 
 # Crawl delay
 Crawl-delay: 1

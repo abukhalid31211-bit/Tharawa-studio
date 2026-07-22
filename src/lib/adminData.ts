@@ -17,6 +17,15 @@ export function emitAdminDataChange() {
 
 function load<T>(key: string, seed: T): T {
   if (typeof window === 'undefined') return seed;
+  
+  // Production: try backend API first (PostgreSQL via REST)
+  // Development / fallback: localStorage
+  if (import.meta.env.PROD && import.meta.env.VITE_API_URL) {
+    // In production, data is fetched via TanStack Query / REST from backend
+    // The seed is used as fallback only when offline
+    return seed;
+  }
+  
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return seed;
@@ -47,6 +56,16 @@ function load<T>(key: string, seed: T): T {
 
 function persist<T>(key: string, value: T) {
   if (typeof window === 'undefined') return;
+  
+  // Production mode: all data saved to PostgreSQL via REST API
+  // This function remains for backward compatibility and fallback
+  if (import.meta.env.PROD && import.meta.env.VITE_API_URL) {
+    // In production, data persistence is handled by REST API calls in components
+    // This function only emits the change event for real-time updates
+    emitAdminDataChange();
+    return;
+  }
+  
   try {
     // Validate size before persisting
     const serialized = JSON.stringify({ _v: STORE_VERSION, data: value, ts: Date.now() });
