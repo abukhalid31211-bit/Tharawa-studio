@@ -7,6 +7,7 @@ import {
   Megaphone, X, Mail, CheckCircle2, Shield, Award, MapPin, Phone, Clock, Globe,
   Calendar, MessageSquare, Camera, Video, Share2
 } from 'lucide-react';
+import { useCmsSection } from '@/lib/cms';
 
 export function SiteFooter() {
   const { lang, t } = useLang();
@@ -16,6 +17,7 @@ export function SiteFooter() {
   const [newsletterState, setNewsletterState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [email, setEmail] = useState('');
   const [isPrivacyModalOpen, setPrivacyModalOpen] = useState(false);
+  const { data: privacy } = useCmsSection<any>('privacy', { sections: [] });
 
   const handleCloseAnnouncement = () => {
     setAnnouncementVisible(false);
@@ -248,15 +250,27 @@ export function SiteFooter() {
               </button>
             </div>
             <div className="p-6 overflow-y-auto">
-              <div className="flex flex-col items-center justify-center text-center py-12 text-text-muted">
-                <Shield className="w-16 h-16 mb-4 opacity-50" />
-                <p>{t('سيتم إضافة سياسة الخصوصية قريباً', 'Privacy policy will be added soon')}</p>
-              </div>
+              {privacy.sections?.length ? (
+                <div className="space-y-5 text-start">
+                  <p className="text-sm text-text-secondary leading-relaxed">{lang === 'ar' ? privacy.intro : privacy.introEn}</p>
+                  {[...privacy.sections].sort((a: any, b: any) => a.order - b.order).map((section: any) => (
+                    <section key={section.id}>
+                      <h4 className="font-bold text-text-primary mb-1">{lang === 'ar' ? section.title : section.titleEn}</h4>
+                      <p className="text-sm text-text-secondary leading-relaxed">{lang === 'ar' ? section.body : section.bodyEn}</p>
+                    </section>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center text-center py-12 text-text-muted">
+                  <Shield className="w-16 h-16 mb-4 opacity-50" />
+                  <p>{t('سيتم إضافة سياسة الخصوصية قريباً', 'Privacy policy will be added soon')}</p>
+                </div>
+              )}
             </div>
             <div className="p-4 border-t border-border-light flex items-center justify-between">
               <Button onClick={() => setPrivacyModalOpen(false)} size="sm">{t('إغلاق', 'Close')}</Button>
               <div className="flex items-center gap-1 text-xs text-text-muted">
-                <Calendar className="w-3 h-3" /> {t('آخر تحديث: يناير 2024', 'Last updated: Jan 2024')}
+                <Calendar className="w-3 h-3" /> {privacy.lastUpdated ? `${t('آخر تحديث:', 'Last updated:')} ${privacy.lastUpdated}` : t('آخر تحديث: يناير 2024', 'Last updated: Jan 2024')}
               </div>
             </div>
           </div>

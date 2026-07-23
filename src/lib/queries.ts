@@ -9,16 +9,16 @@ import { api } from './api';
 // Generic realtime invalidation hook
 export function useRealtimeInvalidation(queryKey: any[], eventName: string = 'tharwah_admin_update') {
   const queryClient = useQueryClient();
+  const stableKey = JSON.stringify(queryKey);
 
   useEffect(() => {
-    const handler = (event: CustomEvent) => {
-      console.log(`[Realtime] Invalidating ${JSON.stringify(queryKey)}`, event.detail);
-      queryClient.invalidateQueries({ queryKey });
+    const handler = () => {
+      queryClient.invalidateQueries({ queryKey: JSON.parse(stableKey) });
     };
 
     window.addEventListener(eventName, handler as EventListener);
     return () => window.removeEventListener(eventName, handler as EventListener);
-  }, [queryClient, queryKey, eventName]);
+  }, [queryClient, stableKey, eventName]);
 }
 
 // Auth
@@ -86,6 +86,7 @@ export function usePortfolios(params?: Record<string, string>) {
     staleTime: 30 * 1000,
   });
   useRealtimeInvalidation(['portfolios'], 'tharwah_admin_update');
+  useRealtimeInvalidation(['portfolios'], 'tharwah_client_update');
   return query;
 }
 
@@ -122,6 +123,7 @@ export function useTransactions(params?: Record<string, string>) {
     staleTime: 30 * 1000,
   });
   useRealtimeInvalidation(['transactions'], 'tharwah_admin_update');
+  useRealtimeInvalidation(['transactions'], 'tharwah_client_update');
   return query;
 }
 
@@ -149,6 +151,7 @@ export function useMessages() {
     staleTime: 30 * 1000,
   });
   useRealtimeInvalidation(['messages'], 'tharwah_admin_update');
+  useRealtimeInvalidation(['messages'], 'tharwah_client_update');
   return query;
 }
 
@@ -176,6 +179,7 @@ export function useNotifications() {
     staleTime: 30 * 1000,
   });
   useRealtimeInvalidation(['notifications'], 'tharwah_admin_update');
+  useRealtimeInvalidation(['notifications'], 'tharwah_client_update');
   return query;
 }
 
@@ -203,6 +207,7 @@ export function useMeetings() {
     staleTime: 30 * 1000,
   });
   useRealtimeInvalidation(['meetings'], 'tharwah_admin_update');
+  useRealtimeInvalidation(['meetings'], 'tharwah_client_update');
   return query;
 }
 

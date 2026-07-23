@@ -130,7 +130,7 @@ export function SettingsPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
           {[
             { label: t('إصدار المنصة', 'Platform Version'), value: 'v3.2.1', mono: true },
-            { label: t('قاعدة البيانات', 'Database'), value: 'Supabase PostgreSQL', mono: true },
+            { label: t('قاعدة البيانات', 'Database'), value: 'PostgreSQL', mono: true },
             { label: t('آخر نسخة احتياطية', 'Last Backup'), value: t('اليوم 03:00', 'Today 03:00'), mono: false },
             { label: t('حالة التخزين', 'Storage Status'), value: t('42% مستخدم', '42% used'), mono: false },
           ].map((x, i) => (

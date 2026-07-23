@@ -30,8 +30,10 @@ export const config = {
   // JWT
   jwtSecret: requireEnv('JWT_SECRET', process.env.NODE_ENV === 'production' ? '' : 'dev-jwt-secret-change-in-prod-min-32-chars'),
   jwtRefreshSecret: requireEnv('JWT_REFRESH_SECRET', process.env.NODE_ENV === 'production' ? '' : 'dev-refresh-secret-change-in-prod-min-32-chars'),
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '8h',
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '15m',
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+  jwtIssuer: process.env.JWT_ISSUER || 'tharwah-api',
+  jwtAudience: process.env.JWT_AUDIENCE || 'tharwah-web',
 
   // CORS مرن
   allowedOrigins: (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(o => o.length > 0),
@@ -55,7 +57,6 @@ export const config = {
   // Admin
   superAdminEmail: requireEnv('SUPER_ADMIN_EMAIL', 'admin@your-domain.com').toLowerCase(),
   superAdminPasswordHash: process.env.SUPER_ADMIN_PASSWORD_HASH || '',
-  superAdminSalt: process.env.SUPER_ADMIN_SALT || '',
   // Plain password for seeding only — never use in production
   superAdminPlainPassword: process.env.SUPER_ADMIN_PLAIN_PASSWORD || '',
 
@@ -71,6 +72,7 @@ if (config.nodeEnv === 'production') {
     { key: 'DATABASE_URL', value: config.databaseUrl },
     { key: 'ALLOWED_ORIGINS', value: process.env.ALLOWED_ORIGINS },
     { key: 'SUPER_ADMIN_EMAIL', value: config.superAdminEmail },
+    { key: 'SUPER_ADMIN_PASSWORD_HASH', value: config.superAdminPasswordHash },
   ];
   const missing: string[] = [];
   for (const r of required) {

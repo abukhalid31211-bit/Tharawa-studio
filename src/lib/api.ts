@@ -1,17 +1,18 @@
 /**
  * Tharwah Capital - Secure API Client v3
- * Backend-only integration (No Supabase)
+ * Backend-only integration
  */
 import { env } from './env';
 import { logger } from './logger';
 import { sanitizeInput } from './security';
-import { getJwtToken } from './auth';
+import { getJwtToken, getRefreshToken, setAuthTokens, clearAllSessions } from './auth';
 
 const BASE_URL = env.apiUrl;
 
 interface ApiOptions extends RequestInit {
   params?: Record<string, string>;
   skipAuth?: boolean;
+  authRetried?: boolean;
 }
 
 class ApiError extends Error {
@@ -32,7 +33,7 @@ async function getAuthToken(): Promise<string | null> {
 }
 
 export async function request<T = any>(endpoint: string, options: ApiOptions = {}): Promise<T> {
-  const { params, skipAuth, ...fetchOptions } = options;
+  const { params, skipAuth, authRetried, ...fetchOptions } = options;
 
   let url = `${BASE_URL}${endpoint}`;
   if (params) {
@@ -87,6 +88,20 @@ export async function request<T = any>(endpoint: string, options: ApiOptions = {
     }
 
     if (!response.ok) {
+      if (!skipAuth && !authRetried && data?.code === 'TOKEN_EXPIRED') {
+        const refreshToken = getRefreshToken();
+        if (refreshToken) {
+          const refreshResponse = await fetch(`${BASE_URL}/api/auth/refresh`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken }),
+          });
+          if (refreshResponse.ok) {
+            const refreshed = await refreshResponse.json();
+            setAuthTokens(refreshed.token, refreshed.refreshToken);
+            return request<T>(endpoint, { ...options, authRetried: true });
+          }
+        }
+        clearAllSessions();
+      }
       const message = data?.message || data?.error || `API error: ${response.statusText}`;
       throw new ApiError(message, response.status, data?.code, data);
     }
@@ -118,7 +133,10 @@ export const api = {
   getMarketsTicker: () => request('/api/markets/ticker', { skipAuth: true }),
   getContent: (key: string) => request(`/api/content/${key}`, { skipAuth: true }),
   getAllContent: () => request('/api/content', { skipAuth: false }),
+  updateContent: (key: string, data: any) => request(`/api/content/${key}`, { method: 'PUT', body: JSON.stringify(data) }),
   getSettings: () => request('/api/settings', { skipAuth: true }),
+  getPlatformData: (key: string) => request(`/api/platform-data/${encodeURIComponent(key)}`),
+  updatePlatformData: (key: string, value: unknown) => request(`/api/platform-data/${encodeURIComponent(key)}`, { method: 'PUT', body: JSON.stringify({ value }) }),
 
   // Auth
   login: (email: string, password: string) =>
@@ -127,6 +145,8 @@ export const api = {
     request('/api/auth/admin/login', { method: 'POST', body: JSON.stringify({ email, password }), skipAuth: true }),
   refreshToken: (refreshToken: string) =>
     request('/api/auth/refresh', { method: 'POST', body: JSON.stringify({ refreshToken }), skipAuth: true }),
+  logout: (refreshToken?: string | null) => request('/api/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken }), skipAuth: true }),
+  changePassword: (currentPassword: string, newPassword: string) => request('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   getProfile: () => request('/api/auth/profile'),
 
   // Protected - Clients
@@ -177,7 +197,7 @@ export const api = {
   getAuditLogs: (params?: Record<string, string>) => request('/api/audit', { params }),
 
   // Health
-  healthCheck: () => request('/api/health', { skipAuth: true }),
+  healthCheck: () => request('/health', { skipAuth: true }),
 };
 
 export { ApiError };

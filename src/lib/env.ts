@@ -1,6 +1,6 @@
 /**
  * Tharwah Capital - Environment Validation
- * Backend-only setup — no Supabase
+ * Backend-only setup
  */
 
 const requiredEnvVars = [

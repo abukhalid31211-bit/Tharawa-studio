@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { AuthRequest, authenticateToken, requireRole } from '../middleware/auth.middleware.js';
+import { AuthRequest, authenticateToken, requirePermission } from '../middleware/auth.middleware.js';
 import { prisma } from '../lib/prisma.js';
 import { broadcastAdminUpdate, broadcastClientUpdate } from '../lib/socket.js';
 
@@ -32,11 +32,10 @@ router.get('/', async (req: AuthRequest, res) => {
 
 router.post('/', async (req: AuthRequest, res) => {
   try {
-    const { user_id, advisor_id, advisor_name, meeting_date, meeting_time, duration_minutes, type, notes } = req.body;
-    if (!user_id || !meeting_date || !meeting_time) return res.status(400).json({ error: 'MissingFields' });
-
-    if (req.user!.role === 'client' && user_id !== req.user!.userId) {
-      return res.status(403).json({ error: 'Forbidden' });
+    const { user_id: requestedUserId, advisor_id, advisor_name, meeting_date, meeting_time, duration_minutes, type, notes } = req.body;
+    const user_id = req.user!.role === 'client' ? req.user!.userId : requestedUserId;
+    if (!user_id || !meeting_date || typeof meeting_time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d(?:\s?[AP]M)?$/i.test(meeting_time)) {
+      return res.status(400).json({ error: 'InvalidInput' });
     }
 
     const meeting = await prisma.meeting.create({
@@ -62,7 +61,7 @@ router.post('/', async (req: AuthRequest, res) => {
   }
 });
 
-router.put('/:id', requireRole('super', 'admin', 'sub'), async (req: AuthRequest, res) => {
+router.put('/:id', requirePermission('messages:write'), async (req: AuthRequest, res) => {
   try {
     const { status, advisor_id, advisor_name, notes } = req.body;
     const updated = await prisma.meeting.update({
@@ -86,7 +85,7 @@ router.put('/:id', requireRole('super', 'admin', 'sub'), async (req: AuthRequest
   }
 });
 
-router.delete('/:id', requireRole('super', 'admin', 'sub'), async (req: AuthRequest, res) => {
+router.delete('/:id', requirePermission('messages:write'), async (req: AuthRequest, res) => {
   try {
     const meeting = await prisma.meeting.delete({ where: { id: req.params.id } });
     broadcastAdminUpdate({ action: 'meeting_deleted', meetingId: req.params.id, clientId: meeting.user_id });

@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { useCmsSection } from '@/lib/cms';
 
 // ─── Types ───────────────────────────────────────────────
 type CategoryKey = 'all' | 'stocks' | 'crypto' | 'metals' | 'energy';
@@ -204,6 +205,17 @@ function AlertCard({ asset, index }: { asset: MarketAsset; index: number }) {
 // ─── Main Component ───────────────────────────────────────
 export function MarketsPage() {
   const { t, lang } = useLang();
+  const { data: managedMarkets } = useCmsSection<any>('markets', { markets: [] });
+  const marketAssets = useMemo(() => ASSETS.map(asset => {
+    const managed = managedMarkets.markets?.find((item: any) => item.symbol === asset.symbol);
+    if (!managed) return asset;
+    const numericPrice = Number(String(managed.price).replace(/[^0-9.-]/g, ''));
+    const change = Number(managed.change);
+    return { ...asset, name: managed.name || asset.name, nameEn: managed.nameEn || asset.nameEn,
+      price: Number.isFinite(numericPrice) && numericPrice > 0 ? numericPrice : asset.price,
+      changePercent: Number.isFinite(change) ? change : asset.changePercent,
+      trend: (Number.isFinite(change) ? change : asset.changePercent) >= 0 ? 'up' as const : 'down' as const };
+  }), [managedMarkets]);
   const [activeCategory, setActiveCategory] = useState<CategoryKey>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('name');
@@ -215,7 +227,7 @@ export function MarketsPage() {
   const [alertPrice, setAlertPrice] = useState('');
 
   const filteredAssets = useMemo(() => {
-    let list = activeCategory === 'all' ? ASSETS : ASSETS.filter(a => a.category === activeCategory);
+    let list = activeCategory === 'all' ? marketAssets : marketAssets.filter(a => a.category === activeCategory);
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(a => a.name.toLowerCase().includes(q) || a.nameEn.toLowerCase().includes(q) || a.symbol.toLowerCase().includes(q));
@@ -232,7 +244,7 @@ export function MarketsPage() {
       }
     };
     return [...list].sort(sortFn);
-  }, [activeCategory, searchQuery, sortKey, lang]);
+  }, [activeCategory, searchQuery, sortKey, lang, marketAssets]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -240,12 +252,12 @@ export function MarketsPage() {
   };
 
   const categoryCounts = useMemo(() => ({
-    all: ASSETS.length,
-    stocks: ASSETS.filter(a => a.category === 'stocks').length,
-    crypto: ASSETS.filter(a => a.category === 'crypto').length,
-    metals: ASSETS.filter(a => a.category === 'metals').length,
-    energy: ASSETS.filter(a => a.category === 'energy').length,
-  }), []);
+    all: marketAssets.length,
+    stocks: marketAssets.filter(a => a.category === 'stocks').length,
+    crypto: marketAssets.filter(a => a.category === 'crypto').length,
+    metals: marketAssets.filter(a => a.category === 'metals').length,
+    energy: marketAssets.filter(a => a.category === 'energy').length,
+  }), [marketAssets]);
 
   const categories: { id: CategoryKey; label: string; labelEn: string; icon: React.ElementType }[] = [
     { id: 'all', label: 'الكل', labelEn: 'All', icon: LayoutGrid },
@@ -265,8 +277,8 @@ export function MarketsPage() {
   ];
 
   const topAssets = useMemo(() => {
-    return ASSETS.filter(a => ['crypto', 'metals', 'energy', 'stocks'].includes(a.category)).slice(0, 4);
-  }, []);
+    return marketAssets.filter(a => ['crypto', 'metals', 'energy', 'stocks'].includes(a.category)).slice(0, 4);
+  }, [marketAssets]);
 
   return (
     <div className="w-full">
@@ -324,7 +336,7 @@ export function MarketsPage() {
         <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-tertiary to-transparent z-10" />
         <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-tertiary to-transparent z-10" />
         <div className={`flex items-center h-full gap-8 whitespace-nowrap ${lang === 'ar' ? 'animate-ticker-scroll-ar' : 'animate-ticker-scroll-en'}`} style={{ animationDuration: '30s' }}>
-          {[...ASSETS, ...ASSETS].map((a, i) => (
+          {[...marketAssets, ...marketAssets].map((a, i) => (
             <a key={i} href={`#asset-${a.id}`} className="flex items-center gap-2 text-sm shrink-0 hover:text-gold-deep transition-colors">
               <span className="font-bold text-text-primary">{lang === 'ar' ? a.name : a.nameEn}</span>
               <span className="font-mono text-text-secondary">{a.currency === 'ر.س' ? a.price.toFixed(2) : `${a.currency}${a.price.toLocaleString()}`}</span>
@@ -434,7 +446,7 @@ export function MarketsPage() {
 
             {/* Footer */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-5 py-4 border-t border-border-light text-xs text-text-muted">
-              <span>{t(`يُعرض ${filteredAssets.length} أصل من إجمالي ${ASSETS.length}`, `Showing ${filteredAssets.length} assets out of ${ASSETS.length} total`)}</span>
+              <span>{t(`يُعرض ${filteredAssets.length} أصل من إجمالي ${marketAssets.length}`, `Showing ${filteredAssets.length} assets out of ${marketAssets.length} total`)}</span>
               <span className="flex items-center gap-1 text-[11px]">
                 <AlertTriangle className="w-3 h-3 text-warning" />
                 {t('الأسعار للأغراض المعلوماتية فقط وقد تكون متأخرة 15 دقيقة. لا تُعدّ نصيحة استثمارية', 'Prices are for informational purposes only and may be delayed by 15 minutes. Not investment advice')}

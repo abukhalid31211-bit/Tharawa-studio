@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-// AdminLogin - SECURE v3 - Backend JWT, no Supabase
+// AdminLogin - SECURE v3 - Backend JWT
 // ─────────────────────────────────────────────────────────────
 import React, { useEffect, useRef, useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, AlertTriangle, Shield, ShieldAlert } from 'lucide-react';
@@ -145,7 +145,8 @@ export function AdminLogin() {
       if (response.user && response.token) {
         setAuthTokens(response.token, response.refreshToken);
         const role = response.user.role as 'super' | 'sub' | 'admin';
-        const session = await createAdminSession(mail, response.user.name, role, []);
+        const permissions = Array.isArray(response.user.permissions) ? response.user.permissions : [];
+        const session = await createAdminSession(mail, response.user.name, role, permissions);
         saveAdminSession(session);
         resetLoginLock(mail);
         recordLoginAttempt(mail, true);

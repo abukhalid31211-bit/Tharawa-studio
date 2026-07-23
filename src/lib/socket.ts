@@ -4,7 +4,7 @@
  */
 import { io, Socket } from 'socket.io-client';
 import { env } from './env';
-import { getClientSession, getAdminSession } from './auth';
+import { getClientSession, getAdminSession, getJwtToken } from './auth';
 
 let socket: Socket | null = null;
 
@@ -19,6 +19,7 @@ export function connectSocket(): Socket {
     reconnectionAttempts: 10,
     reconnectionDelay: 1000,
     timeout: 20000,
+    auth: { token: getJwtToken() },
   });
 
   socket.on('connect', () => {
@@ -60,14 +61,20 @@ export function connectSocket(): Socket {
 export function authenticateSocket(): void {
   if (!socket) return;
 
+  const token = getJwtToken();
+  const currentToken = (socket.auth as { token?: string })?.token;
+  if (token && token !== currentToken) {
+    socket.auth = { token };
+    socket.disconnect().connect();
+    return;
+  }
+
   const clientSession = getClientSession();
   const adminSession = getAdminSession();
 
   if (clientSession) {
-    socket.emit('authenticate', { userId: clientSession.id, role: clientSession.role });
-    socket.emit('subscribe:client_updates', clientSession.id);
+    socket.emit('subscribe:client_updates');
   } else if (adminSession) {
-    socket.emit('authenticate', { userId: adminSession.email, role: adminSession.role });
     socket.emit('subscribe:admin_updates');
   }
 }

@@ -1,12 +1,12 @@
 import { Router } from 'express';
-import { AuthRequest, authenticateToken, requireRole } from '../middleware/auth.middleware.js';
+import { AuthRequest, authenticateToken, requirePermission } from '../middleware/auth.middleware.js';
 import { prisma } from '../lib/prisma.js';
 import { broadcastPublicUpdate } from '../lib/socket.js';
 
 const router = Router();
 
 // Public: get settings
-router.get('/', async (req, res) => {
+router.get('/', async (_req, res) => {
   try {
     const settings = await prisma.siteSetting.findMany();
     const result: Record<string, any> = {};
@@ -31,7 +31,7 @@ router.get('/:key', async (req, res) => {
 
 router.use(authenticateToken);
 
-router.put('/:key', requireRole('super', 'admin', 'sub'), async (req: AuthRequest, res) => {
+router.put('/:key', requirePermission('content:write'), async (req: AuthRequest, res) => {
   try {
     const { value, description } = req.body;
     const updated = await prisma.siteSetting.upsert({

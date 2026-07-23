@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { AuthRequest, authenticateToken, requireRole } from '../middleware/auth.middleware.js';
+import { AuthRequest, authenticateToken, requirePermission } from '../middleware/auth.middleware.js';
 import { prisma } from '../lib/prisma.js';
 import { broadcastAdminUpdate, broadcastClientUpdate } from '../lib/socket.js';
 
@@ -50,12 +50,16 @@ router.get('/:id', async (req: AuthRequest, res) => {
 // Client can create pending transaction (deposit/withdrawal request)
 router.post('/', async (req: AuthRequest, res) => {
   try {
-    const { user_id, portfolio_id, type, amount, currency, method, notes } = req.body;
-    if (!user_id || !type || !amount) return res.status(400).json({ error: 'MissingFields' });
-
-    // Client can only create for themselves
-    if (req.user!.role === 'client' && user_id !== req.user!.userId) {
-      return res.status(403).json({ error: 'Forbidden' });
+    const { user_id: requestedUserId, portfolio_id, type, amount, currency, method, notes } = req.body;
+    const user_id = req.user!.role === 'client' ? req.user!.userId : requestedUserId;
+    const numericAmount = Number(amount);
+    const allowedTypes = ['deposit', 'withdraw', 'withdrawal', 'buy', 'sell', 'transfer'];
+    if (!user_id || !allowedTypes.includes(type) || !Number.isFinite(numericAmount) || numericAmount <= 0 || numericAmount > 100_000_000) {
+      return res.status(400).json({ error: 'InvalidInput' });
+    }
+    if (portfolio_id) {
+      const ownedPortfolio = await prisma.portfolio.findFirst({ where: { id: portfolio_id, user_id } });
+      if (!ownedPortfolio) return res.status(400).json({ error: 'PortfolioOwnershipMismatch' });
     }
 
     const transaction = await prisma.transaction.create({
@@ -63,7 +67,7 @@ router.post('/', async (req: AuthRequest, res) => {
         user_id,
         portfolio_id: portfolio_id || null,
         type,
-        amount: parseFloat(amount),
+        amount: numericAmount,
         currency: currency || 'SAR',
         method: method || '',
         status: 'pending',
@@ -82,7 +86,7 @@ router.post('/', async (req: AuthRequest, res) => {
 });
 
 // Admin updates transaction status
-router.put('/:id', requireRole('super', 'admin', 'sub'), async (req: AuthRequest, res) => {
+router.put('/:id', requirePermission('transactions:write'), async (req: AuthRequest, res) => {
   try {
     const { status, notes } = req.body;
     const updated = await prisma.transaction.update({

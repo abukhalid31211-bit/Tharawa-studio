@@ -3,12 +3,13 @@ import { useLang } from '@/contexts/LanguageContext';
 import { Card } from '@/components/ui/Card';
 import { Star, ChevronRight, ChevronLeft, Quote } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useCmsSection } from '@/lib/cms';
 
 export function Testimonials() {
   const { t, lang } = useLang();
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const testimonials = [
+  const fallbackTestimonials = [
     {
       nameAr: 'أحمد الغامدي',
       nameEn: 'Ahmed Al-Ghamdi',
@@ -40,6 +41,13 @@ export function Testimonials() {
       avatar: 'ف'
     }
   ];
+  const { data: managedTestimonials } = useCmsSection<any[]>('testimonials', []);
+  const testimonials = managedTestimonials.length
+    ? managedTestimonials.filter(item => item.status === 'approved').map(item => ({
+        nameAr: item.name, nameEn: item.nameEn, roleAr: item.role, roleEn: item.roleEn,
+        textAr: item.text, textEn: item.textEn, rating: item.rating, avatar: item.name?.charAt(0) || 'ث',
+      }))
+    : fallbackTestimonials;
 
   const next = () => setActiveIndex((prev) => (prev + 1) % testimonials.length);
   const prev = () => setActiveIndex((prev) => (prev - 1 + testimonials.length) % testimonials.length);

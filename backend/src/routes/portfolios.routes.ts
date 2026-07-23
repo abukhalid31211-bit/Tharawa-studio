@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { AuthRequest, authenticateToken, requireRole } from '../middleware/auth.middleware.js';
+import { AuthRequest, authenticateToken, requirePermission, requireRole } from '../middleware/auth.middleware.js';
 import { prisma } from '../lib/prisma.js';
 import { broadcastAdminUpdate, broadcastClientUpdate } from '../lib/socket.js';
 
@@ -42,7 +42,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
   try {
     const portfolio = await prisma.portfolio.findUnique({
       where: { id: req.params.id },
-      include: { user: true, assets: true, transactions: { take: 20, orderBy: { created_at: 'desc' } } },
+      include: { user: { select: { id: true, name: true, email: true } }, assets: true, transactions: { take: 20, orderBy: { created_at: 'desc' } } },
     });
     if (!portfolio) return res.status(404).json({ error: 'NotFound' });
 
@@ -57,7 +57,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 });
 
 // Create portfolio (admin/super only)
-router.post('/', requireRole('super', 'admin', 'sub'), async (req: AuthRequest, res) => {
+router.post('/', requirePermission('portfolios:write'), async (req: AuthRequest, res) => {
   try {
     const { user_id, name, name_en, total_valuation, risk_profile, currency, growth_percent, portfolio_data, assets } = req.body;
     if (!user_id || !name) return res.status(400).json({ error: 'MissingFields' });
@@ -76,7 +76,7 @@ router.post('/', requireRole('super', 'admin', 'sub'), async (req: AuthRequest, 
           create: assets || [],
         },
       },
-      include: { assets: true, user: true },
+      include: { assets: true, user: { select: { id: true, name: true, email: true } } },
     });
 
     broadcastAdminUpdate({ action: 'portfolio_created', portfolioId: portfolio.id, clientId: portfolio.user_id });
@@ -89,7 +89,7 @@ router.post('/', requireRole('super', 'admin', 'sub'), async (req: AuthRequest, 
 });
 
 // Update portfolio
-router.put('/:id', requireRole('super', 'admin', 'sub'), async (req: AuthRequest, res) => {
+router.put('/:id', requirePermission('portfolios:write'), async (req: AuthRequest, res) => {
   try {
     const { name, name_en, total_valuation, risk_profile, currency, growth_percent, portfolio_data } = req.body;
     const updated = await prisma.portfolio.update({
@@ -103,7 +103,7 @@ router.put('/:id', requireRole('super', 'admin', 'sub'), async (req: AuthRequest
         ...(growth_percent !== undefined && { growth_percent: parseFloat(growth_percent) }),
         ...(portfolio_data !== undefined && { portfolio_data }),
       },
-      include: { assets: true, user: true },
+      include: { assets: true, user: { select: { id: true, name: true, email: true } } },
     });
 
     broadcastAdminUpdate({ action: 'portfolio_updated', portfolioId: updated.id, clientId: updated.user_id });
@@ -132,16 +132,17 @@ router.delete('/:id', requireRole('super'), async (req: AuthRequest, res) => {
 });
 
 // Add/Update asset in portfolio
-router.post('/:id/assets', requireRole('super', 'admin', 'sub'), async (req: AuthRequest, res) => {
+router.post('/:id/assets', requirePermission('portfolios:write'), async (req: AuthRequest, res) => {
   try {
     const portfolio = await prisma.portfolio.findUnique({ where: { id: req.params.id } });
     if (!portfolio) return res.status(404).json({ error: 'NotFound' });
 
+    const { symbol, name, name_en, asset_class, weight_percent, quantity, avg_price, valuation, annual_yield, status } = req.body;
+    if (!symbol || !name || !asset_class) return res.status(400).json({ error: 'MissingFields' });
     const asset = await prisma.asset.create({
-      data: {
-        portfolio_id: req.params.id,
-        ...req.body,
-      },
+      data: { portfolio_id: req.params.id, symbol, name, name_en, asset_class,
+        weight_percent: Number(weight_percent || 0), quantity: Number(quantity || 0), avg_price: Number(avg_price || 0),
+        valuation: Number(valuation || 0), annual_yield: Number(annual_yield || 0), status: status || 'active' },
     });
 
     broadcastAdminUpdate({ action: 'portfolio_asset_added', portfolioId: req.params.id, assetId: asset.id });
