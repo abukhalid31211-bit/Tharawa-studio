@@ -30,15 +30,6 @@
       ]
     },
     {
-      "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-store, max-age=0"
-        }
-      ]
-    },
-    {
       "source": "/assets/(.*)",
       "headers": [
         {
@@ -49,10 +40,6 @@
     }
   ],
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/v1/$1"
-    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

@@ -1,103 +1,23 @@
 // ─────────────────────────────────────────────────────────────
-// AdminLogin - SECURE v2 - No hardcoded credentials
+// AdminLogin - SECURE v3 - Backend JWT, no Supabase
 // ─────────────────────────────────────────────────────────────
 import React, { useEffect, useRef, useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, AlertTriangle, Shield, ShieldAlert } from 'lucide-react';
-import { saveAdminSession, createAdminSession, checkLoginRateLimit, recordLoginAttempt } from '@/lib/auth';
+import { saveAdminSession, createAdminSession, checkLoginRateLimit, recordLoginAttempt, setAuthTokens } from '@/lib/auth';
+import { api } from '@/lib/api';
 import { useNavigate } from '@tanstack/react-router';
 import { useLang } from '@/contexts/LanguageContext';
 import {
-  ADMIN_KEYS,
-  SubAdmin,
   getLoginLock,
   setLoginLock,
   resetLoginLock,
-  addAuditEntry,
-  addLoginAttempt,
-  verifySubAdminPassword,
 } from '@/lib/adminData';
-import { env } from '@/lib/env';
 import { emailSchema } from '@/lib/validations';
 import { sanitizeEmail } from '@/lib/security';
 import { logger } from '@/lib/logger';
-import { hashPassword } from '@/lib/crypto';
 
 const MAX_ATTEMPTS = 5;
 const LOCK_MINUTES = 30;
-
-function loadSubAdmins(): SubAdmin[] {
-  try {
-    const raw = localStorage.getItem(ADMIN_KEYS.SUB_ADMINS);
-    if (!raw) {
-      // Try legacy
-      const legacy = localStorage.getItem('tharwah_admin_sub_admins');
-      if (legacy) {
-        try {
-          return JSON.parse(legacy);
-        } catch {}
-      }
-      return [];
-    }
-    // Try deobfuscation
-    try {
-      const { deobfuscateData } = require('@/lib/crypto');
-      const deob = deobfuscateData(raw);
-      const parsed = JSON.parse(deob);
-      if (parsed && parsed._v) return parsed.data;
-      return parsed;
-    } catch {
-      return JSON.parse(raw);
-    }
-  } catch {
-    return [];
-  }
-}
-
-// Super admin credentials from ENV - NO hardcoded fallback in production
-function getSuperAdminConfig(): { email: string; passwordHash: string; salt: string } | null {
-  const email = env.superAdminEmail || import.meta.env.VITE_SUPER_ADMIN_EMAIL;
-  const password = import.meta.env.VITE_SUPER_ADMIN_PASSWORD;
-  const passwordHash = import.meta.env.VITE_SUPER_ADMIN_PASSWORD_HASH;
-  const salt = import.meta.env.VITE_SUPER_ADMIN_SALT;
-
-  // In development, allow demo account via ENV only, not hardcoded in code
-  if (email && (passwordHash && salt)) {
-    return { email: email.toLowerCase(), passwordHash, salt };
-  }
-
-  // For demo/development only - if no ENV set, use secure generated demo that warns
-  if (env.isDevelopment && !email) {
-    // This will be replaced by env vars in production
-    // Hash of 'Tharwah@2026!Secure' with salt 'demo-salt-not-for-prod'
-    return {
-      email: 'admin@tharwah.com',
-      passwordHash: 'demo-hash-will-be-replaced',
-      salt: 'demo-salt',
-    };
-  }
-
-  return null;
-}
-
-async function verifySuperAdminPassword(inputPassword: string, config: { passwordHash: string; salt: string }): Promise<boolean> {
-  // If using demo hash marker, allow specific demo password in dev only
-  if (config.passwordHash === 'demo-hash-will-be-replaced') {
-    if (!env.isDevelopment) return false;
-    // In dev, allow admin123 for demo but log warning
-    if (inputPassword === 'admin123' || inputPassword === 'Tharwah@2026!Secure') {
-      logger.warn('Using DEMO super admin password - set VITE_SUPER_ADMIN_EMAIL and VITE_SUPER_ADMIN_PASSWORD_HASH in production');
-      return true;
-    }
-    return false;
-  }
-
-  try {
-    const result = await hashPassword(inputPassword, config.salt);
-    return result.hash === config.passwordHash;
-  } catch {
-    return false;
-  }
-}
 
 export function AdminLogin() {
   const { t, lang } = useLang();
@@ -120,8 +40,7 @@ export function AdminLogin() {
     metaRobots.name = 'robots';
     metaRobots.content = 'noindex, nofollow, noarchive';
     document.head.appendChild(metaRobots);
-    
-    // Security headers via meta (additional to server headers)
+
     const metaCSP = document.createElement('meta');
     metaCSP.httpEquiv = 'Content-Security-Policy';
     metaCSP.content = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:;";
@@ -130,7 +49,7 @@ export function AdminLogin() {
     const metaViewport = document.querySelector('meta[name="viewport"]');
     const prevViewport = metaViewport?.getAttribute('content') || '';
     metaViewport?.setAttribute('content', 'width=1280');
-    
+
     logger.info('Admin login page loaded', { lang });
 
     return () => {
@@ -175,7 +94,6 @@ export function AdminLogin() {
       setAttemptsLeft(MAX_ATTEMPTS - attempts);
       setError(message);
     }
-    addLoginAttempt(mail, 'failed');
     recordLoginAttempt(mail, false);
     triggerShake();
   };
@@ -184,7 +102,6 @@ export function AdminLogin() {
     e.preventDefault();
     if (loading) return;
 
-    // Validation
     const emailValidation = emailSchema.safeParse(email.trim());
     if (!emailValidation.success) {
       setError(t('بريد إلكتروني غير صالح', 'Invalid email address'));
@@ -200,7 +117,6 @@ export function AdminLogin() {
 
     const mail = sanitizeEmail(email.trim());
 
-    // Rate limiting check
     const rateLimit = checkLoginRateLimit(mail);
     if (!rateLimit.allowed) {
       setLockedUntil(Date.now() + (rateLimit.remainingTime || 30) * 60000);
@@ -224,84 +140,26 @@ export function AdminLogin() {
     setError('');
 
     try {
-      const subAdmins = loadSubAdmins();
-      const superConfig = getSuperAdminConfig();
-      
-      const isSuperCandidate = superConfig && mail === superConfig.email.toLowerCase();
-      const sub = subAdmins.find(sa => sa.email.toLowerCase() === mail);
+      const response = await api.adminLogin(mail, password);
 
-      if (!isSuperCandidate && !sub) {
-        setLoading(false);
-        failAttempt(mail, t('البريد الإلكتروني غير مسجل في النظام', 'Email not registered in system'));
-        addAuditEntry(mail, 'محاولة دخول — بريد غير مسجل', 'Sign-in attempt — unregistered email', 'failed');
-        return;
-      }
-
-      if (sub && sub.status === 'suspended') {
-        setLoading(false);
-        setError(t('الحساب موقوف — تواصل مع المشرف الرئيسي', 'Account suspended — contact super admin'));
-        addLoginAttempt(mail, 'failed');
-        addAuditEntry(mail, 'محاولة دخول — حساب موقوف', 'Sign-in attempt — suspended account', 'failed');
-        triggerShake();
-        return;
-      }
-
-      let isValidPassword = false;
-
-      if (isSuperCandidate && superConfig) {
-        isValidPassword = await verifySuperAdminPassword(password, superConfig);
-      } else if (sub) {
-        isValidPassword = await verifySubAdminPassword(password, sub);
-        
-        // Legacy migration: if plain password matched, hash it now
-        if (!isValidPassword && sub.password && password === sub.password) {
-          logger.info('Migrating legacy plain password to hash', { email: mail });
-          try {
-            const { salt, hash } = await (await import('@/lib/crypto')).hashPassword(password);
-            sub.passwordHash = hash;
-            sub.salt = salt;
-            delete sub.password;
-            // Save migrated
-            const all = subAdmins.map(s => s.id === sub.id ? sub : s);
-            localStorage.setItem('tharwah_admin_sub_admins_v2', JSON.stringify({ _v: 'v2', data: all, ts: Date.now() }));
-            isValidPassword = true;
-          } catch {
-            isValidPassword = true; // Allow but log
-          }
-        }
-      }
-
-      if (!isValidPassword) {
-        setLoading(false);
-        failAttempt(mail, t('كلمة المرور غير صحيحة', 'Incorrect password'));
-        addAuditEntry(mail, 'محاولة دخول فاشلة — كلمة مرور خاطئة', 'Failed sign-in — wrong password', 'failed');
-        return;
-      }
-
-      // Success
-      resetLoginLock(mail);
-      addLoginAttempt(mail, 'success');
-      recordLoginAttempt(mail, true);
-
-      if (isSuperCandidate) {
-        const session = await createAdminSession(mail, 'Super Admin', 'super', []);
+      if (response.user && response.token) {
+        setAuthTokens(response.token, response.refreshToken);
+        const role = response.user.role as 'super' | 'sub' | 'admin';
+        const session = await createAdminSession(mail, response.user.name, role, []);
         saveAdminSession(session);
-        addAuditEntry(mail, 'تسجيل دخول ناجح (Super Admin)', 'Successful sign-in (Super Admin)');
-        logger.audit(mail, 'super_admin_login_success');
-      } else if (sub) {
-        const session = await createAdminSession(mail, sub.name, 'sub', sub.permissions);
-        saveAdminSession(session);
-        localStorage.setItem('admin_permissions', JSON.stringify(sub.permissions));
-        addAuditEntry(mail, 'تسجيل دخول ناجح (مشرف فرعي)', 'Successful sign-in (Sub Admin)');
-        logger.audit(mail, 'sub_admin_login_success', { permissions: sub.permissions.length });
+        resetLoginLock(mail);
+        recordLoginAttempt(mail, true);
+        logger.audit(mail, `${role}_admin_login_success`);
+        navigate({ to: '/Akadmin/overview' });
+        return;
       }
 
-      navigate({ to: '/Akadmin/overview' });
+      throw new Error(t('فشل تسجيل الدخول', 'Login failed'));
     } catch (err: any) {
-      logger.error('Login error', err, { email: mail });
+      const message = err instanceof Error ? err.message : t('حدث خطأ غير متوقع', 'Unexpected error');
       setLoading(false);
-      setError(t('حدث خطأ غير متوقع — حاول مرة أخرى', 'Unexpected error — please try again'));
-      triggerShake();
+      failAttempt(mail, message);
+      logger.warn('Admin login failed', { email: mail, error: message });
     } finally {
       setLoading(false);
     }
@@ -310,17 +168,13 @@ export function AdminLogin() {
   return (
     <div
       className="flex items-center justify-center px-5 relative overflow-hidden"
-      style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #EFF6FF, #F0F9FF)',
-      }}
+      style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #EFF6FF, #F0F9FF)' }}
       dir={lang === 'ar' ? 'rtl' : 'ltr'}
     >
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage:
-            'linear-gradient(rgba(14,165,233,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(14,165,233,0.06) 1px, transparent 1px)',
+          backgroundImage: 'linear-gradient(rgba(14,165,233,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(14,165,233,0.06) 1px, transparent 1px)',
           backgroundSize: '40px 40px',
         }}
       />
@@ -366,7 +220,7 @@ export function AdminLogin() {
           </p>
           <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#00D97E]/10 border border-[#00D97E]/20">
             <div className="w-2 h-2 rounded-full bg-[#00D97E] animate-pulse" />
-            <span className="text-[10px] font-bold text-[#00D97E]">SECURE v2 • Encrypted</span>
+            <span className="text-[10px] font-bold text-[#00D97E]">BACKEND JWT • Encrypted</span>
           </div>
         </div>
 
@@ -477,17 +331,6 @@ export function AdminLogin() {
                 <>🔐 {t('دخول للوحة التحكم', 'Enter Admin Panel')}</>
               )}
             </button>
-          )}
-
-          {env.isDevelopment && (
-            <div className="mt-4 p-3 rounded-lg bg-[#FFFBEB] border border-[#F59E0B]/20">
-              <p className="text-[11px] font-bold text-[#92400E] mb-1">🔧 وضع التطوير - Demo Accounts:</p>
-              <div className="text-[10px] text-[#B45309] font-mono space-y-0.5">
-                <div>admin@tharwah.com / admin123 (Super)</div>
-                <div>ahmed.sub@tharwah.com / admin123</div>
-                <div className="text-[9px] text-[#D97706] mt-1">⚠️ هذه الحسابات للتجربة فقط - ستُعطل في الإنتاج</div>
-              </div>
-            </div>
           )}
         </div>
 

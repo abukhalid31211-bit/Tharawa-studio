@@ -13,33 +13,24 @@ import { ReportsTab } from '@/components/dashboard/ReportsTab';
 import { SupportTab } from '@/components/dashboard/SupportTab';
 import { AdvisorTab } from '@/components/dashboard/AdvisorTab';
 import { SettingsTab } from '@/components/dashboard/SettingsTab';
+import { useTransactions, useMessages, useMeetings } from '@/lib/queries';
+import { useProfile } from '@/lib/queries';
+import { api } from '@/lib/api';
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
 
 export const Route = createFileRoute('/dashboard')({ component: DashboardPage });
 
-const INITIAL_TRANSACTIONS = [
-  { id: 'TX-1092', type: 'deposit' as const, amount: 15000, date: '2026-07-15', status: 'completed', method: 'Saudi National Bank (SNB)' },
-  { id: 'TX-1091', type: 'dividend' as const, amount: 2450, date: '2026-06-10', status: 'completed', method: 'Portfolio Reinvestment' },
-  { id: 'TX-1090', type: 'withdrawal' as const, amount: 10000, date: '2026-05-05', status: 'completed', method: 'Al Rajhi Bank' },
-  { id: 'TX-1089', type: 'deposit' as const, amount: 50000, date: '2026-04-20', status: 'completed', method: 'Saudi National Bank (SNB)' },
-  { id: 'TX-1088', type: 'deposit' as const, amount: 100000, date: '2026-03-15', status: 'completed', method: 'Saudi National Bank (SNB)' },
-  { id: 'TX-1087', type: 'deposit' as const, amount: 50000, date: '2026-03-12', status: 'completed', method: 'Saudi National Bank (SNB)' },
-];
-
-const INITIAL_TICKETS = [
-  { id: 'TK-302', title: 'استفسار بخصوص الأرباح الموزعة', titleEn: 'Dividend distribution inquiry', status: 'answered', date: '2026-07-10', reply: 'تمت إعادة استثمار الأرباح تلقائياً في محفظتك الاستثمارية بناء على تفضيلاتك الحالية.' },
-  { id: 'TK-301', title: 'طلب تحديث المحفظة الاستثمارية', titleEn: 'Portfolio update request', status: 'pending', date: '2026-07-18', reply: null },
-];
-
-const INITIAL_MEETINGS = [
-  { id: 'MT-501', advisor: 'خالد بن الوليد', date: '2026-07-24', time: '10:00 AM', status: 'confirmed' }
-];
-
 function DashboardPage() {
   const { t, lang } = useLang();
   const navigate = useNavigate();
   const session = getClientSession();
+  const { data: profileData } = useProfile();
+  const { data: transactionsData } = useTransactions();
+  const { data: messagesData } = useMessages();
+  const { data: meetingsData } = useMeetings();
+
+  const profile = profileData?.user;
 
   useEffect(() => {
     if (!isClientAuthed()) navigate({ to: '/login' });
@@ -51,9 +42,6 @@ function DashboardPage() {
     return false;
   });
 
-  const [transactions, setTransactions] = useState(INITIAL_TRANSACTIONS);
-  const [tickets, setTickets] = useState(INITIAL_TICKETS);
-  const [meetings, setMeetings] = useState(INITIAL_MEETINGS);
   const [clientPhone, setClientPhone] = useState('');
   const [bankRequestSent, setBankRequestSent] = useState(false);
 
@@ -89,18 +77,51 @@ function DashboardPage() {
     return t('مساء النور', 'Good Evening');
   }, [lang]);
 
-  if (!isClientAuthed() || !session) return null;
+  // Normalize backend data
+  const transactions = useMemo(() => {
+    return (transactionsData?.data || []).map((tx: any) => ({
+      id: tx.id.slice(0, 12),
+      type: tx.type,
+      amount: Number(tx.amount),
+      date: tx.created_at ? tx.created_at.slice(0, 10) : '2026-07-23',
+      status: tx.status,
+      method: tx.method || '—',
+    }));
+  }, [transactionsData]);
 
-  const totalBalance = 245000 + transactions.reduce((acc, t) => {
-    if (t.status !== 'completed') return acc;
-    if (t.type === 'deposit') return acc + t.amount;
-    if (t.type === 'withdrawal') return acc - t.amount;
-    return acc;
-  }, 0);
+  const tickets = useMemo(() => {
+    return (messagesData?.data || []).map((tk: any) => ({
+      id: tk.id.slice(0, 12),
+      title: tk.title,
+      titleEn: tk.title,
+      status: tk.status,
+      date: tk.created_at ? tk.created_at.slice(0, 10) : '2026-07-23',
+      reply: tk.reply,
+    }));
+  }, [messagesData]);
+
+  const meetings = useMemo(() => {
+    return (meetingsData?.data || []).map((mt: any) => ({
+      id: mt.id.slice(0, 12),
+      advisor: mt.advisor_name,
+      date: mt.meeting_date ? mt.meeting_date.slice(0, 10) : '2026-07-23',
+      time: mt.meeting_time,
+      status: mt.status,
+    }));
+  }, [meetingsData]);
+
+  const totalBalance = useMemo(() => {
+    return 245000 + transactions.reduce((acc: number, t: any) => {
+      if (t.status !== 'completed') return acc;
+      if (t.type === 'deposit') return acc + t.amount;
+      if (t.type === 'withdrawal') return acc - t.amount;
+      return acc;
+    }, 0);
+  }, [transactions]);
 
   const profitAmount = totalBalance * 0.185;
 
-  const handleCreateTransfer = (e: React.FormEvent) => {
+  const handleCreateTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
     const amountNum = parseFloat(transferAmount);
     if (isNaN(amountNum) || amountNum <= 0) {
@@ -111,67 +132,75 @@ function DashboardPage() {
       showToast(t('رصيدك غير كافٍ', 'Insufficient balance'));
       return;
     }
-    const newTx = {
-      id: `TX-${Math.floor(1000 + Math.random() * 9000)}`,
-      type: transferType,
-      amount: amountNum,
-      date: new Date().toISOString().split('T')[0] || '2026-07-19',
-      status: 'completed',
-      method: transferBank === 'snb' ? 'Saudi National Bank (SNB)' : 'Al Rajhi Bank'
-    };
-    setTransactions([newTx, ...transactions]);
-    setTransferAmount('');
-    setTransferModalOpen(false);
-    showToast(t('تمت العملية بنجاح', 'Operation completed successfully'));
+
+    try {
+      await api.createTransaction({
+        user_id: session?.id,
+        type: transferType,
+        amount: amountNum,
+        currency: 'SAR',
+        method: transferBank === 'snb' ? 'Saudi National Bank (SNB)' : 'Al Rajhi Bank',
+      });
+      setTransferAmount('');
+      setTransferModalOpen(false);
+      showToast(t('تم إرسال الطلب وهو قيد المراجعة', 'Request submitted and pending review'));
+    } catch (err: any) {
+      showToast(err.message || t('فشل إرسال الطلب', 'Failed to submit request'));
+    }
   };
 
-  const handleCreateTicket = (e: React.FormEvent) => {
+  const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTicketTitle || !newTicketMessage) {
       showToast(t('يرجى ملء جميع الحقول', 'Please fill in all fields'));
       return;
     }
-    const newTk = {
-      id: `TK-${Math.floor(300 + Math.random() * 700)}`,
-      title: newTicketTitle,
-      titleEn: newTicketTitle,
-      status: 'pending',
-      date: new Date().toISOString().split('T')[0] || '2026-07-19',
-      reply: null
-    };
-    setTickets([newTk, ...tickets]);
-    setNewTicketTitle('');
-    setNewTicketMessage('');
-    showToast(t('تم إرسال التذكرة بنجاح', 'Ticket sent successfully'));
+    try {
+      await api.createMessage({
+        user_id: session?.id,
+        title: newTicketTitle,
+        message: newTicketMessage,
+        priority: 'medium',
+      });
+      setNewTicketTitle('');
+      setNewTicketMessage('');
+      showToast(t('تم إرسال التذكرة بنجاح', 'Ticket sent successfully'));
+    } catch (err: any) {
+      showToast(err.message || t('فشل إرسال التذكرة', 'Failed to send ticket'));
+    }
   };
 
-  const handleBookMeeting = (e: React.FormEvent) => {
+  const handleBookMeeting = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMeetingDate) {
       showToast(t('يرجى اختيار التاريخ', 'Please select a date'));
       return;
     }
-    const newMeet = {
-      id: `MT-${Math.floor(500 + Math.random() * 500)}`,
-      advisor: 'خالد بن الوليد',
-      date: newMeetingDate,
-      time: newMeetingTime,
-      status: 'confirmed'
-    };
-    setMeetings([newMeet, ...meetings]);
-    setNewMeetingDate('');
-    showToast(t('تم حجز الموعد بنجاح', 'Meeting booked successfully'));
+    try {
+      await api.createMeeting({
+        user_id: session?.id,
+        advisor_name: 'خالد بن الوليد',
+        meeting_date: newMeetingDate,
+        meeting_time: newMeetingTime,
+        duration_minutes: 60,
+        type: 'consultation',
+      });
+      setNewMeetingDate('');
+      showToast(t('تم حجز الموعد بنجاح', 'Meeting booked successfully'));
+    } catch (err: any) {
+      showToast(err.message || t('فشل حجز الموعد', 'Failed to book meeting'));
+    }
   };
 
   const exportToExcel = () => {
-    const data = transactions.map(t => ({
+    const data = transactions.map((t: any) => ({
       'Transaction ID': t.id, 'Type': t.type.toUpperCase(), 'Amount': t.amount,
       'Date': t.date, 'Status': t.status.toUpperCase(), 'Method': t.method
     }));
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Transactions');
-    XLSX.writeFile(workbook, `Tharwah_Transactions_${session.name}.xlsx`);
+    XLSX.writeFile(workbook, `Tharwah_Transactions_${session?.name || 'Client'}.xlsx`);
     showToast(t('تم تحميل كشف الحساب بصيغة Excel', 'Excel statement downloaded'));
   };
 
@@ -180,18 +209,18 @@ function DashboardPage() {
     doc.setFont("Helvetica", "bold");
     doc.text("THARWAH CAPITAL - PORTFOLIO REPORT", 20, 20);
     doc.setFont("Helvetica", "normal");
-    doc.text(`Client Name: ${session.name}`, 20, 30);
-    doc.text(`Account No: TH-9842105`, 20, 40);
+    doc.text(`Client Name: ${session?.name || ''}`, 20, 30);
+    doc.text(`Account No: ${profile?.portfolio_code || 'TH-0000000'}`, 20, 40);
     doc.text(`Total Valuation: SAR ${totalBalance.toLocaleString()}`, 20, 50);
-    doc.text(`Date of Report: 2026-07-19`, 20, 60);
-    doc.save(`Tharwah_Report_${session.name}.pdf`);
+    doc.text(`Date of Report: ${new Date().toISOString().slice(0, 10)}`, 20, 60);
+    doc.save(`Tharwah_Report_${session?.name || 'Client'}.pdf`);
     showToast(t('تم تحميل التقرير بصيغة PDF', 'PDF report downloaded'));
   };
 
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'info':
-        return <DashboardHome totalBalance={totalBalance} profitAmount={profitAmount} greeting={greeting} sessionName={session.name} onOpenTransfer={(type) => { setTransferType(type); setTransferModalOpen(true); }} lang={lang} />;
+        return <DashboardHome totalBalance={totalBalance} profitAmount={profitAmount} greeting={greeting} sessionName={session?.name || ''} onOpenTransfer={(type) => { setTransferType(type); setTransferModalOpen(true); }} lang={lang} />;
       case 'investments':
         return <InvestmentsTab totalBalance={totalBalance} onExportPDF={exportToPDF} />;
       case 'performance':
@@ -213,9 +242,10 @@ function DashboardPage() {
     }
   };
 
+  if (!isClientAuthed() || !session) return null;
+
   return (
     <>
-      {/* Toast */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 left-6 md:left-auto md:w-96 bg-white dark:bg-[#20203A] border border-gold-primary rounded-xl p-4 shadow-2xl z-[100] flex items-center gap-3 animate-in slide-in-from-bottom duration-300">
           <div className="w-8 h-8 rounded-full bg-gold-primary/20 flex items-center justify-center shrink-0">
@@ -225,7 +255,6 @@ function DashboardPage() {
         </div>
       )}
 
-      {/* Transfer Modal */}
       {transferModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#1C1C34] border border-gold-primary/30 w-full max-w-lg rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">

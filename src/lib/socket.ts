@@ -4,26 +4,26 @@
  */
 import { io, Socket } from 'socket.io-client';
 import { env } from './env';
+import { getClientSession, getAdminSession } from './auth';
 
 let socket: Socket | null = null;
 
 export function connectSocket(): Socket {
   if (socket && socket.connected) return socket;
 
-  const socketUrl = (import.meta.env.VITE_SOCKET_URL as string) || env.apiUrl || (import.meta.env.PROD ? 'https://api.your-domain.com' : 'http://localhost:3000');
-  
-  socket = io(socketUrl, {
+  socket = io(env.socketUrl, {
     path: '/socket.io',
     transports: ['websocket', 'polling'],
     autoConnect: true,
     reconnection: true,
-    reconnectionAttempts: 5,
+    reconnectionAttempts: 10,
     reconnectionDelay: 1000,
     timeout: 20000,
   });
 
   socket.on('connect', () => {
     console.info('[Socket] Connected:', socket?.id);
+    authenticateSocket();
   });
 
   socket.on('disconnect', (reason) => {
@@ -36,7 +36,6 @@ export function connectSocket(): Socket {
 
   socket.on('admin_update', (data: any) => {
     console.info('[Socket] Admin update received:', data);
-    // هنا يمكن إرسال حدث لتحديث البيانات في TanStack Query أو Context
     window.dispatchEvent(new CustomEvent('tharwah_admin_update', { detail: data }));
   });
 
@@ -45,7 +44,32 @@ export function connectSocket(): Socket {
     window.dispatchEvent(new CustomEvent('tharwah_client_update', { detail: data }));
   });
 
+  socket.on('content_updated', (data: any) => {
+    console.info('[Socket] Content update received:', data);
+    window.dispatchEvent(new CustomEvent('tharwah_content_updated', { detail: data }));
+  });
+
+  socket.on('settings_updated', (data: any) => {
+    console.info('[Socket] Settings update received:', data);
+    window.dispatchEvent(new CustomEvent('tharwah_settings_updated', { detail: data }));
+  });
+
   return socket;
+}
+
+export function authenticateSocket(): void {
+  if (!socket) return;
+
+  const clientSession = getClientSession();
+  const adminSession = getAdminSession();
+
+  if (clientSession) {
+    socket.emit('authenticate', { userId: clientSession.id, role: clientSession.role });
+    socket.emit('subscribe:client_updates', clientSession.id);
+  } else if (adminSession) {
+    socket.emit('authenticate', { userId: adminSession.email, role: adminSession.role });
+    socket.emit('subscribe:admin_updates');
+  }
 }
 
 export function disconnectSocket(): void {

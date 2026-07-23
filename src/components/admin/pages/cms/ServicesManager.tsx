@@ -1,10 +1,12 @@
 // ─────────────────────────────────────────────────────────────
-// CMS — ServicesManager إدارة الخدمات الاستثمارية
+// CMS — ServicesManager إدارة الخدمات الاستثمارية (Backend-connected)
 // ─────────────────────────────────────────────────────────────
-import React, { useState } from 'react';
-import { Plus, Pencil, Trash2, Ticket, ArrowUp, ArrowDown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Pencil, Trash2, Ticket, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
 import { useCmsServices, ServiceItem, nextCode, addAuditEntry } from '@/lib/adminData';
+import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import {
   PageHeader, Panel, Pill, StatCard, Modal, ConfirmDialog, Field,
   TextInput, TextArea, PrimaryBtn, GhostBtn, IconBtn, EmptyState,
@@ -23,6 +25,31 @@ export function ServicesManager() {
   const [editing, setEditing] = useState<ServiceItem | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [deleting, setDeleting] = useState<ServiceItem | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.getContent('services')
+      .then((res: any) => {
+        if (res.data?.content_data?.services) {
+          setServices(res.data.content_data.services);
+        }
+      })
+      .catch(err => logger.warn('Failed to load remote services content', err));
+  }, []);
+
+  const syncToBackend = async (updatedServices: ServiceItem[]) => {
+    setSaving(true);
+    try {
+      await api.updateContent('services', {
+        content_data: { services: updatedServices },
+      });
+      addAuditEntry('admin@tharwah.com', 'تحديث محتوى الخدمات', 'Updated services content');
+    } catch (err: any) {
+      show(err.message || t('فشل الحفظ', 'Save failed'));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const openAdd = () => { setEditing(null); setForm(EMPTY); setEditOpen(true); };
   const openEdit = (s: ServiceItem) => {
@@ -31,31 +58,45 @@ export function ServicesManager() {
     setEditOpen(true);
   };
 
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    let updated: ServiceItem[];
     if (editing) {
-      setServices(prev => prev.map(s => s.id === editing.id ? { ...s, ...form } : s));
+      updated = services.map(s => s.id === editing.id ? { ...s, ...form } : s);
       show(t('تم تحديث الخدمة', 'Service updated'));
     } else {
-      setServices(prev => [...prev, { id: nextCode(services, 'S'), ...form }]);
+      updated = [...services, { id: nextCode(services, 'S'), ...form }];
       show(t('تمت إضافة الخدمة للموقع', 'Service added to site'));
     }
-    addAuditEntry('admin@tharwah.com', editing ? `تعديل خدمة ${form.title}` : `إضافة خدمة ${form.title}`, editing ? `Edited service ${form.titleEn}` : `Added service ${form.titleEn}`);
+    setServices(updated);
+    await syncToBackend(updated);
     setEditOpen(false);
   };
 
-  const toggleActive = (s: ServiceItem) => {
-    setServices(prev => prev.map(x => x.id === s.id ? { ...x, active: !x.active } : x));
+  const toggleActive = async (s: ServiceItem) => {
+    const updated = services.map(x => x.id === s.id ? { ...x, active: !x.active } : x);
+    setServices(updated);
     show(s.active ? t('أُخفيت الخدمة من الموقع', 'Service hidden from site') : t('أُظهرت الخدمة في الموقع', 'Service visible on site'));
+    await syncToBackend(updated);
   };
 
-  const move = (s: ServiceItem, dir: -1 | 1) => {
+  const move = async (s: ServiceItem, dir: -1 | 1) => {
     const arr = [...services];
     const i = arr.findIndex(x => x.id === s.id);
     const j = i + dir;
     if (j < 0 || j >= arr.length) return;
     [arr[i], arr[j]] = [arr[j], arr[i]];
     setServices(arr);
+    await syncToBackend(arr);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    const updated = services.filter(s => s.id !== deleting.id);
+    setServices(updated);
+    await syncToBackend(updated);
+    show(t('تم حذف الخدمة', 'Service deleted'));
+    setDeleting(null);
   };
 
   return (
@@ -63,7 +104,12 @@ export function ServicesManager() {
       <PageHeader
         title={t('إدارة الخدمات الاستثمارية', 'Investment Services Manager')}
         subtitle={t('إضافة وتعديل وحذف وترتيب الخدمات الظاهرة في الموقع العام', 'Add, edit, delete and reorder services shown on the public site')}
-        actions={<PrimaryBtn icon={Plus} onClick={openAdd}>{t('إضافة خدمة', 'Add Service')}</PrimaryBtn>}
+        actions={
+          <>
+            {saving && <Loader2 className="w-5 h-5 animate-spin text-gold-primary" />}
+            <PrimaryBtn icon={Plus} onClick={openAdd}>{t('إضافة خدمة', 'Add Service')}</PrimaryBtn>
+          </>
+        }
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -105,7 +151,6 @@ export function ServicesManager() {
         </div>
       )}
 
-      {/* نموذج الخدمة */}
       <Modal
         open={editOpen}
         onClose={() => setEditOpen(false)}
@@ -114,7 +159,9 @@ export function ServicesManager() {
         footer={
           <>
             <GhostBtn onClick={() => setEditOpen(false)}>{t('إلغاء', 'Cancel')}</GhostBtn>
-            <PrimaryBtn onClick={() => (document.getElementById('svc-form') as HTMLFormElement)?.requestSubmit()}>{t('حفظ', 'Save')}</PrimaryBtn>
+            <PrimaryBtn onClick={() => (document.getElementById('svc-form') as HTMLFormElement)?.requestSubmit()} disabled={saving}>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t('حفظ', 'Save')}
+            </PrimaryBtn>
           </>
         }
       >
@@ -152,7 +199,7 @@ export function ServicesManager() {
       <ConfirmDialog
         open={!!deleting}
         onClose={() => setDeleting(null)}
-        onConfirm={() => { setServices(prev => prev.filter(s => s.id !== deleting!.id)); show(t('تم حذف الخدمة', 'Service deleted')); }}
+        onConfirm={confirmDelete}
         title={t('حذف الخدمة', 'Delete Service')}
         message={t(`ستختفي خدمة «${deleting?.title}» من الموقع العام فوراً.`, `"${deleting?.title}" will disappear from the public site immediately.`)}
         confirmText={t('حذف', 'Delete')}

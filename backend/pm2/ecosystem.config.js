@@ -2,9 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'tharwah-api',
-      script: 'src/server.ts',
-      interpreter: 'node',
-      interpreter_args: '--loader ts-node/esm',
+      script: 'dist/server.js',
       cwd: '/var/www/tharwah-api',
       instances: 'max',
       exec_mode: 'cluster',
@@ -24,6 +22,8 @@ module.exports = {
       watch: false,
       max_memory_restart: '1G',
       node_args: '--max-old-space-size=1024',
+      kill_timeout: 5000,
+      listen_timeout: 8000,
     },
   ],
 };

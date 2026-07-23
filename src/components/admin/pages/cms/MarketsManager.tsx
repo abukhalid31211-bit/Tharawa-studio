@@ -1,10 +1,12 @@
 // ─────────────────────────────────────────────────────────────
-// CMS — MarketsManager إدارة شريط الأسواق والمؤشرات
+// CMS — MarketsManager إدارة شريط الأسواق (Backend-connected)
 // ─────────────────────────────────────────────────────────────
-import React, { useState } from 'react';
-import { Plus, Pencil, Trash2, TrendingUp, TrendingDown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
 import { useCmsMarkets, MarketItem, nextCode, addAuditEntry } from '@/lib/adminData';
+import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import {
   PageHeader, Panel, Pill, StatCard, Modal, ConfirmDialog, Field,
   TextInput, SelectBox, PrimaryBtn, GhostBtn, IconBtn, EmptyState,
@@ -31,6 +33,32 @@ export function MarketsManager() {
   const [editing, setEditing] = useState<MarketItem | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [deleting, setDeleting] = useState<MarketItem | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Load remote content
+  useEffect(() => {
+    api.getContent('markets')
+      .then((res: any) => {
+        if (res.data?.content_data?.markets) {
+          setMarkets(res.data.content_data.markets);
+        }
+      })
+      .catch(err => logger.warn('Failed to load remote markets content', err));
+  }, []);
+
+  const syncToBackend = async (updatedMarkets: MarketItem[]) => {
+    setSaving(true);
+    try {
+      await api.updateContent('markets', {
+        content_data: { markets: updatedMarkets },
+      });
+      addAuditEntry('admin@tharwah.com', 'تحديث محتوى الأسواق', 'Updated markets content');
+    } catch (err: any) {
+      show(err.message || t('فشل الحفظ', 'Save failed'));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const openAdd = () => { setEditing(null); setForm(EMPTY); setEditOpen(true); };
   const openEdit = (m: MarketItem) => {
@@ -39,18 +67,35 @@ export function MarketsManager() {
     setEditOpen(true);
   };
 
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
     const catEn = CATEGORIES.find(c => c.v === form.category)?.en || form.category;
+    let updated: MarketItem[];
     if (editing) {
-      setMarkets(prev => prev.map(m => m.id === editing.id ? { ...m, ...form, categoryEn: catEn } : m));
+      updated = markets.map(m => m.id === editing.id ? { ...m, ...form, categoryEn: catEn } : m);
       show(t('تم تحديث الأصل', 'Asset updated'));
     } else {
-      setMarkets(prev => [...prev, { id: nextCode(markets, 'M'), ...form, categoryEn: catEn }]);
+      updated = [...markets, { id: nextCode(markets, 'M'), ...form, categoryEn: catEn }];
       show(t('تمت إضافة الأصل لشريط الأسواق', 'Asset added to markets ticker'));
     }
-    addAuditEntry('admin@tharwah.com', `تحديث أصل سوقي ${form.symbol}`, `Updated market asset ${form.symbol}`);
+    setMarkets(updated);
+    await syncToBackend(updated);
     setEditOpen(false);
+  };
+
+  const toggleVisible = async (m: MarketItem) => {
+    const updated = markets.map(x => x.id === m.id ? { ...x, visible: !x.visible } : x);
+    setMarkets(updated);
+    await syncToBackend(updated);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    const updated = markets.filter(m => m.id !== deleting.id);
+    setMarkets(updated);
+    await syncToBackend(updated);
+    show(t('تم حذف الأصل', 'Asset deleted'));
+    setDeleting(null);
   };
 
   const filtered = markets.filter(m => !search || m.name.includes(search) || m.nameEn.toLowerCase().includes(search.toLowerCase()) || m.symbol.toLowerCase().includes(search.toLowerCase()));
@@ -60,7 +105,12 @@ export function MarketsManager() {
       <PageHeader
         title={t('إدارة الأسواق والمؤشرات', 'Markets & Indices Manager')}
         subtitle={t('التحكم في أسعار الأصول المعروضة في شريط الأسواق الحي وصفحة الأسواق', 'Control asset prices shown in the live markets ticker and markets page')}
-        actions={<PrimaryBtn icon={Plus} onClick={openAdd}>{t('إضافة أصل', 'Add Asset')}</PrimaryBtn>}
+        actions={
+          <>
+            {saving && <Loader2 className="w-5 h-5 animate-spin text-gold-primary" />}
+            <PrimaryBtn icon={Plus} onClick={openAdd}>{t('إضافة أصل', 'Add Asset')}</PrimaryBtn>
+          </>
+        }
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -70,7 +120,6 @@ export function MarketsManager() {
         <StatCard label={t('هابطة اليوم', 'Losers Today')} value={markets.filter(m => m.change < 0).length} icon="📉" color="#FF4560" />
       </div>
 
-      {/* معاينة الشريط */}
       <Panel className="!p-3">
         <div className="flex items-center gap-5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           <span className="text-[11px] text-text-muted shrink-0">{t('معاينة الشريط:', 'Ticker preview:')}</span>
@@ -105,7 +154,7 @@ export function MarketsManager() {
                     {m.change >= 0 ? '+' : ''}{m.change}%
                   </span>
                 </Td>
-                <Td><Toggle checked={m.visible} onChange={() => setMarkets(prev => prev.map(x => x.id === m.id ? { ...x, visible: !x.visible } : x))} /></Td>
+                <Td><Toggle checked={m.visible} onChange={() => toggleVisible(m)} /></Td>
                 <Td>
                   <div className="flex items-center gap-0.5">
                     <IconBtn icon={Pencil} label={t('تعديل', 'Edit')} onClick={() => openEdit(m)} />
@@ -118,7 +167,6 @@ export function MarketsManager() {
         )}
       </Panel>
 
-      {/* نموذج الأصل */}
       <Modal
         open={editOpen}
         onClose={() => setEditOpen(false)}
@@ -127,7 +175,9 @@ export function MarketsManager() {
         footer={
           <>
             <GhostBtn onClick={() => setEditOpen(false)}>{t('إلغاء', 'Cancel')}</GhostBtn>
-            <PrimaryBtn onClick={() => (document.getElementById('mkt-form') as HTMLFormElement)?.requestSubmit()}>{t('حفظ', 'Save')}</PrimaryBtn>
+            <PrimaryBtn onClick={() => (document.getElementById('mkt-form') as HTMLFormElement)?.requestSubmit()} disabled={saving}>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t('حفظ', 'Save')}
+            </PrimaryBtn>
           </>
         }
       >
@@ -160,7 +210,7 @@ export function MarketsManager() {
       <ConfirmDialog
         open={!!deleting}
         onClose={() => setDeleting(null)}
-        onConfirm={() => { setMarkets(prev => prev.filter(m => m.id !== deleting!.id)); show(t('تم حذف الأصل', 'Asset deleted')); }}
+        onConfirm={confirmDelete}
         title={t('حذف الأصل', 'Delete Asset')}
         message={t(`سيختفي «${deleting?.name}» من شريط الأسواق في الموقع.`, `"${deleting?.nameEn}" will be removed from the site markets ticker.`)}
         confirmText={t('حذف', 'Delete')}

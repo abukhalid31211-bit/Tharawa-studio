@@ -6,7 +6,6 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  relationMode = "prisma"
 }
 
 model User {
@@ -19,16 +18,21 @@ model User {
   portfolio_code String?   @unique @db.Text
   phone          String?   @db.Text
   kyc_status     String?   @default("pending") @db.Text
-  created_at     DateTime  @default(now()) @db.Timestamptz
-  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz
+  password_hash  String?   @db.Text
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
-  portfolios     Portfolio[]
-  transactions   Transaction[]
-  tickets        SupportTicket[]
-  notifications  Notification[]
-  meetings       Meeting[]
-  auditLogs      AuditLog[]
-  subAdmin      SubAdmin?
+  portfolios       Portfolio[]
+  transactions     Transaction[]
+  tickets          SupportTicket[]
+  assignedTickets  SupportTicket[] @relation("AssignedTickets")
+  notifications    Notification[]
+  meetings         Meeting[]
+  advisorMeetings  Meeting[]       @relation("AdvisorMeetings")
+  auditLogs        AuditLog[]
+  subAdmin         SubAdmin?
+  contentUpdates   ContentSection[]
+  siteSettings     SiteSetting[]
 
   @@map("users")
   @@index([email], name: "idx_users_email")
@@ -49,8 +53,8 @@ model Portfolio {
   inception_date   DateTime? @default(now()) @db.Date
   is_active        Boolean   @default(true)
   portfolio_data   Json?     @db.JsonB
-  created_at       DateTime  @default(now()) @db.Timestamptz
-  updated_at       DateTime  @default(now()) @updatedAt @db.Timestamptz
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
   user             User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   transactions     Transaction[]
@@ -73,8 +77,8 @@ model Transaction {
   status         String    @default("pending") @db.Text
   reference_code String?   @unique @db.Text
   notes          String?   @db.Text
-  created_at     DateTime  @default(now()) @db.Timestamptz
-  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
   user           User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   portfolio      Portfolio? @relation(fields: [portfolio_id], references: [id], onDelete: SetNull)
@@ -100,8 +104,8 @@ model Asset {
   valuation       Decimal   @default(0) @db.Decimal(18, 2)
   annual_yield    Decimal?  @default(0) @db.Decimal(5, 2)
   status          String    @default("active") @db.Text
-  created_at      DateTime  @default(now()) @db.Timestamptz
-  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
   portfolio       Portfolio @relation(fields: [portfolio_id], references: [id], onDelete: Cascade)
 
@@ -120,8 +124,8 @@ model SupportTicket {
   status         String    @default("pending") @db.Text
   priority       String    @default("medium") @db.Text
   reply          String?   @db.Text
-  created_at     DateTime  @default(now()) @db.Timestamptz
-  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
   user           User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   assignee       User?     @relation("AssignedTickets", fields: [assigned_to], references: [id], onDelete: SetNull)
@@ -142,7 +146,7 @@ model Notification {
   type           String    @default("info") @db.Text
   is_read        Boolean   @default(false)
   action_url     String?   @db.Text
-  created_at     DateTime  @default(now()) @db.Timestamptz
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
 
   user           User?     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
@@ -163,8 +167,8 @@ model ContentSection {
   is_active      Boolean   @default(true)
   order_index    Int?      @default(0)
   updated_by     String?   @db.Uuid
-  created_at     DateTime  @default(now()) @db.Timestamptz
-  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
   updater        User?     @relation(fields: [updated_by], references: [id], onDelete: SetNull)
 
@@ -179,7 +183,9 @@ model SiteSetting {
   value        Json?     @db.JsonB
   description  String?   @db.Text
   updated_by   String?   @db.Uuid
-  updated_at   DateTime  @default(now()) @db.Timestamptz
+  updated_at   DateTime  @default(now()) @db.Timestamptz(6)
+
+  updater      User?     @relation(fields: [updated_by], references: [id], onDelete: SetNull)
 
   @@map("site_settings")
 }
@@ -192,9 +198,9 @@ model SubAdmin {
   phone           String?   @db.Text
   permissions     Json?     @db.JsonB
   status          String    @default("active") @db.Text
-  last_active_at  DateTime? @db.Timestamptz
-  created_at      DateTime  @default(now()) @db.Timestamptz
-  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz
+  last_active_at  DateTime? @db.Timestamptz(6)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
   user            User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
@@ -207,13 +213,13 @@ model Meeting {
   advisor_id      String?   @db.Uuid
   advisor_name    String    @db.Text
   meeting_date    DateTime  @db.Date
-  meeting_time    DateTime  @db.Time(6)
+  meeting_time    String    @db.Text
   duration_minutes Int      @default(60)
   type            String    @default("consultation") @db.Text
   status          String    @default("confirmed") @db.Text
   notes           String?   @db.Text
-  created_at      DateTime  @default(now()) @db.Timestamptz
-  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
   user            User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   advisor         User?     @relation("AdvisorMeetings", fields: [advisor_id], references: [id], onDelete: SetNull)
@@ -236,7 +242,7 @@ model AuditLog {
   ip_address     String?   @db.Inet
   user_agent     String?   @db.Text
   result         String    @default("success") @db.Text
-  created_at     DateTime  @default(now()) @db.Timestamptz
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
 
   user           User?     @relation(fields: [user_id], references: [id], onDelete: SetNull)
 
@@ -254,7 +260,7 @@ model LoginAttempt {
   user_agent     String?   @db.Text
   result         String    @db.Text
   failure_reason String?   @db.Text
-  created_at     DateTime  @default(now()) @db.Timestamptz
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
 
   @@map("login_attempts")
   @@index([email], name: "idx_login_email")

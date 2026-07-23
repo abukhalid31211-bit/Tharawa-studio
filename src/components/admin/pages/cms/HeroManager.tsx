@@ -1,10 +1,12 @@
 // ─────────────────────────────────────────────────────────────
-// CMS — HeroManager إدارة قسم البطل في الصفحة الرئيسية
+// CMS — HeroManager إدارة قسم البطل (Backend-connected)
 // ─────────────────────────────────────────────────────────────
-import React, { useState } from 'react';
-import { Layout, Save, RotateCcw, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Layout, Save, RotateCcw, Plus, Trash2, Loader2 } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
 import { useCmsHero, HERO_SEED, addAuditEntry } from '@/lib/adminData';
+import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import {
   PageHeader, Panel, PanelHeader, Pill, Field, TextInput, TextArea,
   PrimaryBtn, GhostBtn, IconBtn, useToast,
@@ -14,14 +16,38 @@ export function HeroManager() {
   const { t, lang } = useLang();
   const [hero, setHero] = useCmsHero();
   const [draft, setDraft] = useState(hero);
+  const [saving, setSaving] = useState(false);
   const { show, ToastView } = useToast();
+
+  // Load remote content on mount
+  useEffect(() => {
+    api.getContent('hero')
+      .then((res: any) => {
+        if (res.data?.content_data) {
+          setDraft(prev => ({ ...prev, ...res.data.content_data }));
+        }
+      })
+      .catch(err => logger.warn('Failed to load remote hero content', err));
+  }, []);
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(hero);
 
-  const save = () => {
-    setHero(draft);
-    addAuditEntry('admin@tharwah.com', 'تحديث محتوى قسم البطل', 'Updated Hero section content');
-    show(t('تم نشر تعديلات قسم البطل على الموقع', 'Hero section changes published to site'));
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.updateContent('hero', {
+        title_ar: draft.title,
+        title_en: draft.titleEn,
+        content_data: draft,
+      });
+      setHero(draft);
+      addAuditEntry('admin@tharwah.com', 'تحديث محتوى قسم البطل', 'Updated Hero section content');
+      show(t('تم نشر تعديلات قسم البطل على الموقع', 'Hero section changes published to site'));
+    } catch (err: any) {
+      show(err.message || t('فشل الحفظ', 'Save failed'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const reset = () => { setDraft(HERO_SEED); show(t('تمت استعادة المحتوى الافتراضي', 'Default content restored')); };
@@ -39,12 +65,13 @@ export function HeroManager() {
           <>
             {dirty && <Pill text={t('تغييرات غير منشورة', 'Unpublished changes')} color="#F59E0B" dot />}
             <GhostBtn icon={RotateCcw} onClick={reset}>{t('استعادة الافتراضي', 'Restore Default')}</GhostBtn>
-            <PrimaryBtn icon={Save} onClick={save} disabled={!dirty}>{t('حفظ ونشر', 'Save & Publish')}</PrimaryBtn>
+            <PrimaryBtn icon={Save} onClick={save} disabled={!dirty || saving}>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t('حفظ ونشر', 'Save & Publish')}
+            </PrimaryBtn>
           </>
         }
       />
 
-      {/* معاينة مبسطة */}
       <Panel className="text-center !py-8" >
         <div className="max-w-xl mx-auto space-y-3">
           <Pill text={lang === 'ar' ? draft.badge : draft.badgeEn} color="#C9A84C" />
@@ -59,7 +86,6 @@ export function HeroManager() {
       </Panel>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* النصوص العربية */}
         <Panel>
           <PanelHeader icon={Layout} iconColor="#0EA5E9" title={t('المحتوى العربي', 'Arabic Content')} />
           <div className="space-y-4 mt-4">
@@ -83,7 +109,6 @@ export function HeroManager() {
           </div>
         </Panel>
 
-        {/* النصوص الإنجليزية */}
         <Panel>
           <PanelHeader icon={Layout} iconColor="#3B82F6" title={t('المحتوى الإنجليزي', 'English Content')} />
           <div className="space-y-4 mt-4">
@@ -108,7 +133,6 @@ export function HeroManager() {
         </Panel>
       </div>
 
-      {/* شريط الإحصائيات */}
       <Panel>
         <PanelHeader
           icon={Plus} iconColor="#C9A84C"
