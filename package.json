@@ -17,10 +17,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "hash-password": "node scripts/hash-password.js",
-    "db:types": "supabase gen types typescript --local > src/types/supabase.ts",
-    "prepare": "husky install || true"
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "investment",
@@ -40,7 +37,6 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.4.0",
-    "@supabase/supabase-js": "^2.110.7",
     "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-router": "^1.170.18",
     "clsx": "^2.1.1",
@@ -52,6 +48,7 @@
     "react-dom": "^19.2.7",
     "react-hook-form": "^7.82.0",
     "recharts": "^3.9.2",
+    "socket.io-client": "^4.8.1",
     "tailwind-merge": "^3.6.0",
     "tailwindcss-animate": "^1.0.7",
     "xlsx": "^0.18.5",

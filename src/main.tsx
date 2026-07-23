@@ -6,6 +6,7 @@ import { routeTree } from './routeTree.gen';
 import './styles/globals.css';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { SiteSettingsProvider } from './contexts/SiteSettingsContext';
+import { SocketProvider } from './contexts/SocketContext';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { env, logEnvStatus, validateEnv } from './lib/env';
 import { logger } from './lib/logger';
@@ -92,7 +93,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <QueryClientProvider client={queryClient}>
         <LanguageProvider>
           <SiteSettingsProvider>
-            <RouterProvider router={router} />
+            <SocketProvider>
+              <RouterProvider router={router} />
+            </SocketProvider>
           </SiteSettingsProvider>
         </LanguageProvider>
       </QueryClientProvider>

@@ -4,9 +4,19 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
 import { config } from './config/env.js';
+import { setIo } from './lib/socket.js';
 import authRoutes from './routes/auth.routes.js';
 import clientsRoutes from './routes/clients.routes.js';
+import portfoliosRoutes from './routes/portfolios.routes.js';
+import transactionsRoutes from './routes/transactions.routes.js';
+import messagesRoutes from './routes/messages.routes.js';
+import notificationsRoutes from './routes/notifications.routes.js';
+import meetingsRoutes from './routes/meetings.routes.js';
+import subAdminsRoutes from './routes/sub-admins.routes.js';
+import settingsRoutes from './routes/settings.routes.js';
+import auditRoutes from './routes/audit.routes.js';
 import contentRoutes from './routes/content.routes.js';
 import marketsRoutes from './routes/markets.routes.js';
 
@@ -25,6 +35,11 @@ const io = new Server(server, {
   pingInterval: 25000,
 });
 
+setIo(io);
+
+// Track connected users/sockets
+const userSockets = new Map<string, string[]>();
+
 // Middleware
 app.use(helmet());
 app.use(morgan(config.logLevel === 'debug' ? 'dev' : 'combined'));
@@ -37,13 +52,26 @@ app.use(cors({
     if (!origin) return callback(null, true);
     if (config.allowedOrigins.includes(origin)) return callback(null, true);
     if (origin.includes('localhost')) return callback(null, true);
-    // في الإنتاج: إذا لم يكن مذكوراً في ALLOWED_ORIGINS، نرفضه
     return config.nodeEnv === 'production' ? callback(new Error('Origin not allowed'), false) : callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Client-Version'],
 }));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: config.rateLimitWindowMs,
+  max: config.rateLimitMax,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too Many Requests',
+    message: 'تم تجاوز الحد المسموح من الطلبات',
+    messageEn: 'Rate limit exceeded',
+  },
+});
+app.use('/api/', limiter);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -66,12 +94,36 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientsRoutes);
+app.use('/api/portfolios', portfoliosRoutes);
+app.use('/api/transactions', transactionsRoutes);
+app.use('/api/messages', messagesRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/meetings', meetingsRoutes);
+app.use('/api/sub-admins', subAdminsRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/audit', auditRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/markets', marketsRoutes);
 
 // Socket.io events — تحديث لحظي بدون Reload
 io.on('connection', (socket) => {
   console.info(`[Socket] Client connected: ${socket.id}`);
+
+  socket.on('authenticate', (data: { userId: string; role: string }) => {
+    if (data.userId) {
+      const existing = userSockets.get(data.userId) || [];
+      if (!existing.includes(socket.id)) {
+        existing.push(socket.id);
+        userSockets.set(data.userId, existing);
+      }
+      socket.data.userId = data.userId;
+      socket.data.role = data.role;
+    }
+    if (data.role === 'super' || data.role === 'admin' || data.role === 'sub') {
+      socket.join('admin_updates');
+    }
+    socket.join(`user:${data.userId}`);
+  });
 
   socket.on('subscribe:admin_updates', () => {
     socket.join('admin_updates');
@@ -82,26 +134,19 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    const userId = socket.data.userId;
+    if (userId) {
+      const existing = userSockets.get(userId) || [];
+      const updated = existing.filter((id) => id !== socket.id);
+      if (updated.length > 0) {
+        userSockets.set(userId, updated);
+      } else {
+        userSockets.delete(userId);
+      }
+    }
     console.info(`[Socket] Client disconnected: ${socket.id}`);
   });
 });
-
-// Broadcast helper — يستخدمه الأدمن لإرسال التحديثات فوراً
-export function broadcastAdminUpdate(data: any) {
-  io.to('admin_updates').emit('admin_update', {
-    timestamp: new Date().toISOString(),
-    type: 'data_changed',
-    data,
-  });
-}
-
-export function broadcastClientUpdate(clientId: string, data: any) {
-  io.to(`client:${clientId}`).emit('client_update', {
-    timestamp: new Date().toISOString(),
-    type: 'data_changed',
-    data,
-  });
-}
 
 // Global error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

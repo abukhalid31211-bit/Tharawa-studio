@@ -3,17 +3,31 @@
   "version": "2.0.0",
   "description": "Tharwah Capital - Production Backend API (Node.js + Express + PostgreSQL + Socket.io)",
   "type": "module",
-  "main": "src/server.ts",
+  "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "start": "node --loader ts-node/esm src/server.ts",
-    "build": "echo 'TypeScript backend — no build step required'",
+    "build": "tsc && prisma generate",
+    "start": "node dist/server.js",
+    "start:prod": "npm run build && node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
+    "prisma:migrate:dev": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
-    "db:push": "prisma db push"
+    "db:push": "prisma db push",
+    "db:reset": "prisma migrate reset --force",
+    "hash-password": "tsx scripts/hash-password.ts"
   },
+  "keywords": [
+    "investment",
+    "portfolio",
+    "sharia-compliant",
+    "fintech",
+    "api"
+  ],
+  "author": "Tharwah Capital Team",
+  "license": "UNLICENSED",
+  "private": true,
   "dependencies": {
     "express": "^4.21.2",
     "socket.io": "^4.8.1",
@@ -22,6 +36,7 @@
     "jsonwebtoken": "^9.0.2",
     "bcryptjs": "^2.4.3",
     "pg": "^8.13.1",
+    "@prisma/client": "^6.4.1",
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.1.0",
     "morgan": "^1.10.0"
@@ -33,12 +48,15 @@
     "@types/express": "^5.0.0",
     "@types/cors": "^2.8.17",
     "@types/jsonwebtoken": "^9.0.8",
-    "prisma": "^6.4.1",
-    "@prisma/client": "^6.4.1",
-    "ts-node": "^10.9.2"
+    "@types/bcryptjs": "^2.4.6",
+    "@types/morgan": "^1.9.9",
+    "prisma": "^6.4.1"
   },
   "engines": {
     "node": ">=20.0.0",
     "npm": ">=10.0.0"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }

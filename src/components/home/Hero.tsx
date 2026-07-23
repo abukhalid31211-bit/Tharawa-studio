@@ -2,13 +2,52 @@ import React, { useEffect, useState } from 'react';
 import { useLang } from '@/contexts/LanguageContext';
 import { Link } from '@tanstack/react-router';
 import { Button } from '@/components/ui/Button';
-import {
-  ArrowLeft, BarChart3, ShieldCheck, Sparkles, TrendingUp, Bell
-} from 'lucide-react';
+import { ArrowLeft, BarChart3, ShieldCheck, Sparkles, TrendingUp, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useCmsSection } from '@/lib/cms';
+
+interface HeroStats {
+  value: string;
+  label: string;
+  labelEn: string;
+}
+
+interface HeroContent {
+  badge?: string;
+  badgeEn?: string;
+  title?: string;
+  titleEn?: string;
+  subtitle?: string;
+  subtitleEn?: string;
+  ctaPrimary?: string;
+  ctaPrimaryEn?: string;
+  ctaSecondary?: string;
+  ctaSecondaryEn?: string;
+  stats?: HeroStats[];
+}
+
+const FALLBACK_HERO: HeroContent = {
+  badge: 'شركة استثمارية مرخصة رسمياً • منذ عام 2010',
+  badgeEn: 'Officially Licensed Investment Firm • Since 2010',
+  title: 'نمِّ ثروتك بأمان وذكاء متوافق مع الشريعة',
+  titleEn: 'Grow Your Wealth Securely with Sharia-Compliant Intelligence',
+  subtitle: 'نحو مستقبل مالي أكثر ثباتاً وازدهاراً',
+  subtitleEn: 'Toward a More Stable and Prosperous Financial Future',
+  ctaPrimary: 'تواصل مع مستشار مالي',
+  ctaPrimaryEn: 'Talk to a Financial Advisor',
+  ctaSecondary: 'استكشف خدماتنا',
+  ctaSecondaryEn: 'Explore Our Services',
+  stats: [
+    { value: '+2.1B', label: 'ريال أصول مدارة', labelEn: 'SAR Assets Managed' },
+    { value: '+5,240', label: 'عميل نشط', labelEn: 'Active Clients' },
+    { value: '98%', label: 'رضا العملاء', labelEn: 'Client Satisfaction' },
+    { value: '+18%', label: 'متوسط العائد السنوي', labelEn: 'Avg. Annual Return' },
+  ],
+};
 
 export function Hero() {
   const { t, lang } = useLang();
+  const { data: cms } = useCmsSection<HeroContent>('hero', FALLBACK_HERO);
   const [typedText, setTypedText] = useState('');
   const fullText = t('استثماراتك', 'Your Investments');
 
@@ -27,9 +66,18 @@ export function Hero() {
     return () => clearInterval(interval);
   }, [fullText]);
 
+  const titleAr = cms.title || FALLBACK_HERO.title!;
+  const titleEn = cms.titleEn || FALLBACK_HERO.titleEn!;
+  const subtitleAr = cms.subtitle || FALLBACK_HERO.subtitle!;
+  const subtitleEn = cms.subtitleEn || FALLBACK_HERO.subtitleEn!;
+  const badgeAr = cms.badge || FALLBACK_HERO.badge!;
+  const badgeEn = cms.badgeEn || FALLBACK_HERO.badgeEn!;
+  const ctaPrimary = lang === 'ar' ? (cms.ctaPrimary || FALLBACK_HERO.ctaPrimary!) : (cms.ctaPrimaryEn || FALLBACK_HERO.ctaPrimaryEn!);
+  const ctaSecondary = lang === 'ar' ? (cms.ctaSecondary || FALLBACK_HERO.ctaSecondary!) : (cms.ctaSecondaryEn || FALLBACK_HERO.ctaSecondaryEn!);
+  const stats = cms.stats || FALLBACK_HERO.stats!;
+
   return (
     <section className="relative w-full min-h-[90vh] flex items-center overflow-hidden bg-primary dark:bg-elevated">
-      {/* Background decorations */}
       <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(to_bottom,var(--color-primary),var(--color-secondary))] dark:bg-[linear-gradient(to_bottom,#0D0D1A,#13132A)] opacity-80" />
       <div className="absolute inset-0" style={{
         backgroundImage: 'linear-gradient(var(--color-border-gold) 1px, transparent 1px), linear-gradient(90deg, var(--color-border-gold) 1px, transparent 1px)',
@@ -40,13 +88,11 @@ export function Hero() {
       <div className="absolute bottom-0 right-0 w-80 h-80 bg-gold-deep/10 blur-[60px] rounded-full animate-pulse-slow" style={{ animationDelay: '2s' }} />
 
       <div className="max-w-[1280px] mx-auto px-4 md:px-8 py-32 relative z-10 w-full grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-8 items-center">
-        
-        {/* Right Column: Text */}
         <div className="flex flex-col items-start gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
           <div className="inline-flex items-center gap-2 bg-gold-subtle border border-border-gold rounded-full py-2 px-4">
             <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
             <span className="font-semibold text-[13px] text-gold-deep">
-              {t('شركة استثمارية مرخصة رسمياً • منذ عام 2010', 'Officially Licensed Investment Firm • Since 2010')}
+              {lang === 'ar' ? badgeAr : badgeEn}
             </span>
           </div>
 
@@ -56,10 +102,10 @@ export function Hero() {
               <span className="text-gold-primary animate-pulse ml-1">|</span>
             </span>
             <span className="font-black text-4xl md:text-5xl lg:text-6xl text-text-primary">
-              {t('بأيدي خبراء موثوقين', 'In the Hands of Trusted Experts')}
+              {lang === 'ar' ? titleAr : titleEn}
             </span>
             <span className="font-bold text-xl md:text-2xl lg:text-3xl text-text-secondary mt-2">
-              {t('نحو مستقبل مالي أكثر ثباتاً وازدهاراً', 'Toward a More Stable and Prosperous Financial Future')}
+              {lang === 'ar' ? subtitleAr : subtitleEn}
             </span>
           </h1>
 
@@ -73,14 +119,14 @@ export function Hero() {
           <div className="flex flex-col sm:flex-row gap-4 mt-4 w-full sm:w-auto">
             <Link to="/contact" className="w-full sm:w-auto">
               <Button className="w-full px-8 py-4 text-lg gap-2 group">
-                {t('تواصل مع مستشار مالي', 'Talk to a Financial Advisor')}
+                {ctaPrimary}
                 <ArrowLeft className={cn("w-5 h-5 transition-transform", lang === 'ar' ? "group-hover:-translate-x-1" : "rotate-180 group-hover:translate-x-1")} />
               </Button>
             </Link>
             <Link to="/services" className="w-full sm:w-auto">
               <Button variant="secondary" className="w-full px-8 py-4 text-lg gap-2 bg-primary">
                 <BarChart3 className="w-5 h-5" />
-                {t('استكشف خدماتنا', 'Explore Our Services')}
+                {ctaSecondary}
               </Button>
             </Link>
           </div>
@@ -103,36 +149,19 @@ export function Hero() {
           </div>
 
           <div className="flex gap-8 border-t border-border-gold/30 pt-8 mt-4 w-full">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span>🌍</span>
-                <span className="font-mono font-black text-2xl text-gold-deep">15+</span>
+            {stats.slice(0, 3).map((stat, i) => (
+              <div key={i}>
+                <div className="font-mono font-black text-2xl text-gold-deep">{stat.value}</div>
+                <div className="text-xs text-text-muted">{lang === 'ar' ? stat.label : stat.labelEn}</div>
               </div>
-              <div className="text-xs text-text-muted">{t('سوقاً مالياً عالمياً', 'Global Financial Markets')}</div>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span>💼</span>
-                <span className="font-mono font-black text-2xl text-gold-deep">5,000+</span>
-              </div>
-              <div className="text-xs text-text-muted">{t('مستثمر نشط', 'Active Investors')}</div>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span>📈</span>
-                <span className="font-mono font-black text-2xl text-gold-deep">98.5%</span>
-              </div>
-              <div className="text-xs text-text-muted">{t('نسبة رضا العملاء', 'Client Satisfaction Rate')}</div>
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* Left Column: Visual */}
         <div className="relative flex justify-center animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
           <div className="absolute inset-0 border border-border-gold/20 rounded-full scale-110" />
           <div className="absolute inset-0 border border-border-gold/15 rounded-full scale-125" />
 
-          {/* Main Card */}
           <div className="relative bg-primary dark:bg-elevated border border-border-gold/30 rounded-2xl shadow-gold-md p-6 w-full max-w-[440px] z-10">
             <div className="flex justify-between items-start mb-6">
               <div>
@@ -144,14 +173,12 @@ export function Hero() {
               </div>
             </div>
 
-            {/* Mock Chart */}
             <div className="w-full h-[100px] bg-gradient-to-b from-gold-primary/20 to-transparent relative mb-6 rounded-b-lg border-b-2 border-gold-primary">
               <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
                 <path d="M0,80 Q10,70 20,60 T40,50 T60,30 T80,40 T100,10" fill="none" stroke="var(--color-gold-primary)" strokeWidth="3" vectorEffect="non-scaling-stroke" />
               </svg>
             </div>
 
-            {/* Asset Allocation */}
             <div className="grid grid-cols-3 gap-3">
               {[
                 { title: t('أسهم', 'Equities'), val: '62%' },
@@ -169,7 +196,6 @@ export function Hero() {
             </div>
           </div>
 
-          {/* Floating Cards */}
           <div className="absolute -top-6 -right-6 bg-primary border border-border-gold/30 rounded-lg shadow-md p-3 px-4 z-20 animate-[float_3s_ease-in-out_infinite]">
             <div className="font-bold text-[10px] text-text-muted">BTC/USD</div>
             <div className="flex items-center gap-2">
@@ -193,9 +219,7 @@ export function Hero() {
               <div className="text-[10px] text-white/80">{t('اكتشف التفاصيل الآن', 'Discover details now')}</div>
             </div>
           </div>
-
         </div>
-
       </div>
     </section>
   );

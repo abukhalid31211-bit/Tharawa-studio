@@ -1,13 +1,13 @@
 /**
- * Tharwah Capital - Secure API Client v2
- * عميل API آمن مع معالجة أخطاء وتوثيق
+ * Tharwah Capital - Secure API Client v3
+ * Backend-only integration (No Supabase)
  */
 import { env } from './env';
 import { logger } from './logger';
 import { sanitizeInput } from './security';
 import { getJwtToken } from './auth';
 
-const BASE_URL = env.apiUrl || import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://api.your-domain.com' : '/api');
+const BASE_URL = env.apiUrl;
 
 interface ApiOptions extends RequestInit {
   params?: Record<string, string>;
@@ -27,33 +27,13 @@ class ApiError extends Error {
 }
 
 async function getAuthToken(): Promise<string | null> {
-  try {
-    // New JWT-based auth from backend
-    const jwtToken = getJwtToken();
-    if (jwtToken) return jwtToken;
-  } catch {}
-
-  // Try Supabase session (fallback for legacy)
-  try {
-    const { supabase } = await import('./supabase');
-    const { data } = await supabase.auth.getSession();
-    if (data.session?.access_token) {
-      return data.session.access_token;
-    }
-  } catch {}
-
-  // Legacy local tokens
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('token') || localStorage.getItem('tharwah-auth-token') || null;
-  }
-  
-  return null;
+  if (typeof window === 'undefined') return null;
+  return getJwtToken();
 }
 
 export async function request<T = any>(endpoint: string, options: ApiOptions = {}): Promise<T> {
   const { params, skipAuth, ...fetchOptions } = options;
-  
-  // Build URL with params
+
   let url = `${BASE_URL}${endpoint}`;
   if (params) {
     const searchParams = new URLSearchParams();
@@ -64,7 +44,6 @@ export async function request<T = any>(endpoint: string, options: ApiOptions = {
     if (queryString) url += `?${queryString}`;
   }
 
-  // Headers
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-Requested-With': 'XMLHttpRequest',
@@ -72,7 +51,6 @@ export async function request<T = any>(endpoint: string, options: ApiOptions = {
     ...(options.headers as Record<string, string>),
   };
 
-  // Auth
   if (!skipAuth) {
     const token = await getAuthToken();
     if (token) {
@@ -81,7 +59,7 @@ export async function request<T = any>(endpoint: string, options: ApiOptions = {
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
 
   try {
     logger.debug(`API Request: ${options.method || 'GET'} ${url}`);
@@ -94,10 +72,9 @@ export async function request<T = any>(endpoint: string, options: ApiOptions = {
 
     clearTimeout(timeoutId);
 
-    // Handle non-JSON responses
     const contentType = response.headers.get('content-type');
     let data: any;
-    
+
     if (contentType?.includes('application/json')) {
       data = await response.json();
     } else {
@@ -115,7 +92,6 @@ export async function request<T = any>(endpoint: string, options: ApiOptions = {
     }
 
     return data as T;
-
   } catch (error) {
     clearTimeout(timeoutId);
 
@@ -136,19 +112,22 @@ export async function request<T = any>(endpoint: string, options: ApiOptions = {
   }
 }
 
-// Typed API methods
 export const api = {
   // Public
   getHomeData: () => request('/api/home', { skipAuth: true }),
   getMarketsTicker: () => request('/api/markets/ticker', { skipAuth: true }),
   getContent: (key: string) => request(`/api/content/${key}`, { skipAuth: true }),
-  
-  // Auth (delegated to backend JWT)
-  login: (email: string, password: string) => 
+  getAllContent: () => request('/api/content', { skipAuth: false }),
+  getSettings: () => request('/api/settings', { skipAuth: true }),
+
+  // Auth
+  login: (email: string, password: string) =>
     request('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }), skipAuth: true }),
-  
   adminLogin: (email: string, password: string) =>
     request('/api/auth/admin/login', { method: 'POST', body: JSON.stringify({ email, password }), skipAuth: true }),
+  refreshToken: (refreshToken: string) =>
+    request('/api/auth/refresh', { method: 'POST', body: JSON.stringify({ refreshToken }), skipAuth: true }),
+  getProfile: () => request('/api/auth/profile'),
 
   // Protected - Clients
   getClients: (params?: Record<string, string>) => request('/api/clients', { params }),
@@ -157,7 +136,7 @@ export const api = {
   updateClient: (id: string, data: any) => request(`/api/clients/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteClient: (id: string) => request(`/api/clients/${id}`, { method: 'DELETE' }),
 
-  // Protected - Portfolios (need to implement backend routes for these)
+  // Protected - Portfolios
   getPortfolios: (params?: Record<string, string>) => request('/api/portfolios', { params }),
   getPortfolio: (id: string) => request(`/api/portfolios/${id}`),
   createPortfolio: (data: any) => request('/api/portfolios', { method: 'POST', body: JSON.stringify(data) }),
@@ -172,7 +151,31 @@ export const api = {
   // Messages
   getMessages: () => request('/api/messages'),
   createMessage: (data: any) => request('/api/messages', { method: 'POST', body: JSON.stringify(data) }),
-  
+  updateMessage: (id: string, data: any) => request(`/api/messages/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  // Notifications
+  getNotifications: () => request('/api/notifications'),
+  createNotification: (data: any) => request('/api/notifications', { method: 'POST', body: JSON.stringify(data) }),
+  markNotificationRead: (id: string) => request(`/api/notifications/${id}/read`, { method: 'POST' }),
+
+  // Meetings
+  getMeetings: () => request('/api/meetings'),
+  createMeeting: (data: any) => request('/api/meetings', { method: 'POST', body: JSON.stringify(data) }),
+  updateMeeting: (id: string, data: any) => request(`/api/meetings/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteMeeting: (id: string) => request(`/api/meetings/${id}`, { method: 'DELETE' }),
+
+  // Sub-admins
+  getSubAdmins: () => request('/api/sub-admins'),
+  createSubAdmin: (data: any) => request('/api/sub-admins', { method: 'POST', body: JSON.stringify(data) }),
+  updateSubAdmin: (id: string, data: any) => request(`/api/sub-admins/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteSubAdmin: (id: string) => request(`/api/sub-admins/${id}`, { method: 'DELETE' }),
+
+  // Settings
+  updateSettings: (key: string, data: any) => request(`/api/settings/${key}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  // Audit
+  getAuditLogs: (params?: Record<string, string>) => request('/api/audit', { params }),
+
   // Health
   healthCheck: () => request('/api/health', { skipAuth: true }),
 };

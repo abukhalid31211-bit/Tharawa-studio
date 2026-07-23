@@ -14,10 +14,8 @@ import {
   LogOut, Search, CalendarDays, ListTodo,
 } from 'lucide-react';
 import { clearAdminSession, getAdminSession } from '@/lib/auth';
-import {
-  useClients, useTransactions, useMessages, useAdminNotifications, useSubAdmins,
-  ADMIN_KEYS, relativeTime,
-} from '@/lib/adminData';
+import { useClients, useTransactions, useMessages, useNotifications, useSubAdmins } from '@/lib/queries';
+import { ADMIN_KEYS, relativeTime } from '@/lib/adminData';
 
 interface MenuItem {
   key: string;
@@ -85,14 +83,25 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useSidebarCollapsed();
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [localNotifications, setLocalNotifications] = useState<any[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
-  const [clients] = useClients();
-  const [transactions] = useTransactions();
-  const [messages] = useMessages();
-  const [notifications, setNotifications] = useAdminNotifications();
-  const [subAdmins] = useSubAdmins();
+  const { data: clientsData } = useClients();
+  const { data: transactionsData } = useTransactions();
+  const { data: messagesData } = useMessages();
+  const { data: notificationsData } = useNotifications();
+  const { data: subAdminsData } = useSubAdmins();
+
+  const clients = clientsData?.data || [];
+  const transactions = transactionsData?.data || [];
+  const messages = messagesData?.data || [];
+  const notifications = notificationsData?.data || [];
+  const subAdmins = subAdminsData?.data || [];
+
+  useEffect(() => {
+    setLocalNotifications(notifications);
+  }, [notifications]);
 
   const isSuper = session?.role === 'super';
   const permissions: string[] = session?.permissions || [];
@@ -138,10 +147,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   }, [isSuper, session, subAdmins, navigate]);
 
   // ── العدادات الحية للشارات ──
-  const pendingClients = clients.filter(c => c.status === 'pending').length;
-  const pendingTxs = transactions.filter(tx => tx.status === 'pending').length;
-  const pendingMessages = messages.filter(m => m.status === 'pending').length;
-  const unreadNotifs = notifications.filter(n => !n.read).length;
+  const pendingClients = clients.filter((c: any) => c.status === 'pending').length;
+  const pendingTxs = transactions.filter((tx: any) => tx.status === 'pending').length;
+  const pendingMessages = messages.filter((m: any) => m.status === 'pending').length;
+  const unreadNotifs = localNotifications.filter((n: any) => !n.read).length;
 
   // ── مجموعات القائمة (Super Admin) ──
   const superGroups: MenuGroup[] = useMemo(() => [
@@ -237,9 +246,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     navigate({ to: '/Akadmin' });
   };
 
-  const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  const markAllRead = () => setLocalNotifications(prev => prev.map((n: any) => ({ ...n, read: true })));
   const markRead = (id: string, page: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    setLocalNotifications(prev => prev.map((n: any) => n.id === id ? { ...n, read: true } : n));
     setNotifOpen(false);
     if (page) navigate({ to: page as any });
   };
@@ -538,7 +547,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     </div>
                     {/* القائمة — أول 5 */}
                     <div>
-                      {notifications.slice(0, 5).map(n => {
+                      {localNotifications.slice(0, 5).map((n: any) => {
                         const colors: Record<string, string> = { critical: '#FF4560', warning: '#F59E0B', info: '#0EA5E9', success: '#00D97E' };
                         const icons: Record<string, string> = { critical: '🔴', warning: '🟡', info: '🔵', success: '🟢' };
                         return (
