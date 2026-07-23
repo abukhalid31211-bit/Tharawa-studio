@@ -131,7 +131,7 @@ export const phoneSchema = z.string().regex(/^\+?[0-9\s\-()]+$/, 'رقم هات�
 // Secure session validation
 export interface SecureSessionPayload {
   email: string;
-  role: 'super' | 'sub' | 'client';
+  role: 'super' | 'admin' | 'sub' | 'client';
   exp: number; // expiry timestamp
   iat: number; // issued at
   jti: string; // JWT ID
@@ -143,7 +143,7 @@ export function isSessionExpired(session: SecureSessionPayload): boolean {
 
 export function createSecureSessionPayload(
   email: string,
-  role: 'super' | 'sub' | 'client',
+  role: 'super' | 'admin' | 'sub' | 'client',
   expiresInHours = 8
 ): SecureSessionPayload {
   const now = Date.now();
@@ -164,7 +164,7 @@ export function getCSPHeader(): string {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https: blob:",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.tharwah.com",
+    "connect-src 'self' https://api.yourdomain.com wss://api.yourdomain.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

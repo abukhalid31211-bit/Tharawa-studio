@@ -19,6 +19,7 @@ model User {
   phone          String?   @db.Text
   kyc_status     String?   @default("pending") @db.Text
   password_hash  String?   @db.Text
+  profile_data   Json?     @db.JsonB
   created_at     DateTime  @default(now()) @db.Timestamptz(6)
   updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
@@ -33,6 +34,10 @@ model User {
   subAdmin         SubAdmin?
   contentUpdates   ContentSection[]
   siteSettings     SiteSetting[]
+  sessions         RefreshSession[]
+  notificationReceipts NotificationReceipt[]
+  ticketReplies    TicketMessage[]
+  platformUpdates  PlatformData[]
 
   @@map("users")
   @@index([email], name: "idx_users_email")
@@ -80,7 +85,7 @@ model Transaction {
   created_at     DateTime  @default(now()) @db.Timestamptz(6)
   updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
-  user           User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [user_id], references: [id], onDelete: Restrict)
   portfolio      Portfolio? @relation(fields: [portfolio_id], references: [id], onDelete: SetNull)
 
   @@map("transactions")
@@ -127,8 +132,9 @@ model SupportTicket {
   created_at     DateTime  @default(now()) @db.Timestamptz(6)
   updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
-  user           User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [user_id], references: [id], onDelete: Restrict)
   assignee       User?     @relation("AssignedTickets", fields: [assigned_to], references: [id], onDelete: SetNull)
+  replies        TicketMessage[]
 
   @@map("support_tickets")
   @@index([user_id], name: "idx_tickets_user_id")
@@ -149,6 +155,7 @@ model Notification {
   created_at     DateTime  @default(now()) @db.Timestamptz(6)
 
   user           User?     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  receipts       NotificationReceipt[]
 
   @@map("notifications")
   @@index([user_id], name: "idx_notifications_user_id")
@@ -221,7 +228,7 @@ model Meeting {
   created_at      DateTime  @default(now()) @db.Timestamptz(6)
   updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
-  user            User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [user_id], references: [id], onDelete: Restrict)
   advisor         User?     @relation("AdvisorMeetings", fields: [advisor_id], references: [id], onDelete: SetNull)
 
   @@map("meetings")
@@ -266,4 +273,63 @@ model LoginAttempt {
   @@index([email], name: "idx_login_email")
   @@index([created_at], name: "idx_login_created_at")
   @@index([result], name: "idx_login_result")
+}
+
+
+model RefreshSession {
+  id          String    @id @default(uuid()) @db.Uuid
+  user_id     String    @db.Uuid
+  token_hash  String    @unique @db.Text
+  expires_at  DateTime  @db.Timestamptz(6)
+  revoked_at  DateTime? @db.Timestamptz(6)
+  ip_address  String?   @db.Inet
+  user_agent  String?   @db.Text
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+
+  user        User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("refresh_sessions")
+  @@index([user_id, expires_at], name: "idx_sessions_user_expiry")
+}
+
+model TicketMessage {
+  id          String        @id @default(uuid()) @db.Uuid
+  ticket_id   String        @db.Uuid
+  sender_id   String?       @db.Uuid
+  sender_role String        @db.Text
+  message     String        @db.Text
+  created_at  DateTime      @default(now()) @db.Timestamptz(6)
+
+  ticket      SupportTicket @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
+  sender      User?         @relation(fields: [sender_id], references: [id], onDelete: SetNull)
+
+  @@map("ticket_messages")
+  @@index([ticket_id, created_at], name: "idx_ticket_messages_ticket_date")
+}
+
+model NotificationReceipt {
+  id              String       @id @default(uuid()) @db.Uuid
+  notification_id String       @db.Uuid
+  user_id         String       @db.Uuid
+  read_at         DateTime?    @db.Timestamptz(6)
+  created_at      DateTime     @default(now()) @db.Timestamptz(6)
+
+  notification    Notification @relation(fields: [notification_id], references: [id], onDelete: Cascade)
+  user            User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([notification_id, user_id], name: "uq_notification_user")
+  @@map("notification_receipts")
+  @@index([user_id, read_at, created_at], name: "idx_receipts_user_read_date")
+}
+
+model PlatformData {
+  key         String   @id @db.Text
+  value       Json     @db.JsonB
+  updated_by  String?  @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  updater     User?    @relation(fields: [updated_by], references: [id], onDelete: SetNull)
+
+  @@map("platform_data")
 }

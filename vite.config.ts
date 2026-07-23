@@ -26,7 +26,6 @@ export default defineConfig({
             if (id.includes('@tanstack')) return 'vendor-router';
             if (id.includes('lucide-react') || id.includes('clsx') || id.includes('tailwind-merge')) return 'vendor-ui';
             if (id.includes('recharts')) return 'vendor-charts';
-            if (id.includes('@supabase')) return 'vendor-supabase';
             if (id.includes('jspdf') || id.includes('xlsx') || id.includes('html2canvas')) return 'vendor-export';
             if (id.includes('@dnd-kit')) return 'vendor-dnd';
             return 'vendor';

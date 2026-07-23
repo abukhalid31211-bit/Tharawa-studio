@@ -1,21 +1,27 @@
+import type { ElementType } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useLang } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Users, Download, Shield, Award, Globe, ShieldCheck, Briefcase, Calendar, Phone } from 'lucide-react';
 import { CtaSection } from '@/components/home/CtaSection'; // Reusing CTA
+import { useCmsSection } from '@/lib/cms';
 
 export const Route = createFileRoute('/about')({ component: AboutPage });
 
 function AboutPage() {
   const { t, lang } = useLang();
+  const { data: managedAbout } = useCmsSection<any>('about', {});
 
-  const values = [
+  const fallbackValues = [
     { icon: Shield, titleAr: 'الثقة والشفافية الكاملة', titleEn: 'Trust & Full Transparency', descAr: 'نُقدم تقارير شهرية مفصلة تُوضح كل معاملة وكل قرار استثماري. شفافية كاملة في كل خطوة', descEn: 'We provide detailed monthly reports clarifying every transaction. Complete transparency at every step' },
     { icon: Award, titleAr: 'التميز المهني الدائم', titleEn: 'Perpetual Professional Excellence', descAr: 'فريقنا يضم حاملي شهادات CFA وCFP وFRM من أفضل مؤسسات العالم', descEn: 'Our team includes CFA, CFP, and FRM holders from top global institutions' },
     { icon: Users, titleAr: 'خدمة شخصية لكل عميل', titleEn: 'Personalized Service', descAr: 'نرفض النماذج الجاهزة — كل خطة استثمارية نصممها مخصصة بالكامل لشخص واحد: أنت', descEn: 'Every investment plan we design is fully customized for one person: you' },
     { icon: Globe, titleAr: 'وصول عالمي بفهم محلي', titleEn: 'Global Access, Local Understanding', descAr: 'شراكات استراتيجية مع أبرز البنوك والمؤسسات المالية في أكثر من 30 دولة', descEn: 'Strategic partnerships with leading banks in more than 30 countries' }
   ];
+  const values = managedAbout.values?.length ? managedAbout.values.map((value: any) => ({
+    icon: Shield, titleAr: value.title, titleEn: value.titleEn, descAr: value.desc, descEn: value.descEn,
+  })) : fallbackValues;
 
   const team = [
     { avatar: 'خ', nameAr: 'م. خالد الحربي', nameEn: 'Khalid Al-Harbi', roleAr: 'الرئيس التنفيذي', roleEn: 'CEO & Co-Founder', descAr: '25 عاماً من الخبرة في الأسواق المالية الخليجية والعالمية. حاصل على CFA وماجستير إدارة الأعمال.', descEn: '25 years experience in Gulf and global markets. CFA holder and MBA.' },
@@ -37,7 +43,7 @@ function AboutPage() {
               {t('خمسة عشر عاماً من الثقة والنتائج', 'Fifteen Years of Trust and Results')}
             </h1>
             <p className="text-lg text-text-secondary mb-6 leading-relaxed">
-              {t('بدأت ثروة كابيتال عام 2010 برؤية واضحة: جعل عالم الاستثمار المؤسسي متاحاً للمستثمر العربي الفرد بنفس المستوى من الاحترافية والشفافية التي تحظى بها المؤسسات الكبرى', 'Tharwah Capital began in 2010 with a clear vision: making institutional investment accessible to individual Arab investors with high professionalism.')}
+              {lang === 'ar' ? (managedAbout.story || t('بدأت ثروة كابيتال عام 2010 برؤية واضحة: جعل عالم الاستثمار المؤسسي متاحاً للمستثمر العربي الفرد بنفس المستوى من الاحترافية والشفافية التي تحظى بها المؤسسات الكبرى', '')) : (managedAbout.storyEn || t('', 'Tharwah Capital began in 2010 with a clear vision: making institutional investment accessible to individual Arab investors with high professionalism.'))}
             </p>
             <p className="text-lg text-text-secondary mb-8 leading-relaxed">
               {t('اليوم نُدير أكثر من $2 مليار من أصول عملائنا في 15 سوقاً مالياً عالمياً، مع فريق يضم أكثر من 50 خبيراً.', 'Today we manage over $2 billion in client assets across 15 global markets, with a team of over 50 experts.')}
@@ -99,7 +105,7 @@ function AboutPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
-            {values.map((v, i) => (
+            {values.map((v: { icon: ElementType; titleAr: string; titleEn: string; descAr: string; descEn: string }, i: number) => (
               <Card key={i} variant="interactive" className="p-8 flex flex-col items-center hover:-translate-y-1">
                 <div className="w-16 h-16 rounded-xl bg-gold-subtle border border-border-gold flex items-center justify-center mb-6">
                   <v.icon className="w-7 h-7 text-gold-deep" />

@@ -17,7 +17,7 @@
                         (Realtime updates)
 ```
 
-**لا يوجد Supabase نهائياً.** كل شيء يعمل على خادمك الخاص.
+كل طبقات البيانات والمصادقة والتحديث اللحظي تعمل على الخادم الخاص.
 
 ---
 
@@ -99,7 +99,7 @@ npm run prisma:generate
 npm run prisma:migrate
 npm run prisma:seed
 npm run build
-pm2 start pm2/ecosystem.config.js
+pm2 start pm2/ecosystem.config.cjs
 pm2 save
 pm2 startup systemd
 ```

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { AuthRequest, authenticateToken, requireRole } from '../middleware/auth.middleware.js';
+import { AuthRequest, authenticateToken, requirePermission } from '../middleware/auth.middleware.js';
 import { prisma } from '../lib/prisma.js';
 import { broadcastAdminUpdate, broadcastPublicUpdate } from '../lib/socket.js';
 
@@ -17,7 +17,7 @@ router.get('/:key', async (req, res) => {
   }
 });
 
-router.get('/', authenticateToken, requireRole('super', 'admin', 'sub'), async (req: AuthRequest, res) => {
+router.get('/', authenticateToken, requirePermission('content:read'), async (_req: AuthRequest, res) => {
   try {
     const sections = await prisma.contentSection.findMany({
       orderBy: { order_index: 'asc' },
@@ -28,7 +28,7 @@ router.get('/', authenticateToken, requireRole('super', 'admin', 'sub'), async (
   }
 });
 
-router.put('/:key', authenticateToken, requireRole('super', 'admin'), async (req: AuthRequest, res) => {
+router.put('/:key', authenticateToken, requirePermission('content:write'), async (req: AuthRequest, res) => {
   try {
     const { title_ar, title_en, content_ar, content_en, content_data, is_active, order_index } = req.body;
     const updated = await prisma.contentSection.upsert({

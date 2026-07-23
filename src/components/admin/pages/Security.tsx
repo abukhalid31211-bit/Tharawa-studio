@@ -12,9 +12,8 @@ import {
   PageHeader, Panel, PanelHeader, Pill, StatCard, FilterTabs,
   PrimaryBtn, Toggle, EmptyState, DataTable, Tr, Td, useToast, Field, TextInput,
 } from '@/components/admin/ui';
-import { hashPassword, generateSalt } from '@/lib/crypto';
 import { logger } from '@/lib/logger';
-import { env } from '@/lib/env';
+import { api } from '@/lib/api';
 
 interface SecurityPrefs {
   firewall: boolean;
@@ -50,51 +49,17 @@ export function Security() {
 
   const changePassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (newPw.length < 8) { show(t('كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل', 'New password must be at least 8 characters'), 'error'); return; }
+    if (newPw !== confirmPw) { show(t('تأكيد كلمة المرور غير متطابق', 'Password confirmation does not match'), 'error'); return; }
     setIsChanging(true);
-
     try {
-      if (newPw.length < 8) { 
-        show(t('كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل', 'New password must be at least 8 characters'), 'error'); 
-        setIsChanging(false);
-        return; 
-      }
-      if (newPw !== confirmPw) { 
-        show(t('تأكيد كلمة المرور غير متطابق', 'Password confirmation does not match'), 'error'); 
-        setIsChanging(false);
-        return; 
-      }
-
-      // In production, verify old password against Supabase or hashed ENV value
-      // For demo, we simulate verification
-      // In real app: call supabase.auth.updateUser({ password: newPw })
-      
-      if (env.isDevelopment) {
-        // Demo mode - just simulate
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Generate new hash for demo
-        const salt = generateSalt();
-        const hashed = await hashPassword(newPw, salt);
-        
-        logger.audit('super_admin', 'password_change_attempt', { 
-          success: true,
-          newHashPrefix: hashed.hash.slice(0, 8) 
-        });
-        
-        setOldPw(''); setNewPw(''); setConfirmPw('');
-        show(t('تم تغيير كلمة المرور الرئيسية بنجاح (وضع التجربة)', 'Master password changed successfully (demo mode)'));
-        
-        // In production, you would:
-        // 1. Verify old password via Supabase
-        // 2. Update via supabase.auth.updateUser
-        // 3. Force logout other sessions
-      } else {
-        // Production path
-        show(t('في الإنتاج: يجب تغيير كلمة المرور عبر Supabase Auth أو لوحة التحكم الآمنة', 'In production: change password via Supabase Auth'), 'error');
-      }
+      await api.changePassword(oldPw, newPw);
+      setOldPw(''); setNewPw(''); setConfirmPw('');
+      show(t('تم تغيير كلمة المرور الرئيسية بنجاح', 'Master password changed successfully'));
+      logger.audit('super_admin', 'password_changed');
     } catch (error: any) {
       logger.error('Password change failed', error);
-      show(t('فشل تغيير كلمة المرور', 'Failed to change password'), 'error');
+      show(error?.message || t('فشل تغيير كلمة المرور', 'Failed to change password'), 'error');
     } finally {
       setIsChanging(false);
     }
@@ -115,7 +80,7 @@ export function Security() {
           <div className="flex items-center gap-2">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#00D97E]/10 border border-[#00D97E]/20 text-[10px] font-bold text-[#00D97E]">
               <ShieldCheck className="w-3 h-3" />
-              PBKDF2 + RLS + CSP
+              BCRYPT + JWT + CSP
             </div>
             {lockInfo.length > 0 && (
               <PrimaryBtn icon={ShieldAlert} color="#F59E0B" colorHover="#D97706" onClick={unlockAll}>
@@ -169,13 +134,13 @@ export function Security() {
         </Panel>
 
         <Panel>
-          <PanelHeader icon={KeyRound} iconColor="#C9A84C" title={t('كلمة مرور المشرف الرئيسي', 'Super Admin Password')} subtitle={t('إدارة آمنة عبر Supabase Auth', 'Secure management via Supabase Auth')} />
+          <PanelHeader icon={KeyRound} iconColor="#C9A84C" title={t('كلمة مرور المشرف الرئيسي', 'Super Admin Password')} subtitle={t('إدارة آمنة عبر الخادم الخاص', 'Secure management via private backend')} />
           
-          {!env.isMockMode ? (
+          {false ? (
             <div className="mt-4 p-4 rounded-lg bg-[#F0F9FF] border border-[#0EA5E9]/20 text-center">
               <Lock className="w-8 h-8 text-[#0EA5E9] mx-auto mb-2" />
-              <p className="text-sm font-bold text-[#1E293B]">{t('إدارة كلمة المرور عبر Supabase', 'Password managed via Supabase')}</p>
-              <p className="text-xs text-[#64748B] mt-1">{t('في الإنتاج، غيّر كلمة المرور من لوحة تحكم Supabase أو عبر البريد الإلكتروني', 'In production, change password from Supabase dashboard')}</p>
+              <p className="text-sm font-bold text-[#1E293B]">{t('إدارة كلمة المرور عبر الخادم', 'Password managed via backend')}</p>
+              <p className="text-xs text-[#64748B] mt-1">{t('في الإنتاج، تُدار كلمة المرور من الخادم الخاص', 'In production, the password is managed by the private backend')}</p>
               <div className="mt-3 inline-flex px-3 py-1 rounded-full bg-[#00D97E]/10 text-[10px] font-bold text-[#00D97E] border border-[#00D97E]/20">
                 🔐 Production Mode - Secure
               </div>
@@ -183,11 +148,11 @@ export function Security() {
           ) : (
             <form onSubmit={changePassword} className="space-y-4 mt-4">
               <div className="p-2 rounded-lg bg-[#FFFBEB] border border-[#F59E0B]/20">
-                <p className="text-[11px] font-bold text-[#92400E]">🔧 وضع التجربة - Demo Mode</p>
-                <p className="text-[10px] text-[#B45309] mt-1">{t('تغيير كلمة المرور هنا تجريبي فقط. في الإنتاج استخدم Supabase Auth', 'Password change here is demo only. In production use Supabase Auth')}</p>
+                <p className="text-[11px] font-bold text-[#92400E]">🔐 Backend Security</p>
+                <p className="text-[10px] text-[#B45309] mt-1">{t('يتم التحقق من كلمة المرور عبر الخادم الخاص', 'The password is verified by the private backend')}</p>
               </div>
               
-              <Field label={t('كلمة المرور الحالية (تجريبي: أي شيء)', 'Current Password (demo: anything)')}>
+              <Field label={t('كلمة المرور الحالية', 'Current Password')}>
                 <TextInput required type="password" value={oldPw} onChange={e => setOldPw(e.target.value)} placeholder="••••••••" />
               </Field>
               <Field label={t('كلمة المرور الجديدة', 'New Password')} hint={t('8 أحرف على الأقل', 'At least 8 characters')}>
@@ -197,7 +162,7 @@ export function Security() {
                 <TextInput required type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} placeholder="••••••••" />
               </Field>
               <PrimaryBtn icon={KeyRound} type="submit" onClick={() => {}}>
-                {isChanging ? t('جاري التغيير...', 'Changing...') : t('تغيير كلمة المرور (تجريبي)', 'Change Password (demo)')}
+                {isChanging ? t('جاري التغيير...', 'Changing...') : t('تغيير كلمة المرور', 'Change Password')}
               </PrimaryBtn>
             </form>
           )}

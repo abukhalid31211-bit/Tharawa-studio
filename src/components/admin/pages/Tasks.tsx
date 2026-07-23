@@ -56,7 +56,6 @@ export function Tasks() {
     if (filter === 'overdue') list = list.filter(x => overdue.includes(x));
     else if (filter !== 'all') list = list.filter(x => x.status === filter);
     return list;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks, filter, overdue]);
 
   const cycleStatus = (task: AdminTask) => {

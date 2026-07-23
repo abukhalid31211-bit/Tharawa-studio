@@ -1,108 +1,84 @@
 #!/bin/bash
-# ==============================================
-# Tharwah Capital - VPS Setup Script (Ubuntu 22.04/24.04)
-# Backend + PostgreSQL on private VPS
-# ==============================================
 set -euo pipefail
-
-echo "=============================================="
-echo "Tharwah Capital - Production VPS Setup"
-echo "=============================================="
 
 API_DOMAIN="${API_DOMAIN:-api.yourdomain.com}"
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@yourdomain.com}"
 DB_USER="${DB_USER:-tharwah_user}"
 DB_NAME="${DB_NAME:-tharwah}"
+APP_DIR="${APP_DIR:-/var/www/tharwah-api}"
 
-# 1. Update system
-echo "[1/12] Updating system..."
-apt update && apt upgrade -y
+[[ "$API_DOMAIN" =~ ^[A-Za-z0-9.-]+$ ]] || { echo "Invalid API_DOMAIN"; exit 1; }
+[[ "$DB_USER" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || { echo "Invalid DB_USER"; exit 1; }
+[[ "$DB_NAME" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || { echo "Invalid DB_NAME"; exit 1; }
 
-# 2. Install dependencies
-echo "[2/12] Installing dependencies..."
-apt install -y curl wget git build-essential libssl-dev libffi-dev python3 python3-pip nginx certbot python3-certbot-nginx ufw
+apt update
+DEBIAN_FRONTEND=noninteractive apt upgrade -y
+apt install -y curl ca-certificates git build-essential nginx certbot python3-certbot-nginx ufw postgresql postgresql-contrib libpq-dev
 
-# 3. Install Node.js 20 LTS
-echo "[3/12] Installing Node.js 20 LTS..."
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt install -y nodejs
-node --version
-npm --version
-
-# 4. Install PM2
-echo "[4/12] Installing PM2 globally..."
+if ! command -v node >/dev/null || [[ "$(node -p 'Number(process.versions.node.split(`.`)[0])')" -lt 20 ]]; then
+  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+  apt install -y nodejs
+fi
 npm install -g pm2
+systemctl enable --now postgresql nginx
 
-# 5. Install PostgreSQL 16
-echo "[5/12] Installing PostgreSQL 16..."
-apt install -y postgresql postgresql-contrib libpq-dev
-systemctl start postgresql
-systemctl enable postgresql
+id -u tharwah >/dev/null 2>&1 || useradd --system --create-home --shell /usr/sbin/nologin tharwah
+install -d -o tharwah -g tharwah "$APP_DIR" /var/log/tharwah-api
 
-# 6. Setup database
-echo "[6/12] Configuring PostgreSQL database..."
-DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -base64 32)}"
-sudo -u postgres psql -c "CREATE USER $DB_USER WITH ENCRYPTED PASSWORD '$DB_PASSWORD';" || true
-sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;" || true
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
+DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -hex 32)}"
+sudo -u postgres psql -v ON_ERROR_STOP=1 --set=db_user="$DB_USER" --set=db_password="$DB_PASSWORD" --set=db_name="$DB_NAME" <<'SQL'
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'db_user', :'db_password')
+WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'db_user') \gexec
+SELECT format('CREATE DATABASE %I OWNER %I', :'db_name', :'db_user')
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = :'db_name') \gexec
+SQL
 
-# Allow local connections with password
-sudo sed -i "s/^#listen_addresses = 'localhost'/listen_addresses = 'localhost'/" /etc/postgresql/16/main/postgresql.conf
-sudo sed -i 's/^local\s\+all\s\+all\s\+peer/local   all             all                                     scram-sha-256/' /etc/postgresql/16/main/pg_hba.conf
-systemctl restart postgresql
+# Shared zones and WebSocket connection mapping belong in nginx's http context.
+if ! grep -q 'zone=api_limit' /etc/nginx/nginx.conf; then
+  sed -i '/http {/a\    limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;\n    limit_conn_zone $binary_remote_addr zone=addr:10m;\n    map $http_upgrade $connection_upgrade { default upgrade; "" close; }' /etc/nginx/nginx.conf
+fi
 
-echo ""
-echo "DATABASE_URL=postgresql://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME"
-echo ""
-
-# 7. Configure Nginx
-echo "[7/12] Configuring Nginx..."
-mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
-
-# Add rate limit zone
-grep -q "limit_req_zone" /etc/nginx/nginx.conf || \
-  sed -i '/http {/a \    limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;' /etc/nginx/nginx.conf
-
-cp backend/nginx/tharwah.conf /etc/nginx/sites-available/tharwah-api
-sed -i "s/api.yourdomain.com/$API_DOMAIN/g" /etc/nginx/sites-available/tharwah-api
-ln -sf /etc/nginx/sites-available/tharwah-api /etc/nginx/sites-enabled/
+# HTTP-only bootstrap must load before a Let's Encrypt certificate exists.
+cat > /etc/nginx/sites-available/tharwah-api <<EOF
+server {
+    listen 80;
+    server_name $API_DOMAIN;
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+    }
+}
+EOF
+ln -sfn /etc/nginx/sites-available/tharwah-api /etc/nginx/sites-enabled/tharwah-api
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
-systemctl restart nginx
-systemctl enable nginx
+systemctl reload nginx
 
-# 8. SSL via Let's Encrypt
-echo "[8/12] Setting up SSL (Let's Encrypt)..."
-certbot --nginx -d "$API_DOMAIN" --non-interactive --agree-tos --email "$ADMIN_EMAIL" --redirect || true
+certbot --nginx -d "$API_DOMAIN" --non-interactive --agree-tos --email "$ADMIN_EMAIL" --redirect
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cp "$SCRIPT_DIR/../nginx/tharwah.conf" /etc/nginx/sites-available/tharwah-api
+sed -i "s/api.yourdomain.com/$API_DOMAIN/g" /etc/nginx/sites-available/tharwah-api
+nginx -t
+systemctl reload nginx
 
-# 9. Firewall
-echo "[9/12] Configuring Firewall..."
 ufw default deny incoming
 ufw default allow outgoing
-ufw allow 22/tcp
-ufw allow 80/tcp
-ufw allow 443/tcp
+ufw allow OpenSSH
+ufw allow 'Nginx Full'
 ufw --force enable
 
-# 10. Setup directories
-echo "[10/12] Setting up directories..."
-mkdir -p /var/log/tharwah-api
-mkdir -p /var/www/tharwah-api
-
-# 11. Build instructions
-echo "[11/12] Ready for deployment."
-echo "Next steps:"
-echo "  1. Copy backend/ contents to /var/www/tharwah-api/"
-echo "  2. Create /var/www/tharwah-api/.env with DATABASE_URL and JWT secrets"
-echo "  3. cd /var/www/tharwah-api && npm install"
-echo "  4. npm run prisma:generate && npm run prisma:migrate"
-echo "  5. npm run prisma:seed (creates super admin + demo client)"
-echo "  6. npm run build"
-echo "  7. pm2 start pm2/ecosystem.config.js"
-echo "  8. pm2 save && pm2 startup systemd"
-echo ""
-echo "=============================================="
-echo "Setup Complete!"
-echo "API Domain: https://$API_DOMAIN"
-echo "Database: postgresql://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME"
-echo "=============================================="
+cat <<EOF
+VPS preparation completed.
+Application directory: $APP_DIR
+Database: $DB_NAME
+Database user: $DB_USER
+Store the following value in $APP_DIR/.env using restricted permissions:
+DATABASE_URL=postgresql://$DB_USER:$DB_PASSWORD@127.0.0.1:5432/$DB_NAME
+Then install, migrate, build and start pm2/ecosystem.config.cjs as the tharwah service user.
+EOF

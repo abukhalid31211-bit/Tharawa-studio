@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { useCmsSection } from '@/lib/cms';
 import { Search, HelpCircle, TrendingUp, ChevronDown, Rocket, Briefcase, DollarSign, ShieldAlert, CreditCard, Lock, Moon, HeadphonesIcon, Zap } from 'lucide-react';
 
 export const Route = createFileRoute('/faq')({ component: FAQPage });
@@ -58,10 +59,17 @@ function FAQPage() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [search, setSearch] = useState('');
   const [openQ, setOpenQ] = useState<string | null>(null);
+  const { data: managedFaq } = useCmsSection<any[]>('faq', []);
+  const faqSource = managedFaq.length ? Object.values(managedFaq.filter(item => item.published).reduce((groups: Record<string, any>, item: any) => {
+    const key = item.category || 'general';
+    groups[key] ||= { category: key, categoryAr: key, categoryEn: key, emoji: '❓', questions: [] };
+    groups[key].questions.push({ qAr: item.question, qEn: item.questionEn, aAr: item.answer, aEn: item.answerEn });
+    return groups;
+  }, {})) as typeof faqs : faqs;
 
   const toggleQ = (q: string) => setOpenQ(openQ === q ? null : q);
 
-  const filteredFaqs = faqs.filter(cat => activeCategory === 'all' || cat.category === activeCategory).map(cat => ({
+  const filteredFaqs = faqSource.filter(cat => activeCategory === 'all' || cat.category === activeCategory).map(cat => ({
     ...cat,
     questions: cat.questions.filter(q => 
       q.qAr.includes(search) || q.qEn.toLowerCase().includes(search.toLowerCase()) ||

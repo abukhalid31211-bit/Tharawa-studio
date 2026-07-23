@@ -1,6 +1,6 @@
 /**
  * Tharwah Capital - Secure Authentication Layer v3
- * Backend JWT only — no Supabase
+ * Backend JWT only
  */
 import { getStorage, setStorage, removeStorage, KEYS, clearAllAuthStorage } from './store';
 import { signSession, verifySessionSignature, generateSecureToken } from './crypto';
@@ -201,10 +201,12 @@ export function clearAdminSession() {
   }
   removeStorage(KEYS.ADMIN_SESSION);
   localStorage.removeItem('admin_permissions');
+  clearAuthTokens();
 }
 
 export function clearClientSession() {
   removeStorage(KEYS.CLIENT_SESSION);
+  clearAuthTokens();
 }
 
 export function clearAllSessions() {

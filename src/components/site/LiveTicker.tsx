@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLang } from '@/contexts/LanguageContext';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useCmsSection } from '@/lib/cms';
 
 const TICKER_ITEMS = [
   { id: 1, nameAr: 'بيتكوين', nameEn: 'Bitcoin', symbol: 'BTC/USD', price: '$71,240', change: '+2.4%', isUp: true },
@@ -19,7 +20,12 @@ const TICKER_ITEMS = [
 export function LiveTicker() {
   const { lang } = useLang();
   const [isPaused, setIsPaused] = useState(false);
-  const items = [...TICKER_ITEMS, ...TICKER_ITEMS];
+  const { data: managed } = useCmsSection<any>('markets', { markets: [] });
+  const sourceItems = managed.markets?.length ? managed.markets.filter((item: any) => item.visible !== false).map((item: any, index: number) => ({
+    id: item.id || index, nameAr: item.name, nameEn: item.nameEn, symbol: item.symbol, price: item.price,
+    change: `${Number(item.change) >= 0 ? '+' : ''}${item.change}%`, isUp: Number(item.change) >= 0,
+  })) : TICKER_ITEMS;
+  const items = [...sourceItems, ...sourceItems];
 
   return (
     <div className="w-full h-[42px] bg-secondary border-y border-border-gold/30 overflow-hidden relative flex items-center">

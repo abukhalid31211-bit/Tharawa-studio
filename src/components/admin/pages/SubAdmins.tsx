@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────
 // SubAdmins - SECURE v2 - No plaintext passwords
 // ─────────────────────────────────────────────────────────────
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Eye, Pencil, Trash2, Shield, Key } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
 import { useSubAdmins, SubAdmin, nextCode, addAuditEntry } from '@/lib/adminData';
@@ -15,6 +15,7 @@ import { hashPassword, generateSalt } from '@/lib/crypto';
 import { emailSchema, phoneSchema } from '@/lib/validations';
 import { sanitizeEmail, sanitizeInput } from '@/lib/security';
 import { logger } from '@/lib/logger';
+import { api } from '@/lib/api';
 
 const EMPTY_FORM = { name: '', email: '', phone: '', password: '', permissions: [] as string[] };
 
@@ -39,6 +40,19 @@ export function SubAdmins() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [deleting, setDeleting] = useState<SubAdmin | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    api.getSubAdmins().then((response: any) => {
+      const mapped = (response.data || []).map((item: any) => {
+        let permissions = item.permissions;
+        if (typeof permissions === 'string') { try { permissions = JSON.parse(permissions); } catch { permissions = []; } }
+        return { id: item.id, name: item.name, email: item.email, phone: item.phone || '', passwordHash: '', salt: '',
+          permissions: Array.isArray(permissions) ? permissions : [], status: item.status,
+          lastActive: item.last_active_at || '—', createdAt: item.created_at?.slice(0, 10) || '' } as SubAdmin;
+      });
+      setSubAdmins(mapped);
+    }).catch(error => logger.error('Failed to load sub-admins', error));
+  }, []);
 
   const counts = useMemo(() => ({
     all: subAdmins.length,
@@ -151,6 +165,7 @@ export function SubAdmins() {
           );
         }
         
+        await api.updateSubAdmin(editing.id, { name: sanitizeInput(form.name), phone: form.phone.trim(), permissions: form.permissions, ...(form.password ? { password: form.password } : {}) });
         setSubAdmins(updatedAdmins);
         addAuditEntry('super_admin', `تعديل مشرف فرعي ${form.name}`, `Updated sub-admin ${form.name}`);
         show(t('تم تحديث المشرف بنجاح', 'Sub-admin updated successfully'));
@@ -159,8 +174,9 @@ export function SubAdmins() {
         const salt = generateSalt();
         const { hash } = await hashPassword(form.password, salt);
         
+        const created = await api.createSubAdmin({ name: sanitizeInput(form.name), email: sanitizedEmail, phone: form.phone.trim(), password: form.password, permissions: form.permissions, status: 'active' });
         const newAdmin: SubAdmin = {
-          id: nextCode(subAdmins, 'SA'),
+          id: created.data.id || nextCode(subAdmins, 'SA'),
           name: sanitizeInput(form.name),
           email: sanitizedEmail,
           phone: form.phone.trim(),
@@ -189,8 +205,10 @@ export function SubAdmins() {
     }
   };
 
-  const toggleStatus = (sa: SubAdmin) => {
+  const toggleStatus = async (sa: SubAdmin) => {
     const nextStatus = sa.status === 'active' ? 'suspended' : 'active';
+    try { await api.updateSubAdmin(sa.id, { status: nextStatus }); }
+    catch (error) { logger.error('Failed to update sub-admin status', error); show(t('حدث خطأ أثناء الحفظ', 'Error while saving'), 'error'); return; }
     setSubAdmins(prev => prev.map(s => s.id === sa.id ? { ...s, status: nextStatus } : s));
     
     if (nextStatus === 'suspended') {
@@ -204,8 +222,10 @@ export function SubAdmins() {
     show(nextStatus === 'suspended' ? t('تم إيقاف المشرف', 'Admin suspended') : t('تم تفعيل المشرف', 'Admin activated'));
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleting) return;
+    try { await api.deleteSubAdmin(deleting.id); }
+    catch (error) { logger.error('Failed to delete sub-admin', error); show(t('حدث خطأ أثناء الحفظ', 'Error while saving'), 'error'); return; }
     setSubAdmins(prev => prev.filter(s => s.id !== deleting.id));
     localStorage.setItem('tharwah_force_logout', '1');
     addAuditEntry('super_admin', `حذف مشرف فرعي ${deleting.name}`, `Deleted sub-admin ${deleting.name}`);

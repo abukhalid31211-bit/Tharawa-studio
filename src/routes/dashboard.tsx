@@ -17,7 +17,7 @@ import { useTransactions, useMessages, useMeetings } from '@/lib/queries';
 import { useProfile } from '@/lib/queries';
 import { api } from '@/lib/api';
 import { jsPDF } from 'jspdf';
-import * as XLSX from 'xlsx';
+
 
 export const Route = createFileRoute('/dashboard')({ component: DashboardPage });
 
@@ -193,14 +193,20 @@ function DashboardPage() {
   };
 
   const exportToExcel = () => {
-    const data = transactions.map((t: any) => ({
-      'Transaction ID': t.id, 'Type': t.type.toUpperCase(), 'Amount': t.amount,
-      'Date': t.date, 'Status': t.status.toUpperCase(), 'Method': t.method
-    }));
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Transactions');
-    XLSX.writeFile(workbook, `Tharwah_Transactions_${session?.name || 'Client'}.xlsx`);
+    const escapeCell = (value: unknown) => {
+      const raw = String(value ?? '');
+      const safe = /^[=+\-@]/.test(raw.trim()) ? `'${raw}` : raw;
+      return safe.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    };
+    const headers = ['Transaction ID', 'Type', 'Amount', 'Date', 'Status', 'Method'];
+    const rows: unknown[][] = transactions.map((item: any) => [item.id, item.type.toUpperCase(), item.amount, item.date, item.status.toUpperCase(), item.method]);
+    const table = `<table><thead><tr>${headers.map(header => `<th>${header}</th>`).join('')}</tr></thead><tbody>${rows.map((row: unknown[]) => `<tr>${row.map((cell: unknown) => `<td>${escapeCell(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const url = URL.createObjectURL(new Blob([`\ufeff${table}`], { type: 'application/vnd.ms-excel;charset=utf-8' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `Tharwah_Transactions_${session?.name || 'Client'}.xls`;
+    anchor.click();
+    URL.revokeObjectURL(url);
     showToast(t('تم تحميل كشف الحساب بصيغة Excel', 'Excel statement downloaded'));
   };
 

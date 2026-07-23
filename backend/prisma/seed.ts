@@ -5,10 +5,9 @@ const prisma = new PrismaClient();
 
 async function main() {
   const saltRounds = 12;
+  const seedDemoData = process.env.SEED_DEMO_DATA === 'true' && process.env.NODE_ENV !== 'production';
 
   // Super admin user
-  const superAdminPassword = process.env.SUPER_ADMIN_PLAIN_PASSWORD || 'Tharwah@2026!Secure';
-  const superHash = await bcrypt.hash(superAdminPassword, saltRounds);
 
   const superUser = await prisma.user.upsert({
     where: { email: process.env.SUPER_ADMIN_EMAIL || 'admin@tharwahcapital.com' },
@@ -20,6 +19,7 @@ async function main() {
       tier: 'VIP+',
       status: 'active',
       phone: '+966500000000',
+      password_hash: process.env.SUPER_ADMIN_PASSWORD_HASH || null,
     },
   });
 
@@ -30,176 +30,179 @@ async function main() {
       user_id: superUser.id,
       name: superUser.name,
       email: superUser.email,
-      permissions: JSON.stringify(['*']),
+      permissions: ['*'],
       status: 'active',
     },
   });
 
-  // Demo client
-  const demoPassword = await bcrypt.hash('ClientDemo2026!', saltRounds);
-  const demoClient = await prisma.user.upsert({
-    where: { email: 'ahmed@example.com' },
-    update: {},
-    create: {
-      email: 'ahmed@example.com',
-      name: 'أحمد الغامدي',
-      role: 'client',
-      tier: 'Gold',
-      status: 'active',
-      phone: '+966501234567',
-      kyc_status: 'verified',
-      password_hash: demoPassword,
-    },
-  });
-
-  // Demo portfolio
-  const portfolio = await prisma.portfolio.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000001' },
-    update: {},
-    create: {
-      id: '00000000-0000-0000-0000-000000000001',
-      user_id: demoClient.id,
-      name: 'المحفظة الرئيسية',
-      name_en: 'Main Portfolio',
-      total_valuation: 245000,
-      risk_profile: 'balanced',
-      currency: 'SAR',
-      growth_percent: 18.5,
-      portfolio_data: {
-        strategy: 'توزيع متوازن بين الأسهم والصكوك',
-        strategyEn: 'Balanced split between equities and sukuk',
+  if (seedDemoData) {
+    // Demo client
+    const demoPassword = await bcrypt.hash('ClientDemo2026!', saltRounds);
+    const demoClient = await prisma.user.upsert({
+      where: { email: 'ahmed@example.com' },
+      update: {},
+      create: {
+        email: 'ahmed@example.com',
+        name: 'أحمد الغامدي',
+        role: 'client',
+        tier: 'Gold',
+        status: 'active',
+        phone: '+966501234567',
+        kyc_status: 'verified',
+        password_hash: demoPassword,
       },
-    },
-  });
+    });
 
-  // Demo assets
-  await prisma.asset.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000101' },
-    update: {},
-    create: {
-      id: '00000000-0000-0000-0000-000000000101',
-      portfolio_id: portfolio.id,
-      symbol: '2222.SR',
-      name: 'أرامكو السعودية',
-      name_en: 'Saudi Aramco',
-      asset_class: 'equity',
-      weight_percent: 30,
-      quantity: 2085,
-      avg_price: 35.2,
-      valuation: 73500,
-      annual_yield: 4.2,
-      status: 'active',
-    },
-  });
+    // Demo portfolio
+    const portfolio = await prisma.portfolio.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000001' },
+      update: {},
+      create: {
+        id: '00000000-0000-0000-0000-000000000001',
+        user_id: demoClient.id,
+        name: 'المحفظة الرئيسية',
+        name_en: 'Main Portfolio',
+        total_valuation: 245000,
+        risk_profile: 'balanced',
+        currency: 'SAR',
+        growth_percent: 18.5,
+        portfolio_data: {
+          strategy: 'توزيع متوازن بين الأسهم والصكوك',
+          strategyEn: 'Balanced split between equities and sukuk',
+        },
+      },
+    });
 
-  await prisma.asset.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000102' },
-    update: {},
-    create: {
-      id: '00000000-0000-0000-0000-000000000102',
-      portfolio_id: portfolio.id,
-      symbol: 'SPUS',
-      name: 'صندوق SP الأمريكي المتوافق',
-      name_en: 'SPUS Sharia ETF',
-      asset_class: 'fund',
-      weight_percent: 25,
-      quantity: 1104,
-      avg_price: 55.45,
-      valuation: 61250,
-      annual_yield: 2.1,
-      status: 'active',
-    },
-  });
+    // Demo assets
+    await prisma.asset.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000101' },
+      update: {},
+      create: {
+        id: '00000000-0000-0000-0000-000000000101',
+        portfolio_id: portfolio.id,
+        symbol: '2222.SR',
+        name: 'أرامكو السعودية',
+        name_en: 'Saudi Aramco',
+        asset_class: 'equity',
+        weight_percent: 30,
+        quantity: 2085,
+        avg_price: 35.2,
+        valuation: 73500,
+        annual_yield: 4.2,
+        status: 'active',
+      },
+    });
 
-  await prisma.asset.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000103' },
-    update: {},
-    create: {
-      id: '00000000-0000-0000-0000-000000000103',
-      portfolio_id: portfolio.id,
-      symbol: 'SUKUK-KSA',
-      name: 'صكوك حكومية سعودية',
-      name_en: 'KSA Sovereign Sukuk',
-      asset_class: 'sukuk',
-      weight_percent: 25,
-      quantity: 612.5,
-      avg_price: 100,
-      valuation: 61250,
-      annual_yield: 5.8,
-      status: 'active',
-    },
-  });
+    await prisma.asset.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000102' },
+      update: {},
+      create: {
+        id: '00000000-0000-0000-0000-000000000102',
+        portfolio_id: portfolio.id,
+        symbol: 'SPUS',
+        name: 'صندوق SP الأمريكي المتوافق',
+        name_en: 'SPUS Sharia ETF',
+        asset_class: 'fund',
+        weight_percent: 25,
+        quantity: 1104,
+        avg_price: 55.45,
+        valuation: 61250,
+        annual_yield: 2.1,
+        status: 'active',
+      },
+    });
 
-  await prisma.asset.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000104' },
-    update: {},
-    create: {
-      id: '00000000-0000-0000-0000-000000000104',
-      portfolio_id: portfolio.id,
-      symbol: 'XAU',
-      name: 'الذهب',
-      name_en: 'Gold',
-      asset_class: 'commodity',
-      weight_percent: 20,
-      quantity: 25,
-      avg_price: 1960,
-      valuation: 49000,
-      annual_yield: 0.9,
-      status: 'active',
-    },
-  });
+    await prisma.asset.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000103' },
+      update: {},
+      create: {
+        id: '00000000-0000-0000-0000-000000000103',
+        portfolio_id: portfolio.id,
+        symbol: 'SUKUK-KSA',
+        name: 'صكوك حكومية سعودية',
+        name_en: 'KSA Sovereign Sukuk',
+        asset_class: 'sukuk',
+        weight_percent: 25,
+        quantity: 612.5,
+        avg_price: 100,
+        valuation: 61250,
+        annual_yield: 5.8,
+        status: 'active',
+      },
+    });
 
-  // Demo transactions
-  await prisma.transaction.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000201' },
-    update: {},
-    create: {
-      id: '00000000-0000-0000-0000-000000000201',
-      user_id: demoClient.id,
-      portfolio_id: portfolio.id,
-      type: 'deposit',
-      amount: 100000,
-      currency: 'SAR',
-      method: 'Saudi National Bank (SNB)',
-      status: 'completed',
-      reference_code: 'DEP-2026-001',
-      notes: 'إيداع رأس مال إضافي',
-    },
-  });
+    await prisma.asset.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000104' },
+      update: {},
+      create: {
+        id: '00000000-0000-0000-0000-000000000104',
+        portfolio_id: portfolio.id,
+        symbol: 'XAU',
+        name: 'الذهب',
+        name_en: 'Gold',
+        asset_class: 'commodity',
+        weight_percent: 20,
+        quantity: 25,
+        avg_price: 1960,
+        valuation: 49000,
+        annual_yield: 0.9,
+        status: 'active',
+      },
+    });
 
-  await prisma.transaction.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000202' },
-    update: {},
-    create: {
-      id: '00000000-0000-0000-0000-000000000202',
-      user_id: demoClient.id,
-      portfolio_id: portfolio.id,
-      type: 'deposit',
-      amount: 15000,
-      currency: 'SAR',
-      method: 'Saudi National Bank (SNB)',
-      status: 'completed',
-      reference_code: 'DEP-2026-002',
-      notes: 'إيداع شهري مجدول',
-    },
-  });
+    // Demo transactions
+    await prisma.transaction.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000201' },
+      update: {},
+      create: {
+        id: '00000000-0000-0000-0000-000000000201',
+        user_id: demoClient.id,
+        portfolio_id: portfolio.id,
+        type: 'deposit',
+        amount: 100000,
+        currency: 'SAR',
+        method: 'Saudi National Bank (SNB)',
+        status: 'completed',
+        reference_code: 'DEP-2026-001',
+        notes: 'إيداع رأس مال إضافي',
+      },
+    });
 
-  await prisma.transaction.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000203' },
-    update: {},
-    create: {
-      id: '00000000-0000-0000-0000-000000000203',
-      user_id: demoClient.id,
-      portfolio_id: portfolio.id,
-      type: 'dividend',
-      amount: 2450,
-      currency: 'SAR',
-      method: 'Portfolio Reinvestment',
-      status: 'completed',
-      reference_code: 'DIV-2026-001',
-      notes: 'أرباح موزعة معاد استثمارها',
-    },
-  });
+    await prisma.transaction.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000202' },
+      update: {},
+      create: {
+        id: '00000000-0000-0000-0000-000000000202',
+        user_id: demoClient.id,
+        portfolio_id: portfolio.id,
+        type: 'deposit',
+        amount: 15000,
+        currency: 'SAR',
+        method: 'Saudi National Bank (SNB)',
+        status: 'completed',
+        reference_code: 'DEP-2026-002',
+        notes: 'إيداع شهري مجدول',
+      },
+    });
+
+    await prisma.transaction.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000203' },
+      update: {},
+      create: {
+        id: '00000000-0000-0000-0000-000000000203',
+        user_id: demoClient.id,
+        portfolio_id: portfolio.id,
+        type: 'dividend',
+        amount: 2450,
+        currency: 'SAR',
+        method: 'Portfolio Reinvestment',
+        status: 'completed',
+        reference_code: 'DIV-2026-001',
+        notes: 'أرباح موزعة معاد استثمارها',
+      },
+    });
+
+  }
 
   // Demo content sections
   const contentSections = [
@@ -293,7 +296,7 @@ async function main() {
 
   console.log('✅ Seed completed');
   console.log('Super Admin:', superUser.email);
-  console.log('Demo Client:', demoClient.email);
+  console.log('Demo data:', seedDemoData ? 'created' : 'skipped');
 }
 
 main()

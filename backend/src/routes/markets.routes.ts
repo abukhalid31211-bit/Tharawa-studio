@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 const router = Router();
 
-router.get('/ticker', (req, res) => {
+router.get('/ticker', (_req, res) => {
   // بيانات تجريبية — في الإنتاج يجب الربط مع API أسواق حقيقي
   const tickerData = [
     { symbol: 'BTC/USD', name: 'Bitcoin', nameAr: 'بيتكوين', price: 67240, change: 2.4, changePercent: '+2.4%', isUp: true },

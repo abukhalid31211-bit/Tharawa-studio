@@ -9,7 +9,7 @@ const router = Router();
 router.use(authenticateToken);
 router.use(requireRole('super', 'admin'));
 
-router.get('/', async (req: AuthRequest, res) => {
+router.get('/', async (_req: AuthRequest, res) => {
   try {
     const subAdmins = await prisma.subAdmin.findMany({
       include: { user: { select: { id: true, email: true, name: true, status: true, role: true } } },
@@ -46,10 +46,10 @@ router.post('/', requireRole('super'), async (req: AuthRequest, res) => {
         name,
         email: user.email,
         phone,
-        permissions: JSON.stringify(permissions || []),
+        permissions: permissions || [],
         status: status || 'active',
       },
-      include: { user: true },
+      include: { user: { select: { id: true, email: true, name: true, status: true, role: true } } },
     });
 
     broadcastAdminUpdate({ action: 'sub_admin_created', subAdminId: subAdmin.id, email: user.email });
@@ -62,23 +62,26 @@ router.post('/', requireRole('super'), async (req: AuthRequest, res) => {
 
 router.put('/:id', requireRole('super'), async (req: AuthRequest, res) => {
   try {
-    const { name, phone, permissions, status } = req.body;
+    const { name, phone, permissions, status, password } = req.body;
     const subAdmin = await prisma.subAdmin.update({
       where: { id: req.params.id },
       data: {
         ...(name && { name }),
         ...(phone !== undefined && { phone }),
-        ...(permissions && { permissions: JSON.stringify(permissions) }),
+        ...(permissions && { permissions: permissions }),
         ...(status && { status }),
       },
-      include: { user: true },
+      include: { user: { select: { id: true, email: true, name: true, status: true, role: true } } },
     });
 
-    if (status) {
+    if (status || password) {
       await prisma.user.update({
         where: { id: subAdmin.user_id },
-        data: { status },
+        data: { ...(status && { status }), ...(password && String(password).length >= 8 && { password_hash: await bcrypt.hash(String(password), 12) }) },
       });
+      if (status === 'suspended' || password) {
+        await prisma.refreshSession.updateMany({ where: { user_id: subAdmin.user_id, revoked_at: null }, data: { revoked_at: new Date() } });
+      }
     }
 
     broadcastAdminUpdate({ action: 'sub_admin_updated', subAdminId: subAdmin.id });

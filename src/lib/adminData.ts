@@ -1,122 +1,97 @@
 // ─────────────────────────────────────────────────────────────
-// Tharwah Capital — Admin Dashboard Data Layer (SECURE v2)
-// طبقة بيانات آمنة مع تشفير وتشويش
-// Mirrors Supabase schema with secure localStorage fallback
+// Tharwah Capital — Admin Dashboard Data Layer
+// PostgreSQL-backed compatibility layer preserving the existing admin UI contract
+// localStorage is used only as a development fallback
 // ─────────────────────────────────────────────────────────────
 import React, { useCallback, useEffect, useState } from 'react';
-import { obfuscateData, deobfuscateData } from './crypto';
+import { obfuscateData, deobfuscateData, hashPassword } from './crypto';
 import { logger } from './logger';
+import { api } from './api';
+import { useRemoteCollection } from './adminRemote';
 import { sanitizeInput, sanitizeEmail, sanitizeCsvValue } from './security';
 
 const CHANGE_EVENT = 'tharwah_admin_data_changed_v2';
 const STORE_VERSION = 'v2';
 
-export function emitAdminDataChange() {
-  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
+export function emitAdminDataChange(key?: string) {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: { key } }));
 }
 
 function load<T>(key: string, seed: T): T {
   if (typeof window === 'undefined') return seed;
-  
-  // Production: try backend API first (PostgreSQL via REST)
-  // Development / fallback: localStorage
-  if (import.meta.env.PROD && import.meta.env.VITE_API_URL) {
-    // In production, data is fetched via TanStack Query / REST from backend
-    // The seed is used as fallback only when offline
-    return seed;
-  }
-  
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return seed;
-    
-    // Try deobfuscation first (new format)
     try {
-      const deobfuscated = deobfuscateData(raw);
-      const parsed = JSON.parse(deobfuscated);
-      // Check if has version wrapper
-      if (parsed && typeof parsed === 'object' && parsed._v === STORE_VERSION) {
-        return parsed.data as T;
-      }
-      return parsed as T;
+      const parsed = JSON.parse(deobfuscateData(raw));
+      return parsed && parsed._v === STORE_VERSION ? parsed.data as T : parsed as T;
     } catch {
-      // Fallback to plain JSON (old format) for migration
-      const parsed = JSON.parse(raw);
-      // Migrate if needed
-      if (Array.isArray(parsed) || (typeof parsed === 'object' && parsed !== null)) {
-        return parsed as T;
-      }
-      return seed;
+      return JSON.parse(raw) as T;
     }
-  } catch (error) {
-    logger.warn(`Failed to load ${key}`, { error });
+  } catch {
     return seed;
+  }
+}
+
+function persistLocal<T>(key: string, value: T) {
+  if (typeof window === 'undefined' || import.meta.env.PROD) return;
+  try {
+    const serialized = JSON.stringify({ _v: STORE_VERSION, data: value, ts: Date.now() });
+    localStorage.setItem(key, obfuscateData(serialized));
+  } catch (error) {
+    logger.error(`Failed to persist development fallback ${key}`, error);
   }
 }
 
 function persist<T>(key: string, value: T) {
-  if (typeof window === 'undefined') return;
-  
-  // Production mode: all data saved to PostgreSQL via REST API
-  // This function remains for backward compatibility and fallback
-  if (import.meta.env.PROD && import.meta.env.VITE_API_URL) {
-    // In production, data persistence is handled by REST API calls in components
-    // This function only emits the change event for real-time updates
-    emitAdminDataChange();
-    return;
-  }
-  
-  try {
-    // Validate size before persisting
-    const serialized = JSON.stringify({ _v: STORE_VERSION, data: value, ts: Date.now() });
-    
-    if (serialized.length > 4_000_000) { // 4MB warning
-      logger.warn(`Large data for ${key}: ${serialized.length} bytes`);
-    }
-    
-    const obfuscated = obfuscateData(serialized);
-    localStorage.setItem(key, obfuscated);
-    emitAdminDataChange();
-  } catch (error) {
-    logger.error(`Failed to persist ${key}`, error);
-    
-    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-      // Emergency cleanup
-      try {
-        localStorage.removeItem(key);
-        const fallback = JSON.stringify({ _v: STORE_VERSION, data: value, ts: Date.now() }).slice(0, 1_000_000);
-        localStorage.setItem(key, obfuscateData(fallback));
-      } catch {}
-    }
-  }
+  persistLocal(key, value);
+  void api.updatePlatformData(key, value)
+    .then(() => emitAdminDataChange(key))
+    .catch(error => logger.error(`Failed to persist ${key} to PostgreSQL`, error));
 }
 
 /**
- * useAdminStore — reactive persisted collection with secure storage
+ * Reactive PostgreSQL-backed collection. The existing tuple contract is kept so
+ * every current admin action and every current component remains visually intact.
  */
 export function useAdminStore<T>(key: string, seed: T): [T, (v: T | ((prev: T) => T)) => void] {
   const [value, setValue] = useState<T>(() => load(key, seed));
 
-  useEffect(() => {
-    const handler = () => setValue(load(key, seed));
-    window.addEventListener(CHANGE_EVENT, handler);
-    window.addEventListener('storage', handler);
-    return () => {
-      window.removeEventListener(CHANGE_EVENT, handler);
-      window.removeEventListener('storage', handler);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const refresh = useCallback(() => {
+    void api.getPlatformData(key)
+      .then((response: any) => {
+        if (response?.data !== null && response?.data !== undefined) setValue(response.data as T);
+      })
+      .catch(error => {
+        if (import.meta.env.PROD) logger.error(`Failed to load ${key} from PostgreSQL`, error);
+      });
   }, [key]);
 
-  const set = useCallback(
-    (v: T | ((prev: T) => T)) => {
-      const current = load(key, seed);
-      const next = typeof v === 'function' ? (v as (p: T) => T)(current) : v;
+  useEffect(() => {
+    refresh();
+    const localHandler = (event: Event) => {
+      const changedKey = (event as CustomEvent<{ key?: string }>).detail?.key;
+      if (!changedKey || changedKey === key) refresh();
+    };
+    const realtimeHandler = (event: Event) => {
+      const changedKey = (event as CustomEvent<any>).detail?.data?.data?.key;
+      if (!changedKey || changedKey === key) refresh();
+    };
+    window.addEventListener(CHANGE_EVENT, localHandler);
+    window.addEventListener('tharwah_admin_update', realtimeHandler);
+    return () => {
+      window.removeEventListener(CHANGE_EVENT, localHandler);
+      window.removeEventListener('tharwah_admin_update', realtimeHandler);
+    };
+  }, [key, refresh]);
+
+  const set = useCallback((nextValue: T | ((prev: T) => T)) => {
+    setValue(previous => {
+      const next = typeof nextValue === 'function' ? (nextValue as (prev: T) => T)(previous) : nextValue;
       persist(key, next);
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [key]
-  );
+      return next;
+    });
+  }, [key]);
 
   return [value, set];
 }
@@ -307,7 +282,7 @@ export interface PlatformSettings {
 
 // ═══════════════════════ Seeds with Hashed Passwords ═══════════════════════
 // Pre-hashed passwords for demo: all are hashed version of 'admin123' with different salts
-// In production these would come from Supabase Auth
+// In production these come from the private backend
 
 function createMockHash(password: string, salt: string): string {
   // Simple deterministic mock for seeds - real hashing done async via crypto.ts
@@ -661,10 +636,10 @@ export const ADMIN_KEYS = {
 };
 
 // ═══════════════════════ Convenience hooks ═══════════════════════
-export const useClients = () => useAdminStore<Client[]>(ADMIN_KEYS.CLIENTS, CLIENTS_SEED);
-export const usePortfolios = () => useAdminStore<Portfolio[]>(ADMIN_KEYS.PORTFOLIOS, PORTFOLIOS_SEED);
-export const useTransactions = () => useAdminStore<AdminTransaction[]>(ADMIN_KEYS.TRANSACTIONS, TRANSACTIONS_SEED);
-export const useMessages = () => useAdminStore<SupportMessage[]>(ADMIN_KEYS.MESSAGES, MESSAGES_SEED);
+export const useClients = () => useRemoteCollection<Client>('clients', CLIENTS_SEED);
+export const usePortfolios = () => useRemoteCollection<Portfolio>('portfolios', PORTFOLIOS_SEED);
+export const useTransactions = () => useRemoteCollection<AdminTransaction>('transactions', TRANSACTIONS_SEED);
+export const useMessages = () => useRemoteCollection<SupportMessage>('messages', MESSAGES_SEED);
 export const useAdminNotifications = () => useAdminStore<AdminNotification[]>(ADMIN_KEYS.NOTIFICATIONS, NOTIFICATIONS_SEED);
 export const useSubAdmins = () => useAdminStore<SubAdmin[]>(ADMIN_KEYS.SUB_ADMINS, SUB_ADMINS_SEED);
 export const useTasks = () => useAdminStore<AdminTask[]>(ADMIN_KEYS.TASKS, TASKS_SEED);
@@ -763,7 +738,6 @@ export async function verifySubAdminPassword(inputPassword: string, subAdmin: Su
   // If has real hash (from new system), use secure verification
   if (subAdmin.passwordHash && subAdmin.salt) {
     try {
-      const { hashPassword } = await import('./crypto');
       const result = await hashPassword(inputPassword, subAdmin.salt);
       return result.hash === subAdmin.passwordHash;
     } catch {

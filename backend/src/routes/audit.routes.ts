@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { AuthRequest, authenticateToken, requireRole } from '../middleware/auth.middleware.js';
+import { AuthRequest, authenticateToken, requirePermission } from '../middleware/auth.middleware.js';
 import { prisma } from '../lib/prisma.js';
 
 const router = Router();
 
 router.use(authenticateToken);
-router.use(requireRole('super', 'admin'));
+router.use(requirePermission('reports:read'));
 
 router.get('/', async (req: AuthRequest, res) => {
   try {
