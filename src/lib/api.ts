@@ -196,6 +196,10 @@ export const api = {
   // Audit
   getAuditLogs: (params?: Record<string, string>) => request('/api/audit', { params }),
 
+  // Public Contact Form (no auth)
+  submitContact: (data: { name: string; email: string; phone?: string; subject: string; message: string }) =>
+    request('/api/contact', { method: 'POST', body: JSON.stringify(data), skipAuth: true }),
+
   // Health
   healthCheck: () => request('/health', { skipAuth: true }),
 };

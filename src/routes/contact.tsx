@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { MapPin, Phone, Mail, Clock, Send, CheckCircle2 } from 'lucide-react';
 import { useState } from 'react';
+import { api } from '@/lib/api';
 
 export const Route = createFileRoute('/contact')({ component: ContactPage });
 
@@ -11,10 +12,22 @@ function ContactPage() {
   const { t, lang } = useLang();
   const [formState, setFormState] = useState<'idle' | 'loading' | 'success'>('idle');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const name = (fd.get('name') as string || '').trim();
+    const phone = (fd.get('phone') as string || '').trim();
+    const email = (fd.get('email') as string || '').trim();
+    const subject = (fd.get('subject') as string || '').trim();
+    const message = (fd.get('message') as string || '').trim();
+    if (!name || !email || !subject || !message) return;
     setFormState('loading');
-    setTimeout(() => setFormState('success'), 1500);
+    try {
+      await api.submitContact({ name, email, phone, subject, message });
+      setFormState('success');
+    } catch {
+      setFormState('idle');
+    }
   };
 
   return (
@@ -85,20 +98,20 @@ function ContactPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-sm font-semibold text-text-secondary">{t('الاسم الكامل', 'Full Name')}</label>
-                      <input required type="text" className="w-full bg-secondary border border-border-default rounded-md px-4 py-2.5 focus:border-gold-primary focus:outline-none" />
+                      <input required type="text" name="name" className="w-full bg-secondary border border-border-default rounded-md px-4 py-2.5 focus:border-gold-primary focus:outline-none" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-sm font-semibold text-text-secondary">{t('رقم الهاتف', 'Phone Number')}</label>
-                      <input required type="tel" className="w-full bg-secondary border border-border-default rounded-md px-4 py-2.5 focus:border-gold-primary focus:outline-none" />
+                      <input required type="tel" name="phone" className="w-full bg-secondary border border-border-default rounded-md px-4 py-2.5 focus:border-gold-primary focus:outline-none" />
                     </div>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-semibold text-text-secondary">{t('البريد الإلكتروني', 'Email Address')}</label>
-                    <input required type="email" className="w-full bg-secondary border border-border-default rounded-md px-4 py-2.5 focus:border-gold-primary focus:outline-none" />
+                    <input required type="email" name="email" className="w-full bg-secondary border border-border-default rounded-md px-4 py-2.5 focus:border-gold-primary focus:outline-none" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-semibold text-text-secondary">{t('موضوع الرسالة', 'Subject')}</label>
-                    <select className="w-full bg-secondary border border-border-default rounded-md px-4 py-2.5 focus:border-gold-primary focus:outline-none">
+                    <select name="subject" className="w-full bg-secondary border border-border-default rounded-md px-4 py-2.5 focus:border-gold-primary focus:outline-none">
                       <option>{t('استفسار عام', 'General Inquiry')}</option>
                       <option>{t('فتح حساب استثماري', 'Open Investment Account')}</option>
                       <option>{t('الدعم الفني', 'Technical Support')}</option>
@@ -106,7 +119,7 @@ function ContactPage() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-semibold text-text-secondary">{t('الرسالة', 'Message')}</label>
-                    <textarea required rows={4} className="w-full bg-secondary border border-border-default rounded-md px-4 py-2.5 focus:border-gold-primary focus:outline-none"></textarea>
+                    <textarea required name="message" rows={4} className="w-full bg-secondary border border-border-default rounded-md px-4 py-2.5 focus:border-gold-primary focus:outline-none"></textarea>
                   </div>
                   <Button type="submit" className="w-full gap-2 mt-4" isLoading={formState === 'loading'}>
                     <Send className="w-4 h-4" /> {t('إرسال الرسالة', 'Send Message')}

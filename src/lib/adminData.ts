@@ -177,6 +177,13 @@ export interface SupportMessage {
   status: 'pending' | 'answered' | 'closed';
   priority: 'high' | 'medium' | 'low';
   replies: MessageReply[];
+  /** ID of the corresponding SupportTicket in the DB (set when message originates from authenticated client) */
+  _ticketId?: string;
+  /** Origin of the message: 'contact' = public form, 'client' = authenticated client */
+  _source?: string;
+  _contactName?: string;
+  _contactEmail?: string;
+  _contactPhone?: string;
 }
 
 export interface AdminNotification {

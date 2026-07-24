@@ -66,6 +66,35 @@ router.post('/', async (req: AuthRequest, res) => {
       include: { user: { select: { id: true, name: true, email: true } } },
     });
 
+    // مزامنة مع PlatformData 'messages' لتظهر في لوحة الإدارة → Messages panel
+    try {
+      const existing = await prisma.platformData.findUnique({ where: { key: 'messages' } });
+      const currentMsgs: any[] = Array.isArray(existing?.value) ? (existing!.value as any[]) : [];
+      const now = new Date();
+      const newMsg = {
+        id: ticket.id,
+        clientId: ticket.user_id,
+        subject: ticket.title,
+        text: ticket.message,
+        date: now.toISOString().slice(0, 10),
+        status: 'pending',
+        priority: ticket.priority || 'medium',
+        replies: [],
+        _ticketId: ticket.id,
+        _source: 'client',
+        _clientName: ticket.user?.name || '',
+        _clientEmail: ticket.user?.email || '',
+      };
+      const updatedMsgs = [newMsg, ...currentMsgs.filter((m: any) => m.id !== ticket.id)];
+      await prisma.platformData.upsert({
+        where: { key: 'messages' },
+        update: { value: updatedMsgs as any },
+        create: { key: 'messages', value: updatedMsgs as any },
+      });
+    } catch (syncErr) {
+      console.error('[Messages] Failed to sync ticket to PlatformData:', syncErr);
+    }
+
     broadcastAdminUpdate({ action: 'message_created', ticketId: ticket.id, clientId: user_id });
     broadcastClientUpdate(user_id, { action: 'message_created', ticketId: ticket.id });
 

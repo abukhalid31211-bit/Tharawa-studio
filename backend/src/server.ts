@@ -21,6 +21,7 @@ import auditRoutes from './routes/audit.routes.js';
 import contentRoutes from './routes/content.routes.js';
 import marketsRoutes from './routes/markets.routes.js';
 import platformDataRoutes from './routes/platform-data.routes.js';
+import contactRoutes from './routes/contact.routes.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -131,6 +132,7 @@ app.get('/health', async (_req, res) => {
 });
 
 // Routes
+app.use('/api/contact', contactRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientsRoutes);
 app.use('/api/portfolios', portfoliosRoutes);

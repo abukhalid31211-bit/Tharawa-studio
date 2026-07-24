@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useCmsSection } from '@/lib/cms';
 import { useLang } from '@/contexts/LanguageContext';
 import { useNavigate } from '@tanstack/react-router';
 import {
@@ -139,6 +140,22 @@ export function Overview() {
   const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState('this-month');
 
+  // بيانات الأسواق من CMS — يضبطها المشرف عبر MarketsManager
+  const { data: cmsMarketsData } = useCmsSection<{ markets?: typeof MARKET_TICKER }>('markets', { markets: MARKET_TICKER });
+  const marketTicker = useMemo(() => {
+    const src = cmsMarketsData?.markets;
+    if (!src || !Array.isArray(src) || src.length === 0) return MARKET_TICKER;
+    return src
+      .filter((m: any) => m.visible !== false)
+      .map((m: any) => ({
+        name: m.name || '',
+        nameEn: m.nameEn || m.symbol || '',
+        price: m.price || '',
+        change: `${Number(m.change) >= 0 ? '+' : ''}${m.change}%`,
+        up: Number(m.change) >= 0,
+      }));
+  }, [cmsMarketsData]);
+
   // ── Live platform data from the shared admin store ──
   const [clients] = useClients();
   const [transactions] = useTransactions();
@@ -257,7 +274,7 @@ export function Overview() {
       {/* 4.3.2 — Market Ticker */}
       <div className="bg-[#F8FAFC] dark:bg-secondary border border-border-light rounded-xl p-3 flex items-center gap-6 overflow-x-auto scrollbar-none">
         <span className="text-[11px] text-text-muted font-medium shrink-0">{t('الأسواق:', 'Markets:')}</span>
-        {MARKET_TICKER.map((m, i) => (
+        {marketTicker.map((m, i) => (
           <div key={i} className="flex items-center gap-2 shrink-0">
             <span className="text-xs font-bold text-text-primary">{lang === 'ar' ? m.name : m.nameEn}</span>
             <span className="text-xs font-mono text-text-primary">{m.price}</span>

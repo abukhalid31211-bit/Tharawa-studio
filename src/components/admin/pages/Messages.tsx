@@ -5,6 +5,7 @@ import React, { useMemo, useState } from 'react';
 import { Send, Reply, CheckCircle, Archive, User } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
 import { useMessages, useClients, SupportMessage, relativeTime } from '@/lib/adminData';
+import { api } from '@/lib/api';
 import {
   PageHeader, Panel, Pill, StatCard, SearchInput, FilterTabs,
   TextArea, PrimaryBtn, GhostBtn, EmptyState, useToast, ClientAvatar,
@@ -45,12 +46,22 @@ export function Messages() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [messages, clients, search, statusFilter]);
 
-  const sendReply = (id: string) => {
+  const sendReply = async (id: string) => {
     if (!replyText.trim()) return;
+    const msg = messages.find(m => m.id === id);
+    const replyText_ = replyText.trim();
     setMessages(prev => prev.map(m => m.id === id
-      ? { ...m, status: 'answered', replies: [...m.replies, { from: 'admin' as const, text: replyText.trim(), date: new Date().toISOString().slice(0, 16).replace('T', ' ') }] }
+      ? { ...m, status: 'answered', replies: [...m.replies, { from: 'admin' as const, text: replyText_, date: new Date().toISOString().slice(0, 16).replace('T', ' ') }] }
       : m
     ));
+    // إذا كانت الرسالة مرتبطة بتذكرة عميل مصادق عليه → حدّث التذكرة في قاعدة البيانات ليراها العميل في لوحته
+    if ((msg as any)?._ticketId) {
+      try {
+        await api.updateMessage((msg as any)._ticketId, { reply: replyText_, status: 'answered' });
+      } catch {
+        // غير حرج — الرد محفوظ في PlatformData على أي حال
+      }
+    }
     setReplyText('');
     setOpenId(null);
     show(t('تم إرسال الرد للعميل', 'Reply sent to client'));
