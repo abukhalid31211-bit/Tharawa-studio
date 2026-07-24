@@ -60,6 +60,10 @@ export const config = {
   // Plain password for seeding only — never use in production
   superAdminPlainPassword: process.env.SUPER_ADMIN_PLAIN_PASSWORD || '',
 
+  // Market data provider (required for live ticker in production)
+  marketDataUrl: process.env.MARKET_DATA_URL || '',
+  marketDataApiKey: process.env.MARKET_DATA_API_KEY || '',
+
   // Logging
   logLevel: process.env.LOG_LEVEL || 'info',
 };

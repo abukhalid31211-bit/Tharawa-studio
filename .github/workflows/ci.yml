@@ -1,0 +1,55 @@
+name: اختبارات وبناء ثروة كابيتال
+
+on:
+  push:
+    branches: [main, 'arena/**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: الواجهة - فحص وبناء واختبار
+    runs-on: ubuntu-latest
+    steps:
+      - name: جلب المصدر
+        uses: actions/checkout@v4
+      - name: إعداد Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: تثبيت الاعتماديات
+        run: npm ci
+      - name: فحص TypeScript وبناء الإنتاج
+        run: npm run build
+      - name: الاختبارات
+        run: npm test -- --run
+      - name: فحص ESLint
+        run: npm run lint
+
+  backend:
+    name: الخادم - Prisma وTypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - name: جلب المصدر
+        uses: actions/checkout@v4
+      - name: إعداد Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: تثبيت الاعتماديات
+        working-directory: backend
+        run: npm ci
+      - name: توليد Prisma Client
+        working-directory: backend
+        run: npx prisma generate
+      - name: بناء الخادم
+        working-directory: backend
+        run: npm run build
+      - name: تدقيق اعتماديات الإنتاج
+        working-directory: backend
+        run: npm audit --omit=dev
