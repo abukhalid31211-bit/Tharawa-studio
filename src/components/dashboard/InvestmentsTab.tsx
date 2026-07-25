@@ -41,14 +41,7 @@ export function InvestmentsTab({ totalBalance, onExportPDF, portfolio }: Investm
   const showEmptyState = portfolio !== undefined && !hasRealAssets;
 
   const assets = useMemo<AssetRow[]>(() => {
-    // Indicative sample rows kept only as a visual fallback
-    if (!hasRealAssets) return [
-      { name: t('صندوق الراجحي العقاري الوقفي', 'Al Rajhi RE Waqf Fund'), type: t('عقارات', 'Real Estate'), weight: '12%', val: totalBalance * 0.12, profit: '+14.5%', status: 'active' },
-      { name: t('صكوك الحكومة السعودية السيادية', 'KSA Sovereign Sukuk V5'), type: t('صكوك', 'Sukuk'), weight: '20%', val: totalBalance * 0.20, profit: '+5.4%', status: 'active' },
-      { name: t('أسهم مايكروسوفت متوافقة', 'Microsoft Corp Shariah Stock'), type: t('أسهم عالمية', 'Global Equities'), weight: '15%', val: totalBalance * 0.15, profit: '+24.1%', status: 'active' },
-      { name: t('أسهم شركة أبل متوافقة', 'Apple Inc Shariah Stock'), type: t('أسهم عالمية', 'Global Equities'), weight: '12%', val: totalBalance * 0.12, profit: '+18.2%', status: 'active' },
-      { name: t('محفظة النقد السائل المرنة', 'Tharwah Liquid Cash Fund'), type: t('نقد وسيولة', 'Liquid Cash'), weight: '5%', val: totalBalance * 0.05, profit: '+3.2%', status: 'active' },
-    ];
+    // Only return real assets. No fake fallback data in production.
     return realAssets.map((asset: any) => {
       const val = Number(asset?.valuation ?? 0) || 0;
       const weightRaw = asset?.weight ?? asset?.weight_percent;
@@ -76,11 +69,7 @@ export function InvestmentsTab({ totalBalance, onExportPDF, portfolio }: Investm
   // Group real assets by their class for the three summary cards
   const summaryGroups = useMemo(() => {
     if (!hasRealAssets) {
-      return [
-        { border: GROUP_STYLES[0].border, emoji: GROUP_STYLES[0].emoji, name: t('عقارات وأصول مدرة للدخل', 'Real Estate Funds'), pct: '20%', val: totalBalance * 0.20, desc: t('صناديق ريت عقارية مرخصة محلياً وعالمياً', 'Licensed REIT real estate funds'), yield: '+7.2%' },
-        { border: GROUP_STYLES[1].border, emoji: GROUP_STYLES[1].emoji, name: t('صكوك تمويلية وسندات', 'Sukuk & Fixed Income'), pct: '25%', val: totalBalance * 0.25, desc: t('صكوك سيادية وحكومية منخفضة المخاطر', 'Low-risk sovereign Sukuk'), yield: '+5.8%' },
-        { border: GROUP_STYLES[2].border, emoji: GROUP_STYLES[2].emoji, name: t('الأسهم العالمية المتوافقة', 'Global Shariah Equities'), pct: '35%', val: totalBalance * 0.35, desc: t('أسهم القيادة والنمو', 'Blue-chip growth stocks'), yield: '+12.4%' },
-      ];
+      return [];
     }
 
     const grouped = new Map<string, { val: number; count: number; yieldSum: number; yieldCount: number }>();
