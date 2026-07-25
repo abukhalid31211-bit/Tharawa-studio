@@ -44,7 +44,7 @@ export function MarketsManager() {
         }
       })
       .catch(err => logger.warn('Failed to load remote markets content', err));
-  }, []);
+  }, [setMarkets]);
 
   const syncToBackend = async (updatedMarkets: MarketItem[]) => {
     setSaving(true);

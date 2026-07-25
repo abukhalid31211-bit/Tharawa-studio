@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { AuthRequest, authenticateToken, requirePermission, requireRole } from '../middleware/auth.middleware.js';
+import { AuthRequest, authenticateToken, requireClientOrPermission, requirePermission, requireRole } from '../middleware/auth.middleware.js';
 import { prisma } from '../lib/prisma.js';
 import { broadcastAdminUpdate, broadcastClientUpdate } from '../lib/socket.js';
 
@@ -43,7 +43,7 @@ const router = Router();
 router.use(authenticateToken);
 
 // List portfolios with optional filters
-router.get('/', async (req: AuthRequest, res) => {
+router.get('/', requireClientOrPermission('portfolios:read'), async (req: AuthRequest, res) => {
   try {
     const { user_id, search } = req.query;
     const where: any = {};
@@ -73,7 +73,7 @@ router.get('/', async (req: AuthRequest, res) => {
 });
 
 // Get single portfolio
-router.get('/:id', async (req: AuthRequest, res) => {
+router.get('/:id', requireClientOrPermission('portfolios:read'), async (req: AuthRequest, res) => {
   try {
     const portfolio = await prisma.portfolio.findUnique({
       where: { id: req.params.id },
@@ -174,12 +174,12 @@ router.post('/:id/assets', requirePermission('portfolios:write'), async (req: Au
     const portfolio = await prisma.portfolio.findUnique({ where: { id: req.params.id } });
     if (!portfolio) return res.status(404).json({ error: 'NotFound' });
 
-    const { symbol, name, name_en, asset_class, weight_percent, quantity, avg_price, valuation, annual_yield, status } = req.body;
-    if (!symbol || !name || !asset_class) return res.status(400).json({ error: 'MissingFields' });
+    const parsed = assetSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'InvalidInput', details: parsed.error.flatten() });
+    const { symbol, name, name_en, asset_class, weight_percent, quantity, avg_price, valuation, annual_yield, status } = parsed.data;
     const asset = await prisma.asset.create({
       data: { portfolio_id: req.params.id, symbol, name, name_en, asset_class,
-        weight_percent: Number(weight_percent || 0), quantity: Number(quantity || 0), avg_price: Number(avg_price || 0),
-        valuation: Number(valuation || 0), annual_yield: Number(annual_yield || 0), status: status || 'active' },
+        weight_percent, quantity, avg_price, valuation, annual_yield, status },
     });
 
     broadcastAdminUpdate({ action: 'portfolio_asset_added', portfolioId: req.params.id, assetId: asset.id });

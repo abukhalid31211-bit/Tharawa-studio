@@ -22,35 +22,9 @@ interface MarketAsset {
   chart7d: number[];
 }
 
-// ─── Mock Data ───────────────────────────────────────────
-const ASSETS: MarketAsset[] = [
-  // Stocks
-  { id: '1', name: 'أرامكو السعودية', nameEn: 'Saudi Aramco', symbol: '2222.SR', price: 35.20, currency: 'ر.س', change: 0.48, changePercent: 1.38, volume: '12.3M', marketCap: '7.5T', category: 'stocks', market: 'تداول السعودية', marketEn: 'Saudi Tadawul', badgeColor: 'gold', trend: 'up', chart7d: [34.1, 34.3, 34.6, 34.8, 35.0, 35.1, 35.2] },
-  { id: '2', name: 'بنك الراجحي', nameEn: 'Al Rajhi Bank', symbol: '1120.SR', price: 91.80, currency: 'ر.س', change: -0.74, changePercent: -0.8, volume: '4.1M', marketCap: '345B', category: 'stocks', market: 'تداول السعودية', marketEn: 'Saudi Tadawul', badgeColor: 'gold', trend: 'down', chart7d: [92.5, 92.2, 91.9, 91.6, 91.4, 91.6, 91.8] },
-  { id: '3', name: 'سابك', nameEn: 'SABIC', symbol: '2010.SR', price: 83.50, currency: 'ر.س', change: 0.25, changePercent: 0.3, volume: '2.8M', marketCap: '265B', category: 'stocks', market: 'تداول السعودية', marketEn: 'Saudi Tadawul', badgeColor: 'gold', trend: 'up', chart7d: [82.8, 83.0, 83.2, 83.1, 83.3, 83.4, 83.5] },
-  { id: '4', name: 'مصرف أبوظبي التجاري', nameEn: 'ADCB Bank', symbol: 'ADCB', price: 9.42, currency: 'د.إ', change: 0.20, changePercent: 2.1, volume: '8.6M', marketCap: '84B', category: 'stocks', market: 'سوق أبوظبي', marketEn: 'Abu Dhabi Market', badgeColor: 'blue', trend: 'up', chart7d: [9.1, 9.2, 9.3, 9.4, 9.4, 9.4, 9.42] },
-  { id: '5', name: 'إمارات NBD', nameEn: 'Emirates NBD', symbol: 'ENBD', price: 14.80, currency: 'د.إ', change: -0.07, changePercent: -0.5, volume: '3.2M', marketCap: '88B', category: 'stocks', market: 'سوق دبي', marketEn: 'Dubai Market', badgeColor: 'blue', trend: 'down', chart7d: [14.9, 14.8, 14.7, 14.7, 14.8, 14.8, 14.8] },
-  { id: '6', name: 'Apple', nameEn: 'Apple', symbol: 'AAPL', price: 192.53, currency: '$', change: 1.15, changePercent: 0.6, volume: '55.2M', marketCap: '$3.0T', category: 'stocks', market: 'NASDAQ', marketEn: 'NASDAQ', badgeColor: 'gray', trend: 'up', chart7d: [190.2, 191.0, 191.8, 192.0, 192.3, 192.4, 192.53] },
-  { id: '7', name: 'Microsoft', nameEn: 'Microsoft', symbol: 'MSFT', price: 418.20, currency: '$', change: -1.26, changePercent: -0.3, volume: '28.1M', marketCap: '$3.1T', category: 'stocks', market: 'NASDAQ', marketEn: 'NASDAQ', badgeColor: 'gray', trend: 'down', chart7d: [419.5, 419.0, 418.5, 418.0, 417.8, 418.0, 418.2] },
-  { id: '8', name: 'NVIDIA', nameEn: 'NVIDIA', symbol: 'NVDA', price: 875.40, currency: '$', change: 28.01, changePercent: 3.2, volume: '42.5M', marketCap: '$2.1T', category: 'stocks', market: 'NASDAQ', marketEn: 'NASDAQ', badgeColor: 'gray', trend: 'up', chart7d: [845.0, 852.0, 860.0, 865.0, 870.0, 873.0, 875.4] },
-  { id: '9', name: 'بنك القاهرة', nameEn: 'Cairo Bank', symbol: 'CAIR', price: 12.25, currency: 'ج.م', change: 0.22, changePercent: 1.8, volume: '1.5M', marketCap: '22B', category: 'stocks', market: 'البورصة المصرية', marketEn: 'Egyptian Exchange', badgeColor: 'gold', trend: 'up', chart7d: [11.9, 12.0, 12.1, 12.1, 12.2, 12.2, 12.25] },
-  // Crypto
-  { id: '10', name: 'Bitcoin', nameEn: 'Bitcoin', symbol: 'BTC/USD', price: 67320, currency: '$', change: 1615.68, changePercent: 2.4, volume: '$28.4B', marketCap: '$1.32T', category: 'crypto', market: 'Crypto', marketEn: 'Crypto', badgeColor: 'orange', trend: 'up', chart7d: [65200, 65800, 66300, 66700, 67000, 67200, 67320] },
-  { id: '11', name: 'إيثيريوم', nameEn: 'Ethereum', symbol: 'ETH/USD', price: 3512, currency: '$', change: -42.14, changePercent: -1.2, volume: '$12.1B', marketCap: '$422B', category: 'crypto', market: 'Crypto', marketEn: 'Crypto', badgeColor: 'purple', trend: 'down', chart7d: [3550, 3540, 3530, 3520, 3510, 3515, 3512] },
-  { id: '12', name: 'بينانس كوين', nameEn: 'BNB', symbol: 'BNB/USD', price: 588, currency: '$', change: 4.70, changePercent: 0.8, volume: '$2.1B', marketCap: '$85B', category: 'crypto', market: 'Crypto', marketEn: 'Crypto', badgeColor: 'orange', trend: 'up', chart7d: [582, 584, 585, 586, 587, 587.5, 588] },
-  { id: '13', name: 'ريبل', nameEn: 'Ripple', symbol: 'XRP/USD', price: 0.52, currency: '$', change: -0.002, changePercent: -0.4, volume: '$1.8B', marketCap: '$29B', category: 'crypto', market: 'Crypto', marketEn: 'Crypto', badgeColor: 'purple', trend: 'down', chart7d: [0.53, 0.53, 0.52, 0.52, 0.52, 0.52, 0.52] },
-  { id: '14', name: 'سولانا', nameEn: 'Solana', symbol: 'SOL/USD', price: 175, currency: '$', change: 7.18, changePercent: 4.1, volume: '$3.5B', marketCap: '$80B', category: 'crypto', market: 'Crypto', marketEn: 'Crypto', badgeColor: 'purple', trend: 'up', chart7d: [165, 168, 170, 172, 173, 174, 175] },
-  { id: '15', name: 'كارديانو', nameEn: 'Cardano', symbol: 'ADA/USD', price: 0.46, currency: '$', change: 0.007, changePercent: 1.5, volume: '$0.9B', marketCap: '$16B', category: 'crypto', market: 'Crypto', marketEn: 'Crypto', badgeColor: 'purple', trend: 'up', chart7d: [0.44, 0.45, 0.45, 0.46, 0.46, 0.46, 0.46] },
-  // Metals
-  { id: '16', name: 'الذهب', nameEn: 'Gold', symbol: 'XAU/USD', price: 2325.40, currency: '$', change: 11.63, changePercent: 0.5, volume: '-', marketCap: '-', category: 'metals', market: 'Metals', marketEn: 'Metals', badgeColor: 'gold', trend: 'up', chart7d: [2310, 2315, 2320, 2322, 2324, 2325, 2325.4] },
-  { id: '17', name: 'الفضة', nameEn: 'Silver', symbol: 'XAG/USD', price: 29.80, currency: '$', change: -0.09, changePercent: -0.3, volume: '-', marketCap: '-', category: 'metals', market: 'Metals', marketEn: 'Metals', badgeColor: 'gray', trend: 'down', chart7d: [30.1, 30.0, 29.9, 29.8, 29.8, 29.8, 29.8] },
-  { id: '18', name: 'البلاتين', nameEn: 'Platinum', symbol: 'XPT/USD', price: 993, currency: '$', change: 10.92, changePercent: 1.1, volume: '-', marketCap: '-', category: 'metals', market: 'Metals', marketEn: 'Metals', badgeColor: 'gray', trend: 'up', chart7d: [980, 985, 988, 990, 991, 992, 993] },
-  { id: '19', name: 'البلاديوم', nameEn: 'Palladium', symbol: 'XPD/USD', price: 925, currency: '$', change: -16.65, changePercent: -1.8, volume: '-', marketCap: '-', category: 'metals', market: 'Metals', marketEn: 'Metals', badgeColor: 'gray', trend: 'down', chart7d: [940, 938, 935, 932, 930, 928, 925] },
-  // Energy
-  { id: '20', name: 'النفط الخام WTI', nameEn: 'WTI Crude Oil', symbol: 'CL', price: 79.40, currency: '$', change: 0.95, changePercent: 1.2, volume: '-', marketCap: '-', category: 'energy', market: 'NYMEX', marketEn: 'NYMEX', badgeColor: 'green', trend: 'up', chart7d: [78.2, 78.5, 78.8, 79.0, 79.2, 79.3, 79.4] },
-  { id: '21', name: 'برنت الخام', nameEn: 'Brent Crude', symbol: 'BZ', price: 83.10, currency: '$', change: 0.75, changePercent: 0.9, volume: '-', marketCap: '-', category: 'energy', market: 'ICE', marketEn: 'ICE', badgeColor: 'green', trend: 'up', chart7d: [82.0, 82.3, 82.5, 82.8, 83.0, 83.1, 83.1] },
-  { id: '22', name: 'الغاز الطبيعي', nameEn: 'Natural Gas', symbol: 'NG', price: 2.18, currency: '$', change: -0.05, changePercent: -2.1, volume: '-', marketCap: '-', category: 'energy', market: 'NYMEX', marketEn: 'NYMEX', badgeColor: 'green', trend: 'down', chart7d: [2.25, 2.23, 2.22, 2.20, 2.19, 2.18, 2.18] },
-];
+// Market records are supplied by the internal CMS/API. Empty data is intentional
+// until an administrator publishes market records.
+const ASSETS: MarketAsset[] = [];
 
 // ─── Helpers ──────────────────────────────────────────────
 const badgeColorMap: Record<string, string> = {
@@ -206,16 +180,28 @@ function AlertCard({ asset, index }: { asset: MarketAsset; index: number }) {
 export function MarketsPage() {
   const { t, lang } = useLang();
   const { data: managedMarkets } = useCmsSection<any>('markets', { markets: [] });
-  const marketAssets = useMemo(() => ASSETS.map(asset => {
-    const managed = managedMarkets.markets?.find((item: any) => item.symbol === asset.symbol);
-    if (!managed) return asset;
-    const numericPrice = Number(String(managed.price).replace(/[^0-9.-]/g, ''));
-    const change = Number(managed.change);
-    return { ...asset, name: managed.name || asset.name, nameEn: managed.nameEn || asset.nameEn,
-      price: Number.isFinite(numericPrice) && numericPrice > 0 ? numericPrice : asset.price,
-      changePercent: Number.isFinite(change) ? change : asset.changePercent,
-      trend: (Number.isFinite(change) ? change : asset.changePercent) >= 0 ? 'up' as const : 'down' as const };
-  }), [managedMarkets]);
+  const marketAssets = useMemo<MarketAsset[]>(() => {
+    const records = Array.isArray(managedMarkets.markets) ? managedMarkets.markets : [];
+    return records.map((managed: any, index: number) => {
+      const price = Number(String(managed.price ?? '').replace(/[^0-9.-]/g, ''));
+      const change = Number(managed.change);
+      const chart = Array.isArray(managed.chart7d) && managed.chart7d.length > 1
+        ? managed.chart7d.map(Number).filter(Number.isFinite)
+        : [Number.isFinite(price) ? price : 0, Number.isFinite(price) ? price : 0];
+      const category = ['stocks', 'crypto', 'metals', 'energy'].includes(managed.category) ? managed.category : 'all';
+      return {
+        id: String(managed.id ?? index),
+        name: String(managed.name ?? ''), nameEn: String(managed.nameEn ?? managed.name ?? ''),
+        symbol: String(managed.symbol ?? ''), price: Number.isFinite(price) ? price : 0,
+        currency: String(managed.currency ?? ''), change: Number.isFinite(change) ? change : 0,
+        changePercent: Number.isFinite(change) ? change : 0,
+        volume: managed.volume ? String(managed.volume) : undefined,
+        marketCap: managed.marketCap ? String(managed.marketCap) : undefined,
+        category: category as CategoryKey, market: String(managed.market ?? ''), marketEn: String(managed.marketEn ?? managed.market ?? ''),
+        badgeColor: String(managed.badgeColor ?? 'gray'), trend: change >= 0 ? 'up' : 'down', chart7d: chart.length > 1 ? chart : [0, 0],
+      };
+    });
+  }, [managedMarkets]);
   const [activeCategory, setActiveCategory] = useState<CategoryKey>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('name');

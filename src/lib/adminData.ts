@@ -57,7 +57,14 @@ function persist<T>(key: string, value: T) {
  * every current admin action and every current component remains visually intact.
  */
 export function useAdminStore<T>(key: string, seed: T): [T, (v: T | ((prev: T) => T)) => void] {
-  const [value, setValue] = useState<T>(() => load(key, seed));
+  const [value, setValue] = useState<T>(() => {
+    // Production must never bootstrap administrative state from demo seeds or
+    // browser storage. The API/database is the only source of truth.
+    if (import.meta.env.PROD) {
+      return (Array.isArray(seed) ? [] : {}) as T;
+    }
+    return load(key, seed);
+  });
 
   const refresh = useCallback(() => {
     void api.getPlatformData(key)
@@ -449,20 +456,20 @@ export const TEAM_SEED: TeamMember[] = [
 ];
 
 export const AUDIT_SEED: AuditLog[] = [
-  { id: 'A-1', actor: 'admin@tharwah.com', action: 'تسجيل دخول ناجح (Super Admin)', actionEn: 'Successful sign-in (Super Admin)', date: '2026-07-19 13:40', ip: '185.33.10.21', result: 'success' },
-  { id: 'A-2', actor: 'admin@tharwah.com', action: 'اعتماد معاملة TX-1101', actionEn: 'Approved transaction TX-1101', date: '2026-07-19 13:42', ip: '185.33.10.21', result: 'success' },
+  { id: 'A-1', actor: 'admin@tharwah.com', action: 'تسجيل دخول ناجح (Super Admin)', actionEn: 'Successful sign-in (Super Admin)', date: '2026-07-19 13:40', ip: '—', result: 'success' },
+  { id: 'A-2', actor: 'admin@tharwah.com', action: 'اعتماد معاملة TX-1101', actionEn: 'Approved transaction TX-1101', date: '2026-07-19 13:42', ip: '—', result: 'success' },
   { id: 'A-3', actor: 'ahmed.sub@tharwah.com', action: 'تسجيل دخول ناجح (مشرف فرعي)', actionEn: 'Successful sign-in (Sub Admin)', date: '2026-07-19 09:12', ip: '94.77.201.8', result: 'success' },
   { id: 'A-4', actor: 'unknown@test.com', action: 'محاولة دخول فاشلة — بريد غير مسجل', actionEn: 'Failed sign-in — unregistered email', date: '2026-07-19 02:14', ip: '41.222.19.70', result: 'failed' },
-  { id: 'A-5', actor: 'admin@tharwah.com', action: 'تعديل محتوى قسم البطل', actionEn: 'Edited Hero section content', date: '2026-07-18 16:05', ip: '185.33.10.21', result: 'success' },
+  { id: 'A-5', actor: 'admin@tharwah.com', action: 'تعديل محتوى قسم البطل', actionEn: 'Edited Hero section content', date: '2026-07-18 16:05', ip: '—', result: 'success' },
   { id: 'A-6', actor: 'turki.sub@tharwah.com', action: 'محاولة دخول — حساب موقوف', actionEn: 'Sign-in attempt — suspended account', date: '2026-07-18 08:31', ip: '37.104.55.190', result: 'failed' },
 ];
 
 export const LOGIN_ATTEMPTS_SEED: LoginAttempt[] = [
-  { id: 'L-1', email: 'admin@tharwah.com', date: '2026-07-19 13:40', ip: '185.33.10.21', result: 'success' },
+  { id: 'L-1', email: 'admin@tharwah.com', date: '2026-07-19 13:40', ip: '—', result: 'success' },
   { id: 'L-2', email: 'ahmed.sub@tharwah.com', date: '2026-07-19 09:12', ip: '94.77.201.8', result: 'success' },
   { id: 'L-3', email: 'unknown@test.com', date: '2026-07-19 02:14', ip: '41.222.19.70', result: 'failed' },
   { id: 'L-4', email: 'root@tharwah.com', date: '2026-07-18 23:51', ip: '41.222.19.70', result: 'failed' },
-  { id: 'L-5', email: 'admin@tharwah.com', date: '2026-07-18 22:03', ip: '185.33.10.21', result: 'success' },
+  { id: 'L-5', email: 'admin@tharwah.com', date: '2026-07-18 22:03', ip: '—', result: 'success' },
 ];
 
 export const SETTINGS_SEED: PlatformSettings = {
@@ -698,7 +705,7 @@ export function addAuditEntry(actor: string, action: string, actionEn: string, r
     action: sanitizeInput(action),
     actionEn: sanitizeInput(actionEn),
     date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-    ip: '185.33.10.21',
+    ip: '—',
     result,
   };
   persist(ADMIN_KEYS.AUDIT, [entry, ...list].slice(0, 100));
@@ -711,7 +718,7 @@ export function addLoginAttempt(email: string, result: 'success' | 'failed') {
     id: nextCode(list, 'L'),
     email: sanitizeEmail(email),
     date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-    ip: '185.33.10.21',
+    ip: '—',
     result,
   };
   persist(ADMIN_KEYS.LOGINS, [entry, ...list].slice(0, 100));

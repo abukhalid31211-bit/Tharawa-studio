@@ -1,23 +1,23 @@
 import { Router } from 'express';
+import { prisma } from '../lib/prisma.js';
 
 const router = Router();
 
-router.get('/ticker', (_req, res) => {
-  // بيانات تجريبية — في الإنتاج يجب الربط مع API أسواق حقيقي
-  const tickerData = [
-    { symbol: 'BTC/USD', name: 'Bitcoin', nameAr: 'بيتكوين', price: 67240, change: 2.4, changePercent: '+2.4%', isUp: true },
-    { symbol: 'ETH/USD', name: 'Ethereum', nameAr: 'إيثيريوم', price: 3180, change: 1.8, isUp: true },
-    { symbol: '2222.SR', name: 'Saudi Aramco', nameAr: 'أرامكو السعودية', price: 35.20, currency: 'SAR', change: -0.3, isUp: false },
-    { symbol: 'XAU/USD', name: 'Gold', nameAr: 'الذهب', price: 2340, change: 0.9, isUp: true },
-    { symbol: 'AAPL', name: 'Apple', price: 192.53, change: 0.8, isUp: true },
-  ];
-
-  res.json({
-    data: tickerData,
-    timestamp: new Date().toISOString(),
-    source: 'Tharwah Market Data API',
-    disclaimer: 'Mock data — integrate with real market API in production',
-  });
+// Public market data is maintained internally by the admin CMS. No external
+// provider or generated values are used here.
+router.get('/ticker', async (_req, res) => {
+  try {
+    const section = await prisma.contentSection.findUnique({ where: { section_key: 'markets' } });
+    const value = section?.is_active ? section.content_data : null;
+    const markets = value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as { markets?: unknown }).markets
+      : null;
+    const data = Array.isArray(markets) ? markets : [];
+    return res.json({ data, timestamp: new Date().toISOString(), source: 'internal-postgresql' });
+  } catch (error) {
+    console.error('[Markets Ticker]', error);
+    return res.status(503).json({ error: 'MarketDataUnavailable', data: [] });
+  }
 });
 
 export default router;
