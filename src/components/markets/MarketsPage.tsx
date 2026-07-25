@@ -212,6 +212,29 @@ export function MarketsPage() {
   const [alertAsset, setAlertAsset] = useState('');
   const [alertType, setAlertType] = useState('price');
   const [alertPrice, setAlertPrice] = useState('');
+  const [alertLoading, setAlertLoading] = useState(false);
+
+  const handleAddAlert = async () => {
+    if (!alertAsset || !alertPrice) return;
+    setAlertLoading(true);
+    try {
+      const selected = marketAssets.find(a => a.id === alertAsset);
+      const assetName = selected ? (lang === 'ar' ? selected.name : selected.nameEn) : alertAsset;
+      
+      await api.createMessage({
+        user_id: undefined, // Message from public site context or logged in client
+        title: `تنبيه سعر: ${assetName}`,
+        message: `طلب إعداد تنبيه سعر للأصل: ${assetName} (${alertAsset}). النوع: ${alertType}. السعر المستهدف: ${alertPrice}`,
+        priority: 'high',
+      });
+      alert(t('تم تسجيل طلب التنبيه بنجاح', 'Price alert request recorded successfully'));
+      setAlertPrice('');
+    } catch (err) {
+      console.error('Failed to add alert', err);
+    } finally {
+      setAlertLoading(false);
+    }
+  };
 
   const filteredAssets = useMemo(() => {
     let list = activeCategory === 'all' ? marketAssets : marketAssets.filter(a => a.category === activeCategory);
@@ -538,7 +561,7 @@ export function MarketsPage() {
                       <label className="text-xs font-bold text-text-secondary">{t('السعر المستهدف', 'Target Price')}</label>
                       <input type="number" value={alertPrice} onChange={e => setAlertPrice(e.target.value)} className="w-full bg-secondary border border-border-default rounded-md py-2.5 px-3 text-xs font-bold outline-none focus:border-gold-primary" />
                     </div>
-                    <Button className="w-full py-3">{t('إضافة التنبيه', 'Add Alert')}</Button>
+                    <Button onClick={handleAddAlert} isLoading={alertLoading} className="w-full py-3">{t('إضافة التنبيه', 'Add Alert')}</Button>
                   </div>
                 ) : (
                   <div className="text-center space-y-4">

@@ -15,6 +15,16 @@ function applyTheme(theme: 'light' | 'dark') {
   else document.documentElement.classList.remove('dark');
 }
 
+function applyBrandColors(primary: string, gold: string) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  root.style.setProperty('--color-gold-primary', primary); // Mapping logic: design primary is often used as brand gold in this UI
+  root.style.setProperty('--color-gold-deep', gold);
+  // Also set the specific variables used in globals.css if they differ
+  root.style.setProperty('--color-primary-brand', primary);
+  root.style.setProperty('--brand-gold', gold);
+}
+
 export function SiteSettingsProvider({ children }: { children: React.ReactNode }) {
   const { data: design } = useSiteDesignContent();
   const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
@@ -23,6 +33,12 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
     if (stored === 'light' || stored === 'dark') return stored;
     return 'light';
   });
+
+  useEffect(() => {
+    if (design.primaryColor || design.goldAccent) {
+      applyBrandColors(design.primaryColor, design.goldAccent);
+    }
+  }, [design.primaryColor, design.goldAccent]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

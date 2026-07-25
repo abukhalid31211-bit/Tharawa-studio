@@ -4,13 +4,9 @@
 // ─────────────────────────────────────────────────────────────
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Search, Users, CreditCard, Briefcase, FileText, Star, HelpCircle, TrendingUp, MessageSquare, CornerDownLeft } from 'lucide-react';
+import { Search, Users, CreditCard, Briefcase, FileText, Star, HelpCircle, TrendingUp, MessageSquare, CornerDownLeft, Loader2 } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
-import {
-  useClients, useTransactions, usePortfolios, useMessages,
-  useCmsServices, useCmsFaq, useCmsTestimonials, useCmsMarkets,
-} from '@/lib/adminData';
-import { usePublicNewsArticles } from '@/lib/publicContent';
+import { api } from '@/lib/api';
 import { Panel, EmptyState, Pill } from '@/components/admin/ui';
 
 interface SearchHit {
@@ -28,112 +24,60 @@ export function GlobalSearch() {
   const { t, lang } = useLang();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
+  const [results, setResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const [clients] = useClients();
-  const [transactions] = useTransactions();
-  const [portfolios] = usePortfolios();
-  const [messages] = useMessages();
-  const [services] = useCmsServices();
-  const [faq] = useCmsFaq();
-  const [testimonials] = useCmsTestimonials();
-  const [markets] = useCmsMarkets();
-  const { articles: newsArticles } = usePublicNewsArticles();
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
-  const results = useMemo<SearchHit[]>(() => {
-    const q = query.trim().toLowerCase();
-    if (q.length < 2) return [];
-    const hits: SearchHit[] = [];
-    const match = (...vals: (string | undefined)[]) => vals.some(v => (v || '').toLowerCase().includes(q));
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setResults([]);
+      return;
+    }
 
-    // ── العملاء ──
-    clients.filter(c => match(c.name, c.nameEn, c.email, c.phone, c.id)).slice(0, 6).forEach(c => hits.push({
-      group: 'العملاء', groupEn: 'Clients', icon: Users, color: '#3B82F6',
-      title: lang === 'ar' ? c.name : c.nameEn,
-      subtitle: `${c.id} · ${c.email} · ${t('الرصيد:', 'Balance:')} ${c.balance.toLocaleString()} SAR`,
-      badge: { text: c.tier, color: '#C9A84C' },
-      to: `/Akadmin/clients/${c.id}`,
-    }));
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await api.globalSearch(q);
+        setResults(res.data || []);
+      } catch (err) {
+        console.error('Search failed', err);
+      } finally {
+        setLoading(false);
+      }
+    }, 400);
 
-    // ── المعاملات ──
-    transactions.filter(tx => {
-      const c = clients.find(cl => cl.id === tx.clientId);
-      return match(tx.id, tx.note, c?.name, c?.nameEn) || String(tx.amount).includes(q);
-    }).slice(0, 6).forEach(tx => {
-      const c = clients.find(cl => cl.id === tx.clientId);
-      hits.push({
-        group: 'المعاملات', groupEn: 'Transactions', icon: CreditCard, color: '#00D97E',
-        title: `${tx.id} — ${(lang === 'ar' ? c?.name : c?.nameEn) || '—'}`,
-        subtitle: `${tx.amount.toLocaleString()} ${tx.currency} · ${tx.date}`,
-        badge: { text: tx.status === 'completed' ? t('مكتملة', 'Completed') : tx.status === 'pending' ? t('معلقة', 'Pending') : t('مرفوضة', 'Rejected'), color: tx.status === 'completed' ? '#00D97E' : tx.status === 'pending' ? '#F59E0B' : '#FF4560' },
-        to: '/Akadmin/transactions',
-      });
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const groups = useMemo(() => {
+    const map = new Map<string, { group: string; groupEn: string; icon: any; color: string; hits: any[] }>();
+    const icons: any = { client: Users, portfolio: Briefcase, transaction: CreditCard, message: MessageSquare };
+    const colors: any = { client: '#3B82F6', portfolio: '#C9A84C', transaction: '#00D97E', message: '#8B5CF6' };
+    const labels: any = { 
+      client: { ar: 'العملاء', en: 'Clients' }, 
+      portfolio: { ar: 'المحافظ', en: 'Portfolios' }, 
+      transaction: { ar: 'المعاملات', en: 'Transactions' }, 
+      message: { ar: 'الرسائل', en: 'Messages' } 
+    };
+
+    results.forEach(h => {
+      const type = h.type;
+      if (!map.has(type)) {
+        map.set(type, { 
+          group: labels[type]?.ar || type, 
+          groupEn: labels[type]?.en || type, 
+          icon: icons[type] || FileText, 
+          color: colors[type] || '#94A3B8', 
+          hits: [] 
+        });
+      }
+      map.get(type)!.hits.push(h);
     });
-
-    // ── المحافظ والأصول ──
-    portfolios.filter(p => match(p.name, p.nameEn, p.id, p.strategy, p.strategyEn)).slice(0, 4).forEach(p => hits.push({
-      group: 'المحافظ', groupEn: 'Portfolios', icon: Briefcase, color: '#C9A84C',
-      title: lang === 'ar' ? p.name : p.nameEn,
-      subtitle: `${p.id} · ${p.value.toLocaleString()} SAR · ${t('العائد:', 'Return:')} +${p.growth}%`,
-      to: '/Akadmin/portfolios',
-    }));
-    portfolios.flatMap(p => p.holdings.map(h => ({ p, h }))).filter(({ h }) => match(h.name, h.nameEn, h.symbol)).slice(0, 4).forEach(({ p, h }) => hits.push({
-      group: 'الأصول', groupEn: 'Assets', icon: TrendingUp, color: '#F59E0B',
-      title: `${lang === 'ar' ? h.name : h.nameEn} (${h.symbol})`,
-      subtitle: `${t('داخل', 'In')} ${p.id} · ${t('وزن', 'Weight')} ${h.weight}% · ${h.value.toLocaleString()} SAR`,
-      to: '/Akadmin/portfolios',
-    }));
-
-    // ── الرسائل ──
-    messages.filter(m => match(m.subject, m.text, m.id)).slice(0, 4).forEach(m => {
-      const c = clients.find(cl => cl.id === m.clientId);
-      hits.push({
-        group: 'الرسائل', groupEn: 'Messages', icon: MessageSquare, color: '#8B5CF6',
-        title: m.subject,
-        subtitle: `${m.id} · ${(lang === 'ar' ? c?.name : c?.nameEn) || ''} · ${m.date}`,
-        badge: { text: m.status === 'pending' ? t('معلقة', 'Pending') : t('مُجابة', 'Answered'), color: m.status === 'pending' ? '#F59E0B' : '#00D97E' },
-        to: '/Akadmin/messages',
-      });
-    });
-
-    // ── محتوى الموقع ──
-    services.filter(s => match(s.title, s.titleEn, s.desc, s.descEn)).slice(0, 3).forEach(s => hits.push({
-      group: 'محتوى الموقع', groupEn: 'Site Content', icon: FileText, color: '#0EA5E9',
-      title: lang === 'ar' ? s.title : s.titleEn,
-      subtitle: t('خدمة استثمارية', 'Investment service'),
-      to: '/Akadmin/services_mgr',
-    }));
-    faq.filter(f => match(f.question, f.questionEn, f.answer, f.answerEn)).slice(0, 3).forEach(f => hits.push({
-      group: 'محتوى الموقع', groupEn: 'Site Content', icon: HelpCircle, color: '#F59E0B',
-      title: lang === 'ar' ? f.question : f.questionEn,
-      subtitle: t('سؤال شائع', 'FAQ item'),
-      to: '/Akadmin/faq_mgr',
-    }));
-    testimonials.filter(x => match(x.name, x.nameEn, x.text, x.textEn)).slice(0, 3).forEach(x => hits.push({
-      group: 'محتوى الموقع', groupEn: 'Site Content', icon: Star, color: '#C9A84C',
-      title: lang === 'ar' ? x.name : x.nameEn,
-      subtitle: `${'★'.repeat(x.rating)} · ${(lang === 'ar' ? x.text : x.textEn).slice(0, 60)}…`,
-      to: '/Akadmin/testimonials',
-    }));
-    markets.filter(m => match(m.name, m.nameEn, m.symbol)).slice(0, 3).forEach(m => hits.push({
-      group: 'الأسواق', groupEn: 'Markets', icon: TrendingUp, color: '#00D97E',
-      title: `${lang === 'ar' ? m.name : m.nameEn} (${m.symbol})`,
-      subtitle: `${m.price} · ${m.change >= 0 ? '+' : ''}${m.change}%`,
-      to: '/Akadmin/markets_mgr',
-    }));
-    newsArticles.filter(article => match(article.title, article.titleEn, article.excerpt, article.excerptEn, article.author, article.authorEn)).slice(0, 4).forEach(article => hits.push({
-      group: 'الأخبار والتحليلات', groupEn: 'News & Analysis', icon: FileText, color: '#EC4899',
-      title: lang === 'ar' ? article.title : article.titleEn,
-      subtitle: `${lang === 'ar' ? article.author : article.authorEn} · ${lang === 'ar' ? article.date : article.dateEn}`,
-      badge: { text: lang === 'ar' ? article.categoryAr : article.categoryEn, color: '#EC4899' },
-      to: '/Akadmin/content',
-    }));
-
-    return hits;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, clients, transactions, portfolios, messages, services, faq, testimonials, markets, newsArticles, lang]);
+    return Array.from(map.values());
+  }, [results]);
 
   const groups = useMemo(() => {
     const map = new Map<string, { group: string; groupEn: string; icon: any; color: string; hits: SearchHit[] }>();
@@ -160,6 +104,7 @@ export function GlobalSearch() {
             placeholder={t('ابحث في كل المنصة: عملاء، معاملات، أصول، محافظ، رسائل، محتوى...', 'Search the whole platform: clients, transactions, assets, portfolios, messages, content...')}
             className="w-full bg-transparent border-0 outline-none text-sm font-medium text-text-primary placeholder:text-text-muted"
           />
+          {loading && <Loader2 className="w-4 h-4 animate-spin text-gold-primary mr-2" />}
           <kbd className="rounded shrink-0" style={{ background: '#E2E8F0', padding: '1px 6px', fontSize: 10, color: '#64748B' }}>⌘K</kbd>
         </div>
       </Panel>

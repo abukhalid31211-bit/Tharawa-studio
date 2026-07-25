@@ -41,20 +41,21 @@ export function ReportsTab({ onExportPDF, transactions, profile }: ReportsTabPro
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-          {[
-            { title: t('التقرير الربع سنوي - الربع الثاني 2026', 'Quarterly Report - Q2 2026'), desc: t('جاهز للتحميل • تاريخ الإصدار 2026-07-01', 'Ready to download • Released July 1st, 2026') },
-            { title: t('كشف الحساب الضريبي والزكاة 2025', 'Zakat & Tax Statement 2025'), desc: t('جاهز للتحميل • تم اعتماده من المدقق الشرعي', 'Ready to download • Certified by Shariah Board') },
-          ].map((item, i) => (
-            <div key={i} className="p-4 bg-secondary rounded-xl border flex items-center justify-between">
+          {transactionsCount > 0 ? (
+            <div className="p-4 bg-secondary rounded-xl border flex items-center justify-between col-span-2">
               <div>
-                <h4 className="font-black text-sm text-text-primary">{item.title}</h4>
-                <span className="text-[10px] text-text-muted">{item.desc}</span>
+                <h4 className="font-black text-sm text-text-primary">{t('كشف الحساب الموحد', 'Consolidated Account Statement')}</h4>
+                <span className="text-[10px] text-text-muted">{t('جاهز للتحميل ويشمل كافة الحركات المالية حتى تاريخ اليوم', 'Ready to download, includes all financial activity up to today')}</span>
               </div>
               <button onClick={onExportPDF} className="p-2 rounded-lg bg-gold-light text-gold-deep hover:bg-gold-primary hover:text-white transition-all">
                 <Download className="w-4 h-4" />
               </button>
             </div>
-          ))}
+          ) : (
+            <div className="p-4 bg-secondary/50 rounded-xl border border-dashed flex flex-col items-center justify-center col-span-2 py-8 text-center">
+              <p className="text-xs text-text-muted font-bold">{t('لا توجد تقارير متاحة حالياً لعدم وجود حركات مالية في حسابك', 'No reports available currently as there are no financial transactions in your account')}</p>
+            </div>
+          )}
         </div>
       </Card>
     </div>

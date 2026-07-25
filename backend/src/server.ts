@@ -24,6 +24,7 @@ import platformDataRoutes from './routes/platform-data.routes.js';
 import contactRoutes from './routes/contact.routes.js';
 import homeRoutes from './routes/home.routes.js';
 import statsRoutes from './routes/stats.routes.js';
+import searchRoutes from './routes/search.routes.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -150,6 +151,7 @@ app.use('/api/content', contentRoutes);
 app.use('/api/markets', marketsRoutes);
 app.use('/api/platform-data', platformDataRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/search', searchRoutes);
 
 // Socket.io rooms are assigned from the verified access token only.
 io.on('connection', (socket) => {

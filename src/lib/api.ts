@@ -207,6 +207,9 @@ export const api = {
   // Admin Stats — real aggregated metrics for the Overview dashboard
   getAdminStats: () => request('/api/stats/overview'),
 
+  // Search
+  globalSearch: (q: string) => request('/api/search', { params: { q } }),
+
   // Health
   healthCheck: () => request('/health', { skipAuth: true }),
 };
