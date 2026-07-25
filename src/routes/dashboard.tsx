@@ -81,7 +81,7 @@ function DashboardPage() {
     if (hour < 12) return t('صباح الخير', 'Good Morning');
     if (hour < 17) return t('مساء الخير', 'Good Afternoon');
     return t('مساء النور', 'Good Evening');
-  }, [lang]);
+  }, [t]);
 
   // Normalize backend data
   const transactions = useMemo(() => {
@@ -89,7 +89,7 @@ function DashboardPage() {
       id: tx.id.slice(0, 12),
       type: tx.type,
       amount: Number(tx.amount),
-      date: tx.created_at ? tx.created_at.slice(0, 10) : '2026-07-23',
+      date: tx.created_at ? tx.created_at.slice(0, 10) : '—',
       status: tx.status,
       method: tx.method || '—',
     }));
@@ -101,7 +101,7 @@ function DashboardPage() {
       title: tk.title,
       titleEn: tk.title,
       status: tk.status,
-      date: tk.created_at ? tk.created_at.slice(0, 10) : '2026-07-23',
+      date: tk.created_at ? tk.created_at.slice(0, 10) : '—',
       reply: tk.reply,
     }));
   }, [messagesData]);
@@ -110,7 +110,7 @@ function DashboardPage() {
     return (meetingsData?.data || []).map((mt: any) => ({
       id: mt.id.slice(0, 12),
       advisor: mt.advisor_name,
-      date: mt.meeting_date ? mt.meeting_date.slice(0, 10) : '2026-07-23',
+      date: mt.meeting_date ? mt.meeting_date.slice(0, 10) : '—',
       time: mt.meeting_time,
       status: mt.status,
     }));
@@ -121,15 +121,17 @@ function DashboardPage() {
     if (myPortfolio?.total_valuation && Number(myPortfolio.total_valuation) > 0) {
       return Number(myPortfolio.total_valuation);
     }
-    return 245000 + transactions.reduce((acc: number, t: any) => {
+    return transactions.reduce((acc: number, t: any) => {
       if (t.status !== 'completed') return acc;
       if (t.type === 'deposit') return acc + t.amount;
-      if (t.type === 'withdrawal') return acc - t.amount;
+      if (t.type === 'withdrawal' || t.type === 'withdraw') return acc - t.amount;
       return acc;
     }, 0);
   }, [transactions, myPortfolio]);
 
-  const portfolioGrowth = myPortfolio?.growth_percent ? Number(myPortfolio.growth_percent) : 18.5;
+  const portfolioGrowth = myPortfolio?.growth_percent !== null && myPortfolio?.growth_percent !== undefined
+    ? Number(myPortfolio.growth_percent)
+    : 0;
   const profitAmount = totalBalance * (portfolioGrowth / 100);
 
   const handleCreateTransfer = async (e: React.FormEvent) => {

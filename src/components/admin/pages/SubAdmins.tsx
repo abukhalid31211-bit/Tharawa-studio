@@ -52,7 +52,7 @@ export function SubAdmins() {
       });
       setSubAdmins(mapped);
     }).catch(error => logger.error('Failed to load sub-admins', error));
-  }, []);
+  }, [setSubAdmins]);
 
   const counts = useMemo(() => ({
     all: subAdmins.length,

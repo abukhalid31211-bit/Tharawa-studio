@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { AuthRequest, authenticateToken, requirePermission } from '../middleware/auth.middleware.js';
+import { z } from 'zod';
+import { AuthRequest, authenticateToken, requireClientOrPermission, requirePermission } from '../middleware/auth.middleware.js';
 import { prisma } from '../lib/prisma.js';
 import { broadcastAdminUpdate, broadcastClientUpdate } from '../lib/socket.js';
 
@@ -7,7 +8,7 @@ const router = Router();
 
 router.use(authenticateToken);
 
-router.get('/', async (req: AuthRequest, res) => {
+router.get('/', requireClientOrPermission('messages:read'), async (req: AuthRequest, res) => {
   try {
     const { user_id, status } = req.query;
     const where: any = {};
@@ -24,13 +25,40 @@ router.get('/', async (req: AuthRequest, res) => {
       orderBy: { created_at: 'desc' },
       take: 500,
     });
-    res.json({ data: tickets });
+    let data: any[] = tickets;
+    // Public contact submissions are stored internally in PlatformData because
+    // they do not have a registered user. Merge them into the same admin inbox
+    // without exposing them to client accounts.
+    if (req.user!.role !== 'client') {
+      const contactStore = await prisma.platformData.findUnique({ where: { key: 'messages' } });
+      const contactMessages = Array.isArray(contactStore?.value)
+        ? (contactStore.value as any[])
+          .filter(item => item?._source === 'contact')
+          .filter(item => !status || item.status === status)
+          .map(item => ({
+            id: item.id,
+            user_id: null,
+            title: item.subject || 'Contact message',
+            message: item.text || '',
+            status: item.status || 'pending',
+            priority: item.priority || 'medium',
+            reply: item.replies?.at(-1)?.text || null,
+            created_at: item.date || new Date().toISOString(),
+            updated_at: item.date || new Date().toISOString(),
+            user: { id: null, name: item._contactName || '', email: item._contactEmail || '' },
+            replies: item.replies || [],
+            _source: 'contact',
+          }))
+        : [];
+      data = [...data, ...contactMessages].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 500);
+    }
+    return res.json({ data });
   } catch (err: any) {
     res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
-router.get('/:id', async (req: AuthRequest, res) => {
+router.get('/:id', requireClientOrPermission('messages:read'), async (req: AuthRequest, res) => {
   try {
     const ticket = await prisma.supportTicket.findUnique({
       where: { id: req.params.id },
@@ -47,7 +75,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 });
 
 // Client creates ticket
-router.post('/', async (req: AuthRequest, res) => {
+router.post('/', requireClientOrPermission('messages:write'), async (req: AuthRequest, res) => {
   try {
     const { user_id: requestedUserId, title, message, priority } = req.body;
     const user_id = req.user!.role === 'client' ? req.user!.userId : requestedUserId;
@@ -107,7 +135,31 @@ router.post('/', async (req: AuthRequest, res) => {
 // Admin replies / updates ticket
 router.put('/:id', requirePermission('messages:write'), async (req: AuthRequest, res) => {
   try {
-    const { status, reply, assigned_to } = req.body;
+    const parsed = z.object({
+      status: z.enum(['pending', 'answered', 'closed']).optional(),
+      reply: z.string().max(4000).optional(),
+      assigned_to: z.string().uuid().nullable().optional(),
+    }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'InvalidInput', details: parsed.error.flatten() });
+    const { status, reply, assigned_to } = parsed.data;
+    const messageId = String(req.params.id);
+    if (messageId.startsWith('CT-')) {
+      const store = await prisma.platformData.findUnique({ where: { key: 'messages' } });
+      const messages = Array.isArray(store?.value) ? [...(store!.value as any[])] : [];
+      const index = messages.findIndex(item => item?.id === messageId && item?._source === 'contact');
+      if (index < 0) return res.status(404).json({ error: 'NotFound' });
+      const current = messages[index];
+      const replies = Array.isArray(current.replies) ? [...current.replies] : [];
+      if (reply?.trim()) replies.push({ from: 'admin', sender_role: req.user!.role, text: reply.trim(), message: reply.trim(), date: new Date().toISOString(), created_at: new Date().toISOString() });
+      messages[index] = { ...current, status: status || current.status, replies, updated_at: new Date().toISOString() };
+      await prisma.platformData.update({ where: { key: 'messages' }, data: { value: messages as any } });
+      broadcastAdminUpdate({ action: 'message_updated', messageId, source: 'contact' });
+      return res.json({ data: messages[index], message: 'تم تحديث الرسالة' });
+    }
+    if (assigned_to) {
+      const assignee = await prisma.user.findFirst({ where: { id: assigned_to, role: { in: ['super', 'admin', 'sub'] }, status: 'active' }, select: { id: true } });
+      if (!assignee) return res.status(400).json({ error: 'InvalidAssignee' });
+    }
     const updated = await prisma.$transaction(async (tx: any) => {
       const ticket = await tx.supportTicket.update({
         where: { id: req.params.id },

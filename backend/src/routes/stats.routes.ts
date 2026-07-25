@@ -10,7 +10,7 @@ router.use(authenticateToken);
  * Real aggregated statistics for the admin Overview dashboard.
  * Replaces all hardcoded chart constants (AUM_DATA, REVENUE_DATA, DISTRIBUTION).
  */
-router.get('/overview', requireRole('super', 'admin', 'sub'), async (req: AuthRequest, res) => {
+router.get('/overview', requireRole('super', 'admin', 'sub'), async (_req: AuthRequest, res) => {
   try {
     const oneYearAgo = new Date(Date.now() - 365 * 24 * 3600 * 1000);
 

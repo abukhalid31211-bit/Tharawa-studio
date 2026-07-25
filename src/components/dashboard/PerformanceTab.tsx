@@ -16,15 +16,6 @@ const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'S
 export function PerformanceTab({ totalBalance, portfolio, transactions }: PerformanceTabProps) {
   const { t } = useLang();
 
-  const fallbackChartData = [
-    { name: 'Jan', value: totalBalance * 0.85, market: totalBalance * 0.88 },
-    { name: 'Feb', value: totalBalance * 0.88, market: totalBalance * 0.89 },
-    { name: 'Mar', value: totalBalance * 0.91, market: totalBalance * 0.87 },
-    { name: 'Apr', value: totalBalance * 0.94, market: totalBalance * 0.91 },
-    { name: 'May', value: totalBalance * 0.97, market: totalBalance * 0.92 },
-    { name: 'Jun', value: totalBalance, market: totalBalance * 0.93 },
-  ];
-
   // Real monthly deposits vs withdrawals over the last 6 months
   const realChartData = useMemo(() => {
     if (!transactions || transactions.length === 0) return null;
@@ -59,7 +50,7 @@ export function PerformanceTab({ totalBalance, portfolio, transactions }: Perfor
   }, [transactions]);
 
   const usingRealData = realChartData !== null;
-  const chartData = realChartData ?? fallbackChartData;
+  const chartData = realChartData ?? [];
 
   const portfolioValuation = Number(portfolio?.total_valuation ?? 0) || totalBalance;
 
@@ -96,9 +87,9 @@ export function PerformanceTab({ totalBalance, portfolio, transactions }: Perfor
           <h3 className="font-black text-sm">{t('تحليل المخاطر والأمان', 'Risk & Protection Ratios')}</h3>
           <div className="space-y-4 text-xs font-bold text-text-secondary">
             {[
-              { label: t('نسبة شارب', 'Sharpe Ratio'), value: '1.82', note: t('أداء ممتاز نسبة للمخاطر', 'Excellent risk-adjusted returns'), color: 'text-emerald-500' },
-              { label: t('التقلب السنوي', 'Annualized Volatility'), value: '4.21%', note: t('تقلب منخفض ومستقر', 'Stable and secure'), color: 'text-emerald-500' },
-              { label: t('أقصى هبوط', 'Max Drawdown'), value: '-1.5%', note: t('حماية فائقة لراس المال', 'High principal protection'), color: 'text-emerald-500' },
+              { label: t('نسبة شارب', 'Sharpe Ratio'), value: '—', note: t('لا توجد بيانات كافية', 'Insufficient data'), color: 'text-text-muted' },
+              { label: t('التقلب السنوي', 'Annualized Volatility'), value: '—', note: t('لا توجد بيانات كافية', 'Insufficient data'), color: 'text-text-muted' },
+              { label: t('أقصى هبوط', 'Max Drawdown'), value: '—', note: t('لا توجد بيانات كافية', 'Insufficient data'), color: 'text-text-muted' },
             ].map((item, i) => (
               <div key={i} className="p-3 bg-secondary rounded-lg border">
                 <div className="text-text-muted mb-1">{item.label}</div>

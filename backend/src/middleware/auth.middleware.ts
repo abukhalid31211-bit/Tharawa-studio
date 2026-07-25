@@ -66,6 +66,13 @@ const sectionPermissionMap: Record<string, string[]> = {
   'platform:write': ['clients', 'portfolios', 'transactions', 'messages', 'content', 'reports'],
 };
 
+export function requireClientOrPermission(permission: string) {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (req.user?.role === 'client') return next();
+    return requirePermission(permission)(req, res, next);
+  };
+}
+
 export function requirePermission(permission: string) {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     authenticateToken(req, res, async () => {

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { AuthRequest, authenticateToken, requirePermission } from '../middleware/auth.middleware.js';
+import { AuthRequest, authenticateToken, requireClientOrPermission, requirePermission } from '../middleware/auth.middleware.js';
 import { prisma } from '../lib/prisma.js';
 import { broadcastAdminUpdate, broadcastClientUpdate } from '../lib/socket.js';
 
@@ -23,7 +23,7 @@ const router = Router();
 
 router.use(authenticateToken);
 
-router.get('/', async (req: AuthRequest, res) => {
+router.get('/', requireClientOrPermission('transactions:read'), async (req: AuthRequest, res) => {
   try {
     const { user_id, status, type } = req.query;
     const where: any = {};
@@ -47,7 +47,7 @@ router.get('/', async (req: AuthRequest, res) => {
   }
 });
 
-router.get('/:id', async (req: AuthRequest, res) => {
+router.get('/:id', requireClientOrPermission('transactions:read'), async (req: AuthRequest, res) => {
   try {
     const transaction = await prisma.transaction.findUnique({
       where: { id: req.params.id },
@@ -64,7 +64,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 });
 
 // Client can create pending transaction (deposit/withdrawal request)
-router.post('/', async (req: AuthRequest, res) => {
+router.post('/', requireClientOrPermission('transactions:write'), async (req: AuthRequest, res) => {
   try {
     const parsed = createTxSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'InvalidInput', details: parsed.error.flatten() });

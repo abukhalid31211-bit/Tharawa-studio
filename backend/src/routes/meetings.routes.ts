@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { AuthRequest, authenticateToken, requirePermission } from '../middleware/auth.middleware.js';
+import { z } from 'zod';
+import { AuthRequest, authenticateToken, requireClientOrPermission, requirePermission } from '../middleware/auth.middleware.js';
 import { prisma } from '../lib/prisma.js';
 import { broadcastAdminUpdate, broadcastClientUpdate } from '../lib/socket.js';
 
@@ -7,7 +8,7 @@ const router = Router();
 
 router.use(authenticateToken);
 
-router.get('/', async (req: AuthRequest, res) => {
+router.get('/', requireClientOrPermission('messages:read'), async (req: AuthRequest, res) => {
   try {
     const { user_id, advisor_id } = req.query;
     const where: any = {};
@@ -30,13 +31,25 @@ router.get('/', async (req: AuthRequest, res) => {
   }
 });
 
-router.post('/', async (req: AuthRequest, res) => {
+router.post('/', requireClientOrPermission('messages:write'), async (req: AuthRequest, res) => {
   try {
-    const { user_id: requestedUserId, advisor_id, advisor_name, meeting_date, meeting_time, duration_minutes, type, notes } = req.body;
+    const meetingSchema = z.object({
+      user_id: z.string().uuid().optional(),
+      advisor_id: z.string().uuid().optional().nullable(),
+      advisor_name: z.string().max(200).optional(),
+      meeting_date: z.coerce.date(),
+      meeting_time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?:\s?[AP]M)?$/i),
+      duration_minutes: z.coerce.number().int().min(15).max(480).default(60),
+      type: z.string().max(50).default('consultation'),
+      notes: z.string().max(2000).optional(),
+    });
+    const parsed = meetingSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'InvalidInput', details: parsed.error.flatten() });
+    const { user_id: requestedUserId, advisor_id, advisor_name, meeting_date, meeting_time, duration_minutes, type, notes } = parsed.data;
     const user_id = req.user!.role === 'client' ? req.user!.userId : requestedUserId;
-    if (!user_id || !meeting_date || typeof meeting_time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d(?:\s?[AP]M)?$/i.test(meeting_time)) {
-      return res.status(400).json({ error: 'InvalidInput' });
-    }
+    if (!user_id) return res.status(400).json({ error: 'InvalidInput', message: 'user_id مطلوب' });
+    const target = await prisma.user.findFirst({ where: { id: user_id, role: 'client', status: 'active' }, select: { id: true } });
+    if (!target) return res.status(404).json({ error: 'ClientNotFound' });
 
     const meeting = await prisma.meeting.create({
       data: {
@@ -45,7 +58,7 @@ router.post('/', async (req: AuthRequest, res) => {
         advisor_name: advisor_name || 'مستشار ثروة كابيتال',
         meeting_date: new Date(meeting_date),
         meeting_time,
-        duration_minutes: duration_minutes ? parseInt(duration_minutes) : 60,
+        duration_minutes,
         type: type || 'consultation',
         notes: notes || '',
       },

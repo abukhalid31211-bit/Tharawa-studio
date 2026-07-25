@@ -1,11 +1,12 @@
 // ─────────────────────────────────────────────────────────────
 // Notifications — إشعارات النظام وبث الإشعارات للعملاء
 // ─────────────────────────────────────────────────────────────
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Send, CheckCheck, Trash2, Megaphone } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
-import { useAdminNotifications, nextCode, relativeTime } from '@/lib/adminData';
+import { useAdminNotifications, relativeTime } from '@/lib/adminData';
+import { api } from '@/lib/api';
 import {
   PageHeader, Panel, PanelHeader, Pill, StatCard, FilterTabs,
   Field, TextInput, TextArea, SelectBox, PrimaryBtn, GhostBtn,
@@ -25,6 +26,23 @@ export function Notifications() {
   const [notifications, setNotifications] = useAdminNotifications();
   const { show, ToastView } = useToast();
 
+  useEffect(() => {
+    void api.getNotifications().then((response: any) => {
+      const mapped = (response?.data || []).map((item: any) => ({
+        id: item.id,
+        type: item.type || 'info',
+        title: item.title || '',
+        titleEn: item.title_en || item.title || '',
+        desc: item.message || '',
+        descEn: item.message_en || item.message || '',
+        date: item.created_at || '',
+        read: Boolean(item.is_read),
+        page: item.action_url || '/Akadmin/overview',
+      }));
+      setNotifications(mapped);
+    }).catch(error => console.error('[Notifications] load failed', error));
+  }, [setNotifications]);
+
   const [filter, setFilter] = useState('all');
   const [broadcastOpen, setBroadcastOpen] = useState(false);
   const [bc, setBc] = useState({ title: '', titleEn: '', desc: '', type: 'info', page: '/Akadmin/overview' });
@@ -39,6 +57,9 @@ export function Notifications() {
 
   const markRead = (id: string, page?: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    if (/^[0-9a-f-]{36}$/i.test(id)) {
+      void api.markNotificationRead(id).catch(error => console.error('[Notifications] mark read failed', error));
+    }
     if (page) navigate({ to: page as any });
   };
 
@@ -52,23 +73,40 @@ export function Notifications() {
     show(t('تم حذف الإشعارات المقروءة', 'Read notifications cleared'));
   };
 
-  const sendBroadcast = (e: React.FormEvent) => {
+  const sendBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
     const meta = ALERT_META[bc.type];
-    setNotifications(prev => [{
-      id: nextCode(prev, 'N'),
-      type: bc.type as any,
-      title: bc.title,
-      titleEn: bc.titleEn || bc.title,
-      desc: bc.desc,
-      descEn: bc.desc,
-      date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-      read: false,
-      page: bc.page,
-    }, ...prev]);
-    setBroadcastOpen(false);
-    setBc({ title: '', titleEn: '', desc: '', type: 'info', page: '/Akadmin/overview' });
-    show(t('تم بث الإشعار لجميع العملاء', 'Notification broadcast to all clients'));
+    try {
+      const response: any = await api.createNotification({
+        user_id: null,
+        title: bc.title,
+        title_en: bc.titleEn || bc.title,
+        message: bc.desc,
+        message_en: bc.desc,
+        type: bc.type,
+        action_url: bc.page,
+      });
+      const created = response?.data;
+      if (created?.id) {
+        setNotifications(prev => [{
+          id: created.id,
+          type: (created.type || bc.type) as any,
+          title: created.title || bc.title,
+          titleEn: created.title_en || bc.titleEn || bc.title,
+          desc: created.message || bc.desc,
+          descEn: created.message_en || bc.desc,
+          date: created.created_at || new Date().toISOString(),
+          read: false,
+          page: created.action_url || bc.page,
+        }, ...prev]);
+      }
+      setBroadcastOpen(false);
+      setBc({ title: '', titleEn: '', desc: '', type: 'info', page: '/Akadmin/overview' });
+      show(t('تم بث الإشعار لجميع العملاء', 'Notification broadcast to all clients'));
+    } catch (error) {
+      console.error('[Notifications] broadcast failed', error);
+      show(t('تعذر بث الإشعار', 'Failed to broadcast notification'), 'error');
+    }
     void meta;
   };
 

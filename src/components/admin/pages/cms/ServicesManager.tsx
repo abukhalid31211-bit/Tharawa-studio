@@ -35,7 +35,7 @@ export function ServicesManager() {
         }
       })
       .catch(err => logger.warn('Failed to load remote services content', err));
-  }, []);
+  }, [setServices]);
 
   const syncToBackend = async (updatedServices: ServiceItem[]) => {
     setSaving(true);

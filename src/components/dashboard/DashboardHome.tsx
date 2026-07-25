@@ -25,7 +25,7 @@ interface DashboardHomeProps {
 /** Fixed, deterministic palette used when rendering real backend asset classes */
 const ALLOCATION_COLORS = ['#C9A84C', '#334155', '#0EA5E9', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#14B8A6'];
 
-export function DashboardHome({ totalBalance, profitAmount, greeting, sessionName, onOpenTransfer, portfolioCode, tier, growthPercent = 18.5, assets }: DashboardHomeProps) {
+export function DashboardHome({ totalBalance, profitAmount, greeting, sessionName, onOpenTransfer, portfolioCode, tier, growthPercent = 0, assets }: DashboardHomeProps) {
   const { t } = useLang();
 
   const chartData = [

@@ -4,27 +4,14 @@ import { TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCmsSection } from '@/lib/cms';
 
-const TICKER_ITEMS = [
-  { id: 1, nameAr: 'بيتكوين', nameEn: 'Bitcoin', symbol: 'BTC/USD', price: '$71,240', change: '+2.4%', isUp: true },
-  { id: 2, nameAr: 'إيثيريوم', nameEn: 'Ethereum', symbol: 'ETH/USD', price: '$3,850', change: '+1.8%', isUp: true },
-  { id: 3, nameAr: 'أرامكو', nameEn: 'Saudi Aramco', symbol: '2222.SR', price: '32.15 SAR', change: '-0.4%', isUp: false },
-  { id: 4, nameAr: 'سابك', nameEn: 'SABIC', symbol: '2010.SR', price: '85.40 SAR', change: '+0.2%', isUp: true },
-  { id: 5, nameAr: 'الذهب', nameEn: 'Gold', symbol: 'XAU/USD', price: '$2,340', change: '+0.9%', isUp: true },
-  { id: 6, nameAr: 'برنت الخام', nameEn: 'Brent Crude', symbol: 'BZ', price: '$82.50', change: '-1.2%', isUp: false },
-  { id: 7, nameAr: 'أبل', nameEn: 'Apple', symbol: 'AAPL', price: '$190.15', change: '+0.5%', isUp: true },
-  { id: 8, nameAr: 'جوجل', nameEn: 'Google', symbol: 'GOOGL', price: '$175.40', change: '+1.1%', isUp: true },
-  { id: 9, nameAr: 'الفضة', nameEn: 'Silver', symbol: 'XAG/USD', price: '$28.30', change: '-0.3%', isUp: false },
-  { id: 10, nameAr: 'إمارات NBD', nameEn: 'Emirates NBD', symbol: 'ENBD', price: '16.80 AED', change: '+0.8%', isUp: true },
-];
-
 export function LiveTicker() {
   const { lang } = useLang();
   const [isPaused, setIsPaused] = useState(false);
   const { data: managed } = useCmsSection<any>('markets', { markets: [] });
-  const sourceItems = managed.markets?.length ? managed.markets.filter((item: any) => item.visible !== false).map((item: any, index: number) => ({
+  const sourceItems = Array.isArray(managed.markets) ? managed.markets.filter((item: any) => item.visible !== false).map((item: any, index: number) => ({
     id: item.id || index, nameAr: item.name, nameEn: item.nameEn, symbol: item.symbol, price: item.price,
     change: `${Number(item.change) >= 0 ? '+' : ''}${item.change}%`, isUp: Number(item.change) >= 0,
-  })) : TICKER_ITEMS;
+  })) : [];
   const items = [...sourceItems, ...sourceItems];
 
   return (

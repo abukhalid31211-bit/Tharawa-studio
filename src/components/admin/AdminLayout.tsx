@@ -97,15 +97,15 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const clients = clientsData?.data || [];
   const transactions = transactionsData?.data || [];
   const messages = messagesData?.data || [];
-  const notifications = notificationsData?.data || [];
-  const subAdmins = subAdminsData?.data || [];
+  const notifications = useMemo(() => notificationsData?.data || [], [notificationsData]);
+  const subAdmins = useMemo(() => subAdminsData?.data || [], [subAdminsData]);
 
   useEffect(() => {
     setLocalNotifications(notifications);
   }, [notifications]);
 
   const isSuper = session?.role === 'super';
-  const permissions: string[] = session?.permissions || [];
+  const permissions: string[] = useMemo(() => session?.permissions || [], [session?.permissions]);
 
   // ── إغلاق القوائم المنسدلة عند الضغط خارجها ──
   useEffect(() => {
