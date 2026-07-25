@@ -2,9 +2,9 @@
 // SubAdmins - SECURE v2 - No plaintext passwords
 // ─────────────────────────────────────────────────────────────
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Eye, Pencil, Trash2, Shield, Key } from 'lucide-react';
+import { Plus, Pencil, Trash2, Shield, Key } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
-import { useSubAdmins, SubAdmin, nextCode, addAuditEntry } from '@/lib/adminData';
+import { SubAdmin, nextCode, addAuditEntry } from '@/lib/adminData';
 import {
   PageHeader, Panel, Pill, StatCard, SearchInput, FilterTabs,
   Modal, ConfirmDialog, Field, TextInput, SelectBox, PrimaryBtn,
@@ -30,7 +30,7 @@ const PERMISSIONS = [
 
 export function SubAdmins() {
   const { t, lang } = useLang();
-  const [subAdmins, setSubAdmins] = useSubAdmins();
+  const [subAdmins, setSubAdmins] = useState<SubAdmin[]>([]);
   const { show, ToastView } = useToast();
 
   const [search, setSearch] = useState('');

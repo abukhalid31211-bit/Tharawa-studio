@@ -5,8 +5,12 @@ import { Card } from '@/components/ui/Card';
 import { Plus, ArrowUpRight, ArrowDownLeft, Star, FileSpreadsheet } from 'lucide-react';
 
 interface Transaction {
-  id: string; type: 'deposit' | 'withdrawal' | 'dividend'; amount: number;
-  date: string; status: string; method: string;
+  id: string;
+  type: 'deposit' | 'withdrawal' | 'withdraw' | 'dividend' | 'buy' | 'sell' | 'transfer';
+  amount: number;
+  date: string;
+  status: string;
+  method: string;
 }
 
 interface TransactionsTabProps {
@@ -17,6 +21,29 @@ interface TransactionsTabProps {
 
 export function TransactionsTab({ transactions, onNewTransfer, onExportExcel }: TransactionsTabProps) {
   const { t } = useLang();
+
+  const typeLabel = (type: Transaction['type']) => {
+    switch (type) {
+      case 'deposit': return t('إيداع', 'Deposit');
+      case 'withdrawal':
+      case 'withdraw': return t('سحب', 'Withdrawal');
+      case 'dividend': return t('أرباح', 'Dividend');
+      case 'buy': return t('شراء', 'Buy');
+      case 'sell': return t('بيع', 'Sell');
+      case 'transfer': return t('تحويل', 'Transfer');
+      default: return type;
+    }
+  };
+
+  const statusLabel = (status: string) => {
+    switch (status) {
+      case 'completed': return { text: t('مكتملة', 'Completed'), className: 'bg-emerald-500/10 text-emerald-600' };
+      case 'pending': return { text: t('قيد المراجعة', 'Pending'), className: 'bg-amber-500/10 text-amber-600' };
+      case 'rejected':
+      case 'failed': return { text: t('مرفوضة', 'Rejected'), className: 'bg-rose-500/10 text-rose-600' };
+      default: return { text: status, className: 'bg-slate-500/10 text-slate-600' };
+    }
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -56,18 +83,18 @@ export function TransactionsTab({ transactions, onNewTransfer, onExportExcel }: 
                   <td className="py-3.5">
                     <span className="flex items-center gap-1.5">
                       {tx.type === 'deposit' && <ArrowUpRight className="w-4 h-4 text-emerald-500" />}
-                      {tx.type === 'withdrawal' && <ArrowDownLeft className="w-4 h-4 text-rose-500" />}
-                      {tx.type === 'dividend' && <Star className="w-4 h-4 text-gold-deep" />}
-                      {tx.type === 'deposit' ? t('إيداع', 'Deposit') : tx.type === 'withdrawal' ? t('سحب', 'Withdrawal') : t('أرباح', 'Dividend')}
+                      {(tx.type === 'withdrawal' || tx.type === 'withdraw') && <ArrowDownLeft className="w-4 h-4 text-rose-500" />}
+                      {['dividend', 'buy', 'sell', 'transfer'].includes(tx.type) && <Star className="w-4 h-4 text-gold-deep" />}
+                      {typeLabel(tx.type)}
                     </span>
                   </td>
-                  <td className={`py-3.5 font-mono ${tx.type === 'withdrawal' ? 'text-rose-500' : 'text-emerald-500'}`}>
-                    {tx.type === 'withdrawal' ? '-' : '+'}{tx.amount.toLocaleString()} SAR
+                  <td className={`py-3.5 font-mono ${(tx.type === 'withdrawal' || tx.type === 'withdraw') ? 'text-rose-500' : 'text-emerald-500'}`}>
+                    {(tx.type === 'withdrawal' || tx.type === 'withdraw') ? '-' : '+'}{tx.amount.toLocaleString()} SAR
                   </td>
                   <td className="py-3.5 font-mono">{tx.date}</td>
                   <td className="py-3.5 text-xs font-medium">{tx.method}</td>
                   <td className="py-3.5">
-                    <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 text-xs font-black">{t('مكتملة', 'Completed')}</span>
+                    <span className={`px-2 py-0.5 rounded text-xs font-black ${statusLabel(tx.status).className}`}>{statusLabel(tx.status).text}</span>
                   </td>
                 </tr>
               ))}
@@ -82,22 +109,22 @@ export function TransactionsTab({ transactions, onNewTransfer, onExportExcel }: 
               <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center gap-2">
                   <div className={`p-2 rounded-lg ${
-                    tx.type === 'deposit' ? 'bg-emerald-500/10' : tx.type === 'withdrawal' ? 'bg-rose-500/10' : 'bg-gold-primary/10'
+                    tx.type === 'deposit' ? 'bg-emerald-500/10' : (tx.type === 'withdrawal' || tx.type === 'withdraw') ? 'bg-rose-500/10' : 'bg-gold-primary/10'
                   }`}>
                     {tx.type === 'deposit' && <ArrowUpRight className="w-4 h-4 text-emerald-500" />}
-                    {tx.type === 'withdrawal' && <ArrowDownLeft className="w-4 h-4 text-rose-500" />}
-                    {tx.type === 'dividend' && <Star className="w-4 h-4 text-gold-deep" />}
+                    {(tx.type === 'withdrawal' || tx.type === 'withdraw') && <ArrowDownLeft className="w-4 h-4 text-rose-500" />}
+                    {['dividend', 'buy', 'sell', 'transfer'].includes(tx.type) && <Star className="w-4 h-4 text-gold-deep" />}
                   </div>
                   <div>
                     <h4 className="text-sm font-black text-text-primary">
-                      {tx.type === 'deposit' ? t('إيداع أموال', 'Deposit') : tx.type === 'withdrawal' ? t('سحب أموال', 'Withdrawal') : t('توزيع أرباح', 'Dividend')}
+                      {typeLabel(tx.type)}
                     </h4>
                     <span className="text-[10px] text-text-muted font-mono">{tx.id}</span>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className={`text-sm font-black font-mono ${tx.type === 'withdrawal' ? 'text-rose-500' : 'text-emerald-500'}`}>
-                    {tx.type === 'withdrawal' ? '-' : '+'}{tx.amount.toLocaleString()}
+                  <div className={`text-sm font-black font-mono ${(tx.type === 'withdrawal' || tx.type === 'withdraw') ? 'text-rose-500' : 'text-emerald-500'}`}>
+                    {(tx.type === 'withdrawal' || tx.type === 'withdraw') ? '-' : '+'}{tx.amount.toLocaleString()}
                   </div>
                   <span className="text-[10px] text-text-muted">SAR</span>
                 </div>
@@ -105,7 +132,7 @@ export function TransactionsTab({ transactions, onNewTransfer, onExportExcel }: 
               <div className="flex justify-between items-center pt-3 border-t border-dashed border-border-light text-[11px]">
                 <span className="text-text-secondary font-medium">{tx.date}</span>
                 <span className="text-text-muted">{tx.method}</span>
-                <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 font-black">{t('مكتملة', 'Done')}</span>
+                <span className={`px-1.5 py-0.5 rounded font-black ${statusLabel(tx.status).className}`}>{statusLabel(tx.status).text}</span>
               </div>
             </div>
           ))}

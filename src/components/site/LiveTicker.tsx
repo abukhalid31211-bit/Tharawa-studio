@@ -3,16 +3,20 @@ import { useLang } from '@/contexts/LanguageContext';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCmsSection } from '@/lib/cms';
+import { useSiteDesignContent } from '@/lib/publicSite';
 
 export function LiveTicker() {
   const { lang } = useLang();
   const [isPaused, setIsPaused] = useState(false);
+  const { data: design } = useSiteDesignContent();
   const { data: managed } = useCmsSection<any>('markets', { markets: [] });
   const sourceItems = Array.isArray(managed.markets) ? managed.markets.filter((item: any) => item.visible !== false).map((item: any, index: number) => ({
     id: item.id || index, nameAr: item.name, nameEn: item.nameEn, symbol: item.symbol, price: item.price,
     change: `${Number(item.change) >= 0 ? '+' : ''}${item.change}%`, isUp: Number(item.change) >= 0,
   })) : [];
   const items = [...sourceItems, ...sourceItems];
+
+  if (!design.showLiveTicker || sourceItems.length === 0) return null;
 
   return (
     <div className="w-full h-[42px] bg-secondary border-y border-border-gold/30 overflow-hidden relative flex items-center">

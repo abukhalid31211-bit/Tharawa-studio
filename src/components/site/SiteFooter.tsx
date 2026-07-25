@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useCmsSection } from '@/lib/cms';
 import { api } from '@/lib/api';
+import { digitsOnly, usePublicSiteSettings, useSiteDesignContent } from '@/lib/publicSite';
 
 export function SiteFooter() {
   const { lang, t } = useLang();
@@ -19,6 +20,8 @@ export function SiteFooter() {
   const [email, setEmail] = useState('');
   const [isPrivacyModalOpen, setPrivacyModalOpen] = useState(false);
   const { data: privacy } = useCmsSection<any>('privacy', { sections: [] });
+  const { data: publicSettings } = usePublicSiteSettings();
+  const { data: design } = useSiteDesignContent();
 
   const handleCloseAnnouncement = () => {
     setAnnouncementVisible(false);
@@ -43,17 +46,21 @@ export function SiteFooter() {
     }
   };
 
+  const logoAr = design.logoText || publicSettings.platform_name;
+  const logoEn = design.logoTextEn || publicSettings.platform_name_en;
+  const announcement = (lang === 'ar' ? design.announcement : design.announcementEn).trim();
+  const whatsappNumber = digitsOnly(publicSettings.whatsapp_number || publicSettings.support_phone);
+  const address = lang === 'ar' ? publicSettings.contact_address_ar : publicSettings.contact_address_en;
+
   return (
     <footer className="w-full relative mt-auto">
       {/* 1. Announcement Bar */}
-      {isAnnouncementVisible && (
+      {isAnnouncementVisible && announcement && (
         <div className="gradient-gold text-white py-3 px-5 flex items-center justify-center relative animate-in slide-in-from-top-4">
           <div className="flex items-center gap-2">
             <Megaphone className="w-4 h-4" />
-            <span className="font-semibold text-sm">
-              {t('إعلان عاجل: افتتحنا فرعنا الجديد في الرياض!', 'Announcement: We opened our new branch in Riyadh!')}
-            </span>
-            <a href="#" className="font-bold text-sm underline hover:opacity-80 transition-opacity ml-2 mr-2">
+            <span className="font-semibold text-sm">{announcement}</span>
+            <a href="/contact" className="font-bold text-sm underline hover:opacity-80 transition-opacity ml-2 mr-2">
               {t('اعرف المزيد ←', 'Learn More →')}
             </a>
           </div>
@@ -84,10 +91,12 @@ export function SiteFooter() {
               <Mail className="w-4 h-4" /> {t('احجز استشارة مجانية', 'Book Free Consultation')}
             </Button>
           </Link>
-          <a href="https://wa.me/97141234567" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 border-2 border-white/50 text-white font-bold px-8 py-3.5 rounded-md hover:bg-white/10 transition-colors">
-            <WhatsappIcon className="w-5 h-5 text-white fill-current shrink-0" />
-            {t('تواصل عبر واتساب', 'Chat on WhatsApp')}
-          </a>
+          {whatsappNumber ? (
+            <a href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 border-2 border-white/50 text-white font-bold px-8 py-3.5 rounded-md hover:bg-white/10 transition-colors">
+              <WhatsappIcon className="w-5 h-5 text-white fill-current shrink-0" />
+              {t('تواصل عبر واتساب', 'Chat on WhatsApp')}
+            </a>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-white/80 text-[13px]">
@@ -115,8 +124,8 @@ export function SiteFooter() {
                 <span className="font-sans font-black text-white text-xl">ر</span>
               </div>
               <div className="flex flex-col">
-                <span className="font-sans font-bold text-text-primary leading-tight">ثروة كابيتال</span>
-                <span className="font-en font-medium text-gold-deep text-[10px] tracking-[0.15em]">THARWAH CAPITAL</span>
+                <span className="font-sans font-bold text-text-primary leading-tight">{lang === 'ar' ? logoAr : logoEn}</span>
+                <span className="font-en font-medium text-gold-deep text-[10px] tracking-[0.15em]">{logoEn.toUpperCase()}</span>
               </div>
             </div>
             <p className="text-sm text-text-secondary mb-6 leading-relaxed">
@@ -168,14 +177,14 @@ export function SiteFooter() {
                 <MapPin className="w-4 h-4 text-gold-primary mt-1" />
                 <div>
                   <div className="text-[11px] font-bold text-text-muted mb-1">{t('العنوان', 'Address')}</div>
-                  <div className="text-[13px] text-text-secondary leading-relaxed">{t('برج المركز المالي، دبي', 'DIFC, Dubai')}</div>
+                  <div className="text-[13px] text-text-secondary leading-relaxed">{address || t('سيتم تحديث العنوان من لوحة الإدارة', 'The address will be updated from the admin panel')}</div>
                 </div>
               </div>
               <div className="flex gap-3">
                 <Phone className="w-4 h-4 text-gold-primary mt-1" />
                 <div>
                   <div className="text-[11px] font-bold text-text-muted mb-1">{t('هاتف', 'Phone')}</div>
-                  <div className="text-[14px] text-text-primary font-mono">+971 4 123 4567</div>
+                  <div className="text-[14px] text-text-primary font-mono">{publicSettings.support_phone || t('سيتم تحديث الهاتف من لوحة الإدارة', 'The phone number will be updated from the admin panel')}</div>
                 </div>
               </div>
             </div>

@@ -1,10 +1,12 @@
 // ─────────────────────────────────────────────────────────────
 // CMS — PrivacyPolicyManager إدارة سياسة الخصوصية والبنود القانونية
 // ─────────────────────────────────────────────────────────────
-import React, { useState } from 'react';
-import { ShieldCheck, Save, Plus, Pencil, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ShieldCheck, Save, Plus, Pencil, Trash2, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
 import { useCmsPrivacy, PrivacySection, nextCode, addAuditEntry } from '@/lib/adminData';
+import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import {
   PageHeader, Panel, PanelHeader, Pill, StatCard, Modal, ConfirmDialog,
   Field, TextInput, TextArea, PrimaryBtn, GhostBtn, IconBtn,
@@ -25,11 +27,43 @@ export function PrivacyPolicyManager() {
   const [editing, setEditing] = useState<PrivacySection | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [deleting, setDeleting] = useState<PrivacySection | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.getContent('privacy')
+      .then((res: any) => {
+        const remotePrivacy = res.data?.content_data;
+        if (remotePrivacy && typeof remotePrivacy === 'object') {
+          setDoc(remotePrivacy);
+          setMetaDraft({
+            intro: remotePrivacy.intro || '',
+            introEn: remotePrivacy.introEn || '',
+            lastUpdated: remotePrivacy.lastUpdated || '',
+          });
+        }
+      })
+      .catch(error => logger.warn('Failed to load remote privacy content', error));
+  }, [setDoc]);
 
   const sections = [...doc.sections].sort((a, b) => a.order - b.order);
 
-  const saveMeta = () => {
-    setDoc(d => ({ ...d, ...metaDraft }));
+  const syncToBackend = async (updatedDoc: typeof doc) => {
+    setSaving(true);
+    try {
+      await api.updateContent('privacy', { content_data: updatedDoc });
+      addAuditEntry('admin@tharwah.com', 'تعديل بنود سياسة الخصوصية', 'Edited privacy policy clauses');
+    } catch (error: any) {
+      show(error?.message || t('فشل الحفظ', 'Save failed'), 'error');
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveMeta = async () => {
+    const updatedDoc = { ...doc, ...metaDraft };
+    setDoc(updatedDoc);
+    await syncToBackend(updatedDoc);
     addAuditEntry('admin@tharwah.com', 'تحديث مقدمة سياسة الخصوصية', 'Updated privacy policy intro');
     show(t('تم حفظ المقدمة وتاريخ التحديث', 'Intro and update date saved'));
   };
@@ -41,27 +75,31 @@ export function PrivacyPolicyManager() {
     setEditOpen(true);
   };
 
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    let updatedDoc: typeof doc;
     if (editing) {
-      setDoc(d => ({ ...d, sections: d.sections.map(s => s.id === editing.id ? { ...s, ...form } : s) }));
+      updatedDoc = { ...doc, sections: doc.sections.map(s => s.id === editing.id ? { ...s, ...form } : s) };
       show(t('تم تحديث البند', 'Clause updated'));
     } else {
       const maxOrder = doc.sections.reduce((m, s) => Math.max(m, s.order), 0);
-      setDoc(d => ({ ...d, sections: [...d.sections, { id: nextCode(d.sections, 'P'), ...form, order: maxOrder + 1 }] }));
+      updatedDoc = { ...doc, sections: [...doc.sections, { id: nextCode(doc.sections, 'P'), ...form, order: maxOrder + 1 }] };
       show(t('تمت إضافة البند لسياسة الخصوصية', 'Clause added to privacy policy'));
     }
-    addAuditEntry('admin@tharwah.com', 'تعديل بنود سياسة الخصوصية', 'Edited privacy policy clauses');
+    setDoc(updatedDoc);
+    await syncToBackend(updatedDoc);
     setEditOpen(false);
   };
 
-  const move = (s: PrivacySection, dir: -1 | 1) => {
+  const move = async (s: PrivacySection, dir: -1 | 1) => {
     const arr = [...sections];
     const i = arr.findIndex(x => x.id === s.id);
     const j = i + dir;
     if (j < 0 || j >= arr.length) return;
     [arr[i], arr[j]] = [arr[j], arr[i]];
-    setDoc(d => ({ ...d, sections: arr.map((x, idx) => ({ ...x, order: idx + 1 })) }));
+    const updatedDoc = { ...doc, sections: arr.map((x, idx) => ({ ...x, order: idx + 1 })) };
+    setDoc(updatedDoc);
+    await syncToBackend(updatedDoc);
   };
 
   return (
@@ -69,7 +107,12 @@ export function PrivacyPolicyManager() {
       <PageHeader
         title={t('إدارة سياسة الخصوصية والأحكام', 'Privacy Policy Manager')}
         subtitle={t('صياغة بنود الخصوصية والأحكام القانونية والشرعية المعتمدة في المنصة', 'Draft privacy clauses and legal/sharia terms adopted by the platform')}
-        actions={<PrimaryBtn icon={Plus} color="#C9A84C" colorHover="#B8912F" onClick={openAdd}>{t('إضافة بند', 'Add Clause')}</PrimaryBtn>}
+        actions={
+          <>
+            {saving && <Loader2 className="w-5 h-5 animate-spin text-gold-primary" />}
+            <PrimaryBtn icon={Plus} color="#C9A84C" colorHover="#B8912F" onClick={openAdd}>{t('إضافة بند', 'Add Clause')}</PrimaryBtn>
+          </>
+        }
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -94,7 +137,7 @@ export function PrivacyPolicyManager() {
             <Field label={t('تاريخ آخر تحديث', 'Last Update Date')}>
               <TextInput type="date" value={metaDraft.lastUpdated} onChange={e => setMetaDraft({ ...metaDraft, lastUpdated: e.target.value })} dir="ltr" className="max-w-[200px]" />
             </Field>
-            <PrimaryBtn icon={Save} onClick={saveMeta} disabled={!metaDirty}>{t('حفظ المقدمة', 'Save Intro')}</PrimaryBtn>
+            <PrimaryBtn icon={Save} onClick={() => void saveMeta()} disabled={!metaDirty || saving}>{t('حفظ المقدمة', 'Save Intro')}</PrimaryBtn>
             {metaDirty && <Pill text={t('غير محفوظ', 'Unsaved')} color="#F59E0B" dot />}
           </div>
         </div>
@@ -175,7 +218,14 @@ export function PrivacyPolicyManager() {
       <ConfirmDialog
         open={!!deleting}
         onClose={() => setDeleting(null)}
-        onConfirm={() => { setDoc(d => ({ ...d, sections: d.sections.filter(s => s.id !== deleting!.id) })); show(t('تم حذف البند', 'Clause deleted')); }}
+        onConfirm={() => {
+          if (!deleting) return;
+          const updatedDoc = { ...doc, sections: doc.sections.filter(s => s.id !== deleting.id) };
+          setDoc(updatedDoc);
+          void syncToBackend(updatedDoc);
+          show(t('تم حذف البند', 'Clause deleted'));
+          setDeleting(null);
+        }}
         title={t('حذف بند قانوني', 'Delete Legal Clause')}
         message={t(`حذف بند «${deleting?.title}» من سياسة الخصوصية المنشورة؟ هذا تعديل قانوني حساس.`, `Delete "${deleting?.titleEn}" from the published privacy policy? This is a sensitive legal change.`)}
         confirmText={t('حذف', 'Delete')}

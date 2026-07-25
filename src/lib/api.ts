@@ -148,6 +148,7 @@ export const api = {
   logout: (refreshToken?: string | null) => request('/api/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken }), skipAuth: true }),
   changePassword: (currentPassword: string, newPassword: string) => request('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   getProfile: () => request('/api/auth/profile'),
+  updateProfile: (data: { phone?: string; profile_data?: Record<string, unknown> }) => request('/api/auth/profile', { method: 'PATCH', body: JSON.stringify(data) }),
 
   // Protected - Clients
   getClients: (params?: Record<string, string>) => request('/api/clients', { params }),
@@ -195,11 +196,14 @@ export const api = {
 
   // Audit
   getAuditLogs: (params?: Record<string, string>) => request('/api/audit', { params }),
+  getLoginAttempts: (params?: Record<string, string>) => request('/api/audit/login-attempts', { params }),
 
   // Public Contact Form (no auth)
   submitContact: (data: { name: string; email: string; phone?: string; subject: string; message: string }) =>
     request('/api/contact', { method: 'POST', body: JSON.stringify(data), skipAuth: true }),
 
+  // Stats
+  getPublicStats: () => request('/api/stats/public', { skipAuth: true }),
   // Admin Stats — real aggregated metrics for the Overview dashboard
   getAdminStats: () => request('/api/stats/overview'),
 

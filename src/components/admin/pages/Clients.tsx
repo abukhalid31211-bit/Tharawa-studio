@@ -6,6 +6,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { Plus, Eye, Pencil, Trash2, UserCheck, UserX } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
 import { useClients, Client, ClientStatus, nextCode } from '@/lib/adminData';
+import { api } from '@/lib/api';
 import {
   PageHeader, Panel, Pill, StatCard, SearchInput, FilterTabs,
   Modal, ConfirmDialog, Field, TextInput, SelectBox, PrimaryBtn,
@@ -63,10 +64,12 @@ export function Clients() {
     show(next === 'suspended' ? t('تم إيقاف الحساب', 'Account suspended') : t('تم تفعيل الحساب', 'Account activated'));
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleting) return;
-    setClients(prev => prev.filter(x => x.id !== deleting.id));
-    show(t('تم حذف العميل نهائياً', 'Client permanently deleted'));
+    await api.deleteClient(deleting.id);
+    setClients(prev => prev.map(x => x.id === deleting.id ? { ...x, status: 'suspended' } : x));
+    show(t('تمت أرشفة العميل وإيقاف حسابه', 'Client archived and account suspended'));
+    setDeleting(null);
   };
 
   const handleAdd = (e: React.FormEvent) => {
@@ -236,9 +239,9 @@ export function Clients() {
         open={!!deleting}
         onClose={() => setDeleting(null)}
         onConfirm={handleDelete}
-        title={t('حذف العميل نهائياً', 'Delete Client Permanently')}
-        message={t(`سيتم حذف حساب ${deleting?.name} وجميع بياناته المرتبطة. هذا الإجراء لا يمكن التراجع عنه.`, `This will permanently delete ${deleting?.nameEn}'s account and all linked data. This action cannot be undone.`)}
-        confirmText={t('حذف نهائي', 'Delete Permanently')}
+        title={t('أرشفة العميل', 'Archive Client')}
+        message={t(`سيتم إيقاف حساب ${deleting?.name} وأرشفة وصوله للمنصة مع الاحتفاظ بسجله الداخلي.`, `This will suspend ${deleting?.nameEn}'s account and archive platform access while preserving internal history.`)}
+        confirmText={t('أرشفة العميل', 'Archive Client')}
       />
       {ToastView}
     </div>

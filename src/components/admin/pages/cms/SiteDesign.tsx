@@ -1,10 +1,12 @@
 // ─────────────────────────────────────────────────────────────
 // CMS — SiteDesign إدارة تصميم الموقع والهوية البصرية والتنقل
 // ─────────────────────────────────────────────────────────────
-import React, { useState } from 'react';
-import { Palette, Save, RotateCcw, Megaphone, ToggleRight, Type } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Palette, Save, RotateCcw, Megaphone, ToggleRight, Type, Loader2 } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
 import { useCmsDesign, SITE_DESIGN_SEED, addAuditEntry } from '@/lib/adminData';
+import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import {
   PageHeader, Panel, PanelHeader, Pill, Field, TextInput,
   PrimaryBtn, GhostBtn, Toggle, useToast,
@@ -23,13 +25,33 @@ export function SiteDesign() {
   const [design, setDesign] = useCmsDesign();
   const [draft, setDraft] = useState(design);
   const { show, ToastView } = useToast();
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.getContent('design')
+      .then((res: any) => {
+        if (res.data?.content_data) {
+          setDesign(res.data.content_data);
+          setDraft(res.data.content_data);
+        }
+      })
+      .catch(error => logger.warn('Failed to load remote design content', error));
+  }, [setDesign]);
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(design);
 
-  const save = () => {
-    setDesign(draft);
-    addAuditEntry('admin@tharwah.com', 'تحديث هوية الموقع البصرية', 'Updated site visual identity');
-    show(t('تم تطبيق الهوية البصرية الجديدة على الموقع', 'New visual identity applied to site'));
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.updateContent('design', { content_data: draft });
+      setDesign(draft);
+      addAuditEntry('admin@tharwah.com', 'تحديث هوية الموقع البصرية', 'Updated site visual identity');
+      show(t('تم تطبيق الهوية البصرية الجديدة على الموقع', 'New visual identity applied to site'));
+    } catch (error: any) {
+      show(error?.message || t('فشل الحفظ', 'Save failed'), 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const reset = () => { setDraft(SITE_DESIGN_SEED); show(t('تمت استعادة الهوية الافتراضية', 'Default identity restored')); };
@@ -42,8 +64,9 @@ export function SiteDesign() {
         actions={
           <>
             {dirty && <Pill text={t('تغييرات غير محفوظة', 'Unsaved changes')} color="#F59E0B" dot />}
+            {saving && <Loader2 className="w-5 h-5 animate-spin text-gold-primary" />}
             <GhostBtn icon={RotateCcw} onClick={reset}>{t('استعادة الافتراضي', 'Restore Default')}</GhostBtn>
-            <PrimaryBtn icon={Save} onClick={save} disabled={!dirty}>{t('حفظ ونشر', 'Save & Publish')}</PrimaryBtn>
+            <PrimaryBtn icon={Save} onClick={() => void save()} disabled={!dirty || saving}>{t('حفظ ونشر', 'Save & Publish')}</PrimaryBtn>
           </>
         }
       />

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { useCmsSection } from '@/lib/cms';
+import { isClientAuthed } from '@/lib/auth';
 
 // ─── Types ───────────────────────────────────────────────
 type CategoryKey = 'all' | 'stocks' | 'crypto' | 'metals' | 'energy';
@@ -207,8 +208,8 @@ export function MarketsPage() {
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortOpen, setSortOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isLoggedIn] = useState(false);
-  const [alertAsset, setAlertAsset] = useState('btc');
+  const isLoggedIn = isClientAuthed();
+  const [alertAsset, setAlertAsset] = useState('');
   const [alertType, setAlertType] = useState('price');
   const [alertPrice, setAlertPrice] = useState('');
 
@@ -266,6 +267,14 @@ export function MarketsPage() {
     return marketAssets.filter(a => ['crypto', 'metals', 'energy', 'stocks'].includes(a.category)).slice(0, 4);
   }, [marketAssets]);
 
+  const heroMarkets = useMemo(() => marketAssets.slice(0, 4), [marketAssets]);
+
+  useEffect(() => {
+    if (!alertAsset && marketAssets[0]) {
+      setAlertAsset(marketAssets[0].id);
+    }
+  }, [alertAsset, marketAssets]);
+
   return (
     <div className="w-full">
       {/* 2.5.1 — Hero */}
@@ -283,34 +292,36 @@ export function MarketsPage() {
         {/* Global Indices Strip */}
         <div className="mt-10 max-w-5xl mx-auto px-4">
           <div className="bg-primary dark:bg-elevated border border-border-light rounded-xl shadow-sm p-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { label: 'S&P 500', value: '5,284.30', change: '+0.85%', trend: 'up' as const },
-                { label: 'NASDAQ', value: '18,671.40', change: '+1.24%', trend: 'up' as const },
-                { label: lang === 'ar' ? 'تداول السعودية' : 'Saudi Tadawul', value: '12,450.80', change: '-0.32%', trend: 'down' as const },
-                { label: 'Gold / XAU', value: '$2,325.40', change: '+0.55%', trend: 'up' as const },
-              ].map((idx, i) => (
-                <div key={i} className="text-center md:text-right p-4 md:border-l last:border-0 border-border-light">
-                  <div className="text-xs font-bold font-mono text-text-muted uppercase mb-1">{idx.label}</div>
-                  <div className="text-xl font-black font-mono text-text-primary">{idx.value}</div>
-                  <span className={`inline-flex items-center gap-1 text-xs font-bold font-mono mt-1 px-2 py-0.5 rounded-full ${
-                    idx.trend === 'up' ? 'bg-success-light text-success' : 'bg-error-light text-error'
-                  }`}>
-                    {idx.trend === 'up' ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
-                    {idx.change}
-                  </span>
-                </div>
-              ))}
-            </div>
-            {/* Status bar */}
+            {heroMarkets.length === 0 ? (
+              <div className="text-center py-8 text-text-muted">
+                {t('لا توجد بيانات أسواق منشورة حالياً', 'No market records are published yet')}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {heroMarkets.map((asset) => (
+                  <div key={asset.id} className="text-center md:text-right p-4 md:border-l last:border-0 border-border-light">
+                    <div className="text-xs font-bold font-mono text-text-muted uppercase mb-1">{lang === 'ar' ? asset.name : asset.nameEn}</div>
+                    <div className="text-xl font-black font-mono text-text-primary">
+                      {asset.currency === 'ر.س' ? `${asset.price.toFixed(2)} ${asset.currency}` : `${asset.currency}${asset.price.toLocaleString()}`}
+                    </div>
+                    <span className={`inline-flex items-center gap-1 text-xs font-bold font-mono mt-1 px-2 py-0.5 rounded-full ${
+                      asset.trend === 'up' ? 'bg-success-light text-success' : 'bg-error-light text-error'
+                    }`}>
+                      {asset.trend === 'up' ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
+                      {asset.changePercent > 0 ? '+' : ''}{asset.changePercent.toFixed(2)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex items-center justify-between mt-3 pt-3 border-t border-border-light text-xs text-text-muted">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 bg-success rounded-full animate-pulse" />
-                <span>{t('البيانات حية — آخر تحديث منذ 28 ثانية', 'Data Live — Last updated 28 seconds ago')}</span>
+                <span>{t('البيانات مأخوذة من لوحة الإدارة الداخلية', 'Data is sourced from the internal admin panel')}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <RefreshCw className="w-3 h-3" />
-                <span>{t('يتحدث تلقائياً كل 30 ثانية', 'Auto-updates every 30 seconds')}</span>
+                <span>{t('حدّث السجلات من إدارة الأسواق لإظهارها هنا', 'Update the records in Markets Manager to show them here')}</span>
               </div>
             </div>
           </div>
@@ -504,10 +515,15 @@ export function MarketsPage() {
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-text-secondary">{t('اختر الأصل', 'Select Asset')}</label>
                       <select value={alertAsset} onChange={e => setAlertAsset(e.target.value)} className="w-full bg-secondary border border-border-default rounded-md py-2.5 px-3 text-xs font-bold outline-none focus:border-gold-primary">
-                        <option value="btc">Bitcoin (BTC/USD)</option>
-                        <option value="eth">Ethereum (ETH/USD)</option>
-                        <option value="xau">Gold (XAU/USD)</option>
-                        <option value="aapl">Apple (AAPL)</option>
+                        {marketAssets.length === 0 ? (
+                          <option value="">{t('لا توجد أصول منشورة حالياً', 'No published assets yet')}</option>
+                        ) : (
+                          marketAssets.map(asset => (
+                            <option key={asset.id} value={asset.id}>
+                              {(lang === 'ar' ? asset.name : asset.nameEn) || asset.symbol} ({asset.symbol})
+                            </option>
+                          ))
+                        )}
                       </select>
                     </div>
                     <div className="space-y-1.5">
@@ -530,7 +546,7 @@ export function MarketsPage() {
                     <h3 className="text-lg font-black">{t('سجل دخولك لإعداد التنبيهات', 'Log in to Set Up Alerts')}</h3>
                     <p className="text-sm text-text-secondary">{t('التنبيهات الفورية متاحة لعملاء ثروة كابيتال المسجلين فقط', 'Instant alerts are available to registered Tharwah Capital clients only')}</p>
                     <Button className="w-full py-3">{t('تسجيل الدخول', 'Log In')}</Button>
-                    <a href="/register" className="block text-sm font-bold text-gold-deep hover:underline">{t('لست عميلاً بعد؟ سجل الآن', 'Not a client yet? Register now')}</a>
+                    <a href="/contact" className="block text-sm font-bold text-gold-deep hover:underline">{t('لست عميلاً بعد؟ تواصل معنا لفتح حساب', 'Not a client yet? Contact us to open an account')}</a>
                   </div>
                 )}
               </div>

@@ -3,6 +3,7 @@ import { Link, useRouterState, useNavigate } from '@tanstack/react-router';
 import { useLang } from '@/contexts/LanguageContext';
 import { useSiteSettings } from '@/contexts/SiteSettingsContext';
 import { isClientAuthed, getClientSession, clearClientSession } from '@/lib/auth';
+import { usePublicSiteSettings, useSiteDesignContent } from '@/lib/publicSite';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import {
@@ -13,6 +14,8 @@ import {
 export function SiteHeader() {
   const { lang, setLang, t } = useLang();
   const { theme, setTheme } = useSiteSettings();
+  const { data: publicSettings } = usePublicSiteSettings();
+  const { data: design } = useSiteDesignContent();
   const navigate = useNavigate();
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
@@ -78,6 +81,10 @@ export function SiteHeader() {
     { nameAr: 'تواصل معنا', nameEn: 'Contact', path: '/contact' },
   ];
 
+  const logoAr = design.logoText || publicSettings.platform_name;
+  const logoEn = design.logoTextEn || publicSettings.platform_name_en;
+  const userCode = userSession?.id || '—';
+
   return (
     <header className={cn(
       'sticky top-0 left-0 right-0 z-50 transition-all duration-400',
@@ -97,11 +104,11 @@ export function SiteHeader() {
             <span className="font-sans font-black text-white text-xl">ر</span>
           </div>
           <div className="flex flex-col">
-            <span className="font-sans font-bold text-text-primary leading-tight">ثروة كابيتال</span>
+            <span className="font-sans font-bold text-text-primary leading-tight">{lang === 'ar' ? logoAr : logoEn}</span>
             <span className={cn(
               "font-en font-medium text-gold-deep text-[10px] tracking-[0.15em] transition-opacity duration-300",
               (!scrolled && scrollProgress === 0) ? "opacity-0 h-0" : "opacity-100"
-            )}>THARWAH CAPITAL</span>
+            )}>{logoEn.toUpperCase()}</span>
           </div>
         </Link>
 
@@ -240,7 +247,7 @@ export function SiteHeader() {
                   </div>
                   <div className="flex flex-col items-start hidden xl:flex">
                     <span className="font-semibold text-[13px] text-text-primary leading-none">{userSession?.name || 'مستخدم'}</span>
-                    <span className="font-mono text-[11px] text-gold-deep">W-1029</span>
+                    <span className="font-mono text-[11px] text-gold-deep">{userCode}</span>
                   </div>
                   <ChevronDown className={cn("w-4 h-4 text-text-secondary transition-transform ml-1", isProfileOpen && "rotate-180")} />
                 </button>
@@ -298,7 +305,7 @@ export function SiteHeader() {
                 </div>
                 <div>
                   <div className="font-bold text-text-primary">{userSession?.name || 'مستخدم'}</div>
-                  <div className="font-mono text-xs text-gold-deep">W-1029</div>
+                  <div className="font-mono text-xs text-gold-deep">{userCode}</div>
                 </div>
               </div>
             )}

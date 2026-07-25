@@ -32,8 +32,8 @@ const FALLBACK_MARKETS: MarketItem[] = [
 
 export function MarketsPreview() {
   const { t, lang } = useLang();
-  const { data: cms } = useCmsSection<MarketsContent>('markets', { markets: FALLBACK_MARKETS });
-  const markets = (cms.markets || FALLBACK_MARKETS).filter(m => m.visible !== false);
+  const { data: cms } = useCmsSection<MarketsContent>('markets', import.meta.env.DEV ? { markets: FALLBACK_MARKETS } : { markets: [] });
+  const markets = (Array.isArray(cms.markets) ? cms.markets : (import.meta.env.DEV ? FALLBACK_MARKETS : [])).filter(m => m.visible !== false);
 
   return (
     <section className="py-24 bg-secondary dark:bg-[#13132A] relative overflow-hidden">
@@ -57,26 +57,32 @@ export function MarketsPreview() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {markets.map((m, i) => (
-            <Card key={m.id} variant="interactive" className="p-6 flex flex-col justify-between h-full bg-primary group animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: `${i * 100}ms` }}>
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <div className="font-bold text-lg text-text-primary mb-1 group-hover:text-gold-deep transition-colors">{lang === 'ar' ? m.name : m.nameEn}</div>
-                  <div className="text-xs font-mono text-text-muted">{m.symbol}</div>
+        {markets.length === 0 ? (
+          <Card className="p-8 text-center text-text-muted">
+            {t('لا توجد بيانات أسواق منشورة حالياً', 'No market records are published yet')}
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {markets.map((m, i) => (
+              <Card key={m.id} variant="interactive" className="p-6 flex flex-col justify-between h-full bg-primary group animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: `${i * 100}ms` }}>
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <div className="font-bold text-lg text-text-primary mb-1 group-hover:text-gold-deep transition-colors">{lang === 'ar' ? m.name : m.nameEn}</div>
+                    <div className="text-xs font-mono text-text-muted">{m.symbol}</div>
+                  </div>
+                  <div className={cn("flex items-center gap-1 rounded-sm px-2 py-1 text-[12px] font-mono font-bold", m.change >= 0 ? "bg-success-light text-success" : "bg-error-light text-error")}>
+                    {m.change >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                    {m.change > 0 ? '+' : ''}{m.change}%
+                  </div>
                 </div>
-                <div className={cn("flex items-center gap-1 rounded-sm px-2 py-1 text-[12px] font-mono font-bold", m.change >= 0 ? "bg-success-light text-success" : "bg-error-light text-error")}>
-                  {m.change >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                  {m.change > 0 ? '+' : ''}{m.change}%
+                <div className="font-mono font-black text-2xl text-text-primary">{m.price}</div>
+                <div className="mt-4 pt-4 border-t border-border-light text-[11px] text-text-muted text-center group-hover:text-gold-deep transition-colors">
+                  {t('مؤشرات حية', 'Live Indicators')}
                 </div>
-              </div>
-              <div className="font-mono font-black text-2xl text-text-primary">{m.price}</div>
-              <div className="mt-4 pt-4 border-t border-border-light text-[11px] text-text-muted text-center group-hover:text-gold-deep transition-colors">
-                {t('مؤشرات حية', 'Live Indicators')}
-              </div>
-            </Card>
-          ))}
-        </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

@@ -1,13 +1,15 @@
 // ─────────────────────────────────────────────────────────────
 // CMS — FAQManager إدارة الأسئلة الشائعة
 // ─────────────────────────────────────────────────────────────
-import React, { useMemo, useState } from 'react';
-import { Plus, Pencil, Trash2, HelpCircle, ArrowUp, ArrowDown } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Plus, Pencil, Trash2, HelpCircle, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
 import { useCmsFaq, FaqItem, nextCode, addAuditEntry } from '@/lib/adminData';
+import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import {
   PageHeader, Panel, Pill, StatCard, Modal, ConfirmDialog, Field,
-  TextInput, TextArea, SelectBox, PrimaryBtn, GhostBtn, IconBtn,
+  TextInput, TextArea, PrimaryBtn, GhostBtn, IconBtn,
   EmptyState, SearchInput, FilterTabs, Toggle, useToast,
 } from '@/components/admin/ui';
 
@@ -24,6 +26,16 @@ export function FAQManager() {
   const [editing, setEditing] = useState<FaqItem | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [deleting, setDeleting] = useState<FaqItem | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.getContent('faq')
+      .then((res: any) => {
+        const remoteFaq = res.data?.content_data;
+        if (Array.isArray(remoteFaq)) setFaq(remoteFaq);
+      })
+      .catch(error => logger.warn('Failed to load remote FAQ content', error));
+  }, [setFaq]);
 
   const categories = useMemo(() => Array.from(new Set(faq.map(f => f.category))), [faq]);
   const published = faq.filter(f => f.published).length;
@@ -35,6 +47,19 @@ export function FAQManager() {
     return okQ && okC;
   }), [sorted, search, catFilter]);
 
+  const syncToBackend = async (updatedFaq: FaqItem[]) => {
+    setSaving(true);
+    try {
+      await api.updateContent('faq', { content_data: updatedFaq });
+      addAuditEntry('admin@tharwah.com', 'تحديث بنك الأسئلة الشائعة', 'Updated FAQ bank');
+    } catch (error: any) {
+      show(error?.message || t('فشل الحفظ', 'Save failed'), 'error');
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const openAdd = () => { setEditing(null); setForm(EMPTY); setEditOpen(true); };
   const openEdit = (f: FaqItem) => {
     setEditing(f);
@@ -42,27 +67,31 @@ export function FAQManager() {
     setEditOpen(true);
   };
 
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    let updatedFaq: FaqItem[];
     if (editing) {
-      setFaq(prev => prev.map(f => f.id === editing.id ? { ...f, ...form } : f));
+      updatedFaq = faq.map(f => f.id === editing.id ? { ...f, ...form } : f);
       show(t('تم تحديث السؤال', 'FAQ updated'));
     } else {
       const maxOrder = faq.reduce((m, f) => Math.max(m, f.order), 0);
-      setFaq(prev => [...prev, { id: nextCode(faq, 'F'), ...form, order: maxOrder + 1 }]);
+      updatedFaq = [...faq, { id: nextCode(faq, 'F'), ...form, order: maxOrder + 1 }];
       show(t('تمت إضافة السؤال لبنك الأسئلة', 'Question added to FAQ bank'));
     }
-    addAuditEntry('admin@tharwah.com', 'تحديث بنك الأسئلة الشائعة', 'Updated FAQ bank');
+    setFaq(updatedFaq);
+    await syncToBackend(updatedFaq);
     setEditOpen(false);
   };
 
-  const move = (f: FaqItem, dir: -1 | 1) => {
+  const move = async (f: FaqItem, dir: -1 | 1) => {
     const arr = [...sorted];
     const i = arr.findIndex(x => x.id === f.id);
     const j = i + dir;
     if (j < 0 || j >= arr.length) return;
     [arr[i], arr[j]] = [arr[j], arr[i]];
-    setFaq(arr.map((x, idx) => ({ ...x, order: idx + 1 })));
+    const updatedFaq = arr.map((x, idx) => ({ ...x, order: idx + 1 }));
+    setFaq(updatedFaq);
+    await syncToBackend(updatedFaq);
   };
 
   return (
@@ -70,7 +99,12 @@ export function FAQManager() {
       <PageHeader
         title={t('إدارة الأسئلة الشائعة', 'FAQ Manager')}
         subtitle={t('إضافة وتحديث بنك الأسئلة والأجوبة التي يراها الزوار في الموقع', 'Manage the Q&A bank that visitors see on the site')}
-        actions={<PrimaryBtn icon={Plus} onClick={openAdd}>{t('إضافة سؤال', 'Add Question')}</PrimaryBtn>}
+        actions={
+          <>
+            {saving && <Loader2 className="w-5 h-5 animate-spin text-gold-primary" />}
+            <PrimaryBtn icon={Plus} onClick={openAdd}>{t('إضافة سؤال', 'Add Question')}</PrimaryBtn>
+          </>
+        }
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -160,7 +194,14 @@ export function FAQManager() {
       <ConfirmDialog
         open={!!deleting}
         onClose={() => setDeleting(null)}
-        onConfirm={() => { setFaq(prev => prev.filter(f => f.id !== deleting!.id)); show(t('تم حذف السؤال', 'Question deleted')); }}
+        onConfirm={() => {
+          if (!deleting) return;
+          const updatedFaq = faq.filter(f => f.id !== deleting.id);
+          setFaq(updatedFaq);
+          void syncToBackend(updatedFaq);
+          show(t('تم حذف السؤال', 'Question deleted'));
+          setDeleting(null);
+        }}
         title={t('حذف السؤال', 'Delete Question')}
         message={t(`حذف «${deleting?.question}» من بنك الأسئلة؟`, `Delete "${deleting?.questionEn}" from FAQ bank?`)}
         confirmText={t('حذف', 'Delete')}

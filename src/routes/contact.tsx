@@ -5,11 +5,13 @@ import { Card } from '@/components/ui/Card';
 import { MapPin, Phone, Mail, Clock, Send, CheckCircle2 } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '@/lib/api';
+import { usePublicSiteSettings } from '@/lib/publicSite';
 
 export const Route = createFileRoute('/contact')({ component: ContactPage });
 
 function ContactPage() {
   const { t, lang } = useLang();
+  const { data: publicSettings } = usePublicSiteSettings();
   const [formState, setFormState] = useState<'idle' | 'loading' | 'success'>('idle');
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -29,6 +31,9 @@ function ContactPage() {
       setFormState('idle');
     }
   };
+
+  const address = lang === 'ar' ? publicSettings.contact_address_ar : publicSettings.contact_address_en;
+  const businessHours = lang === 'ar' ? publicSettings.business_hours_ar : publicSettings.business_hours_en;
 
   return (
     <div className="w-full">
@@ -59,7 +64,7 @@ function ContactPage() {
               </div>
               <div>
                 <h3 className="font-bold text-lg text-text-primary mb-1">{t('المقر الرئيسي', 'Headquarters')}</h3>
-                <p className="text-text-secondary">{t('برج المركز المالي، شارع الشيخ زايد، دبي، الإمارات العربية المتحدة', 'DIFC, Sheikh Zayed Road, Dubai, UAE')}</p>
+                <p className="text-text-secondary">{address || t('سيتم تحديث العنوان من لوحة الإدارة قريباً', 'The address will be updated from the admin panel soon')}</p>
               </div>
             </Card>
 
@@ -69,7 +74,7 @@ function ContactPage() {
               </div>
               <div>
                 <h3 className="font-bold text-lg text-text-primary mb-1">{t('الهاتف المجاني', 'Toll-Free Phone')}</h3>
-                <p className="text-text-secondary font-mono">+971 4 123 4567</p>
+                <p className="text-text-secondary font-mono">{publicSettings.support_phone || t('سيتم تحديث الرقم قريباً', 'Phone number will be updated soon')}</p>
               </div>
             </Card>
 
@@ -79,7 +84,17 @@ function ContactPage() {
               </div>
               <div>
                 <h3 className="font-bold text-lg text-text-primary mb-1">{t('البريد الإلكتروني', 'Email Address')}</h3>
-                <p className="text-text-secondary font-mono">info@tharwahcapital.com</p>
+                <p className="text-text-secondary font-mono">{publicSettings.support_email || t('سيتم تحديث البريد قريباً', 'Email will be updated soon')}</p>
+              </div>
+            </Card>
+
+            <Card className="flex items-start gap-4 p-6">
+              <div className="w-12 h-12 rounded-full bg-gold-subtle flex items-center justify-center shrink-0">
+                <Clock className="w-6 h-6 text-gold-deep" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-text-primary mb-1">{t('ساعات العمل', 'Business Hours')}</h3>
+                <p className="text-text-secondary">{businessHours || t('سيتم تحديث ساعات العمل قريباً', 'Business hours will be updated soon')}</p>
               </div>
             </Card>
           </div>

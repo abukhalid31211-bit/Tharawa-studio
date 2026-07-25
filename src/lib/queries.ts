@@ -316,6 +316,15 @@ export function useMarketsTicker() {
   });
 }
 
+export function usePublicStats() {
+  return useQuery({
+    queryKey: ['public-stats'],
+    queryFn: () => api.getPublicStats(),
+    staleTime: 2 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+  });
+}
+
 // Admin Stats — real aggregated data powering Overview.tsx charts
 export function useAdminStats() {
   return useQuery({

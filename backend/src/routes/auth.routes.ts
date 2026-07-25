@@ -160,6 +160,31 @@ router.get('/profile', authenticateToken, async (req: AuthRequest, res) => {
   return res.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role, tier: user.tier, status: user.status, portfolio_code: user.portfolio_code, phone: user.phone, kyc_status: user.kyc_status, profile_data: user.profile_data } });
 });
 
+router.patch('/profile', authenticateToken, async (req: AuthRequest, res) => {
+  const parsed = z.object({
+    phone: z.string().max(30).optional(),
+    profile_data: z.record(z.string(), z.unknown()).optional(),
+  }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'InvalidInput', message: 'بيانات الملف الشخصي غير صالحة' });
+
+  const existing = await prisma.user.findUnique({ where: { id: req.user!.userId } });
+  if (!existing || existing.status !== 'active') return res.status(404).json({ error: 'NotFound' });
+
+  const mergedProfile = parsed.data.profile_data
+    ? { ...(existing.profile_data && typeof existing.profile_data === 'object' && !Array.isArray(existing.profile_data) ? existing.profile_data as Record<string, unknown> : {}), ...parsed.data.profile_data }
+    : existing.profile_data;
+
+  const updated = await prisma.user.update({
+    where: { id: existing.id },
+    data: {
+      ...(parsed.data.phone !== undefined ? { phone: parsed.data.phone } : {}),
+      ...(parsed.data.profile_data !== undefined ? { profile_data: mergedProfile as any } : {}),
+    },
+  });
+  await logAudit({ actor_email: updated.email, user_id: updated.id, action: 'تحديث الملف الشخصي', action_en: 'Updated profile', ...requestMeta(req) });
+  return res.json({ user: { id: updated.id, email: updated.email, name: updated.name, role: updated.role, tier: updated.tier, status: updated.status, portfolio_code: updated.portfolio_code, phone: updated.phone, kyc_status: updated.kyc_status, profile_data: updated.profile_data } });
+});
+
 router.post('/change-password', authenticateToken, async (req: AuthRequest, res) => {
   const parsed = z.object({ currentPassword: z.string().min(1).max(128), newPassword: z.string().min(8).max(128) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'InvalidInput', message: 'كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل' });

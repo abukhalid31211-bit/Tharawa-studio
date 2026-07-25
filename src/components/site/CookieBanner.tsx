@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useLang } from '@/contexts/LanguageContext';
+import { useSiteDesignContent } from '@/lib/publicSite';
 import { Button } from '@/components/ui/Button';
 
 export function CookieBanner() {
   const { t } = useLang();
+  const { data: design } = useSiteDesignContent();
   const [isVisible, setIsVisible] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
@@ -20,7 +22,7 @@ export function CookieBanner() {
     setIsVisible(false);
   };
 
-  if (!isVisible) return null;
+  if (!design.showCookieBanner || !isVisible) return null;
 
   return (
     <>

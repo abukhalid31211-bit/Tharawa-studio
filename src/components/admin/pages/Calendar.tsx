@@ -5,7 +5,10 @@
 import React, { useMemo, useState } from 'react';
 import { ChevronRight, ChevronLeft, Plus, CalendarDays, Clock, BellRing, Trash2 } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
-import { useCalendarEvents, useClients, CalendarEvent, EventType, nextCode } from '@/lib/adminData';
+import { useClients, CalendarEvent, EventType, nextCode, ADMIN_KEYS, EVENTS_SEED } from '@/lib/adminData';
+import { usePlatformDataState } from '@/lib/platformState';
+import { useMeetings } from '@/lib/queries';
+import { api } from '@/lib/api';
 import {
   PageHeader, Panel, PanelHeader, Pill, Modal, ConfirmDialog, Field,
   TextInput, TextArea, SelectBox, PrimaryBtn, GhostBtn, IconBtn,
@@ -23,18 +26,44 @@ const HOURS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '1
 function toISO(d: Date) { return d.toISOString().slice(0, 10); }
 function addDays(d: Date, n: number) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
 
+type DisplayCalendarEvent = CalendarEvent & { source?: 'custom' | 'meeting'; meetingId?: string };
+
 export function CalendarPage() {
   const { t, lang } = useLang();
-  const [events, setEvents] = useCalendarEvents();
+  const [customEvents, setCustomEvents] = usePlatformDataState<CalendarEvent[]>(ADMIN_KEYS.EVENTS, EVENTS_SEED);
   const [clients] = useClients();
+  const { data: meetingsData } = useMeetings();
   const { show, ToastView } = useToast();
 
   const todayIso = toISO(new Date());
   const [view, setView] = useState<'month' | 'week' | 'day'>('month');
   const [cursor, setCursor] = useState(() => new Date());
   const [addOpen, setAddOpen] = useState(false);
-  const [deleting, setDeleting] = useState<CalendarEvent | null>(null);
+  const [deleting, setDeleting] = useState<DisplayCalendarEvent | null>(null);
   const [form, setForm] = useState({ title: '', date: todayIso, time: '10:00', duration: 60, type: 'consultation' as EventType, clientId: '', note: '' });
+
+  const meetingEvents = useMemo<DisplayCalendarEvent[]>(() => {
+    const meetings = ((meetingsData as any)?.data || []) as any[];
+    return meetings.map((meeting) => ({
+      id: `meeting-${meeting.id}`,
+      title: meeting.advisor_name || (lang === 'ar' ? 'موعد استشاري' : 'Consultation Appointment'),
+      titleEn: meeting.advisor_name || 'Consultation Appointment',
+      date: String(meeting.meeting_date || '').slice(0, 10),
+      time: meeting.meeting_time || '10:00',
+      duration: Number(meeting.duration_minutes || 60),
+      type: meeting.type === 'task' ? 'task' : meeting.type === 'meeting' ? 'meeting' : 'consultation',
+      clientId: meeting.user_id || undefined,
+      note: meeting.notes || '',
+      done: ['completed', 'done', 'cancelled'].includes(String(meeting.status || '').toLowerCase()),
+      source: 'meeting',
+      meetingId: meeting.id,
+    }));
+  }, [lang, meetingsData]);
+
+  const events = useMemo<DisplayCalendarEvent[]>(() => ([
+    ...customEvents.map((event) => ({ ...event, source: 'custom' as const })),
+    ...meetingEvents,
+  ]), [customEvents, meetingEvents]);
 
   const eventsOfDay = (iso: string) => events.filter(e => e.date === iso).sort((a, b) => a.time.localeCompare(b.time));
 
@@ -76,29 +105,51 @@ export function CalendarPage() {
   const monthName = cursor.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US', { month: 'long', year: 'numeric' });
   const dayName = cursor.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  const saveEvent = (e: React.FormEvent) => {
+  const saveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     const client = clients.find(c => c.id === form.clientId);
     const title = form.title || (client ? (lang === 'ar' ? `موعد — ${client.name}` : `Appointment — ${client.nameEn}`) : t('موعد جديد', 'New appointment'));
-    const ev: CalendarEvent = {
-      id: nextCode(events, 'EV'),
-      title,
-      titleEn: title,
-      date: form.date,
-      time: form.time,
-      duration: form.duration,
-      type: form.type,
-      clientId: form.clientId || undefined,
-      note: form.note,
-      done: false,
-    };
-    setEvents(prev => [...prev, ev]);
+
+    if (form.clientId && form.type !== 'task') {
+      await api.createMeeting({
+        user_id: form.clientId,
+        advisor_name: title,
+        meeting_date: form.date,
+        meeting_time: form.time,
+        duration_minutes: form.duration,
+        type: form.type,
+        notes: form.note,
+      });
+      show(t('تم إنشاء الموعد وربطه بالعميل', 'The appointment was created and linked to the client'));
+    } else {
+      const ev: CalendarEvent = {
+        id: nextCode(customEvents, 'EV'),
+        title,
+        titleEn: title,
+        date: form.date,
+        time: form.time,
+        duration: form.duration,
+        type: form.type,
+        clientId: form.clientId || undefined,
+        note: form.note,
+        done: false,
+      };
+      setCustomEvents(prev => [...prev, ev]);
+      show(t('تمت إضافة الموعد للتقويم', 'Appointment added to calendar'));
+    }
+
     setAddOpen(false);
     setForm({ title: '', date: todayIso, time: '10:00', duration: 60, type: 'consultation', clientId: '', note: '' });
-    show(t('تمت إضافة الموعد للتقويم', 'Appointment added to calendar'));
   };
 
-  const toggleDone = (id: string) => setEvents(prev => prev.map(e => e.id === id ? { ...e, done: !e.done } : e));
+  const toggleDone = async (event: DisplayCalendarEvent) => {
+    if (event.source === 'meeting' && event.meetingId) {
+      await api.updateMeeting(event.meetingId, { status: event.done ? 'confirmed' : 'completed' });
+      show(event.done ? t('تمت إعادة فتح الموعد', 'Appointment reopened') : t('تم تعليم الموعد كمكتمل', 'Appointment marked as completed'));
+      return;
+    }
+    setCustomEvents(prev => prev.map(e => e.id === event.id ? { ...e, done: !e.done } : e));
+  };
 
   const EventChip = ({ ev, compact }: { ev: CalendarEvent; compact?: boolean }) => {
     const meta = TYPE_META[ev.type];
@@ -260,7 +311,7 @@ export function CalendarPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <GhostBtn onClick={() => toggleDone(ev.id)}>{ev.done ? t('إعادة فتح', 'Reopen') : t('إنجاز', 'Mark Done')}</GhostBtn>
+                  <GhostBtn onClick={() => void toggleDone(ev)}>{ev.done ? t('إعادة فتح', 'Reopen') : t('إنجاز', 'Mark Done')}</GhostBtn>
                   <IconBtn icon={Trash2} label={t('حذف', 'Delete')} onClick={() => setDeleting(ev)} hoverColor="#FF4560" />
                 </div>
               </Panel>
@@ -326,9 +377,18 @@ export function CalendarPage() {
       <ConfirmDialog
         open={!!deleting}
         onClose={() => setDeleting(null)}
-        onConfirm={() => { setEvents(prev => prev.filter(e => e.id !== deleting!.id)); show(t('تم حذف الموعد', 'Appointment deleted')); }}
+        onConfirm={() => {
+          if (!deleting) return;
+          if (deleting.source === 'meeting' && deleting.meetingId) {
+            void api.deleteMeeting(deleting.meetingId).then(() => show(t('تم حذف الموعد', 'Appointment deleted')));
+          } else {
+            setCustomEvents(prev => prev.filter(e => e.id !== deleting.id));
+            show(t('تم حذف الموعد', 'Appointment deleted'));
+          }
+          setDeleting(null);
+        }}
         title={t('حذف الموعد', 'Delete Appointment')}
-        message={t(`هل تريد حذف «${deleting?.title}» يوم ${deleting?.date} الساعة ${deleting?.time}؟`, `Delete "${deleting?.titleEn}" on ${deleting?.date} at ${deleting?.time}?`)}
+        message={t(`هل تريد حذف «${deleting?.title}» يوم ${deleting?.date} الساعة ${deleting?.time}؟`, `Delete "${deleting?.titleEn || deleting?.title}" on ${deleting?.date} at ${deleting?.time}?`)}
         confirmText={t('حذف', 'Delete')}
       />
       {ToastView}
