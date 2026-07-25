@@ -1,17 +1,38 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLang } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Shield, Check } from 'lucide-react';
+import { api } from '@/lib/api';
 
 interface BankingTabProps {
   bankRequestSent: boolean;
   onRequestBankUpdate: () => void;
   onShowToast: (msg: string) => void;
+  /** Real authenticated client profile from the backend */
+  profile?: any;
 }
 
-export function BankingTab({ bankRequestSent, onRequestBankUpdate }: BankingTabProps) {
+export function BankingTab({ bankRequestSent, onRequestBankUpdate, onShowToast, profile }: BankingTabProps) {
   const { t } = useLang();
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleRequestBankUpdate = async () => {
+    setSubmitting(true);
+    try {
+      await api.submitContact({
+        name: profile?.name || t('العميل', 'Client'),
+        email: profile?.email || '',
+        subject: t('طلب تحديث الحساب البنكي', 'Bank account update request'),
+        message: t('يرجى تحديث بياناتي البنكية المرتبطة بالحساب.', 'Please update the bank details linked to my account.'),
+      });
+      onRequestBankUpdate();
+    } catch (err: any) {
+      onShowToast(err?.message || t('تعذر إرسال الطلب، حاول مرة أخرى', 'Failed to submit request, please try again'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -67,7 +88,7 @@ export function BankingTab({ bankRequestSent, onRequestBankUpdate }: BankingTabP
             <Check className="w-4 h-4" /> {t('تم إرسال الطلب بنجاح وهو قيد المراجعة حالياً.', 'Your request was submitted and is being processed.')}
           </div>
         ) : (
-          <Button onClick={onRequestBankUpdate} className="text-xs font-black py-2.5 px-4">
+          <Button onClick={handleRequestBankUpdate} isLoading={submitting} className="text-xs font-black py-2.5 px-4">
             {t('تقديم طلب تحديث البيانات البنكية', 'Request Bank Update')}
           </Button>
         )}

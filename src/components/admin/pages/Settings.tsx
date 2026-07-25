@@ -5,6 +5,8 @@ import React, { useState } from 'react';
 import { Settings as SettingsIcon, Save, Globe2, Shield } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
 import { usePlatformSettings, addAuditEntry } from '@/lib/adminData';
+import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import {
   PageHeader, Panel, PanelHeader, Field, TextInput, SelectBox,
   PrimaryBtn, Toggle, useToast, Pill,
@@ -20,6 +22,16 @@ export function SettingsPage() {
 
   const save = () => {
     setSettings(draft);
+
+    // Mirror the critical values into the public SiteSetting table so the
+    // public website and the backend read them straight from PostgreSQL.
+    Promise.all([
+      api.updateSettings('platform_name', { value: draft.siteName }),
+      api.updateSettings('support_phone', { value: draft.supportPhone }),
+      api.updateSettings('support_email', { value: draft.supportEmail }),
+      api.updateSettings('maintenance_mode', { value: draft.maintenanceMode }),
+    ]).catch(err => logger.error('Failed to sync public site settings', err));
+
     addAuditEntry('admin@tharwah.com', 'تحديث إعدادات المنصة العامة', 'Updated platform settings');
     show(t('تم حفظ إعدادات المنصة العامة', 'Platform settings saved'));
   };

@@ -1,17 +1,53 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLang } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Lock, User, Phone } from 'lucide-react';
+import { Lock, User, Phone, AlertTriangle } from 'lucide-react';
+import { api } from '@/lib/api';
 
 interface SettingsTabProps {
   clientPhone: string;
   onClientPhoneChange: (val: string) => void;
   onShowToast: (msg: string) => void;
+  /** Real authenticated client profile from the backend */
+  profile?: any;
 }
 
-export function SettingsTab({ clientPhone, onClientPhoneChange, onShowToast }: SettingsTabProps) {
+export function SettingsTab({ clientPhone, onClientPhoneChange, onShowToast, profile }: SettingsTabProps) {
   const { t } = useLang();
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+
+    if (newPassword.length < 8) {
+      setPasswordError(t('كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل', 'New password must be at least 8 characters'));
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError(t('كلمتا المرور غير متطابقتين', 'Passwords do not match'));
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      await api.changePassword(currentPassword, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      onShowToast(t('تم تحديث كلمة المرور بنجاح', 'Password updated successfully'));
+    } catch (err: any) {
+      setPasswordError(err?.message || t('تعذر تحديث كلمة المرور', 'Failed to update password'));
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -27,16 +63,26 @@ export function SettingsTab({ clientPhone, onClientPhoneChange, onShowToast }: S
           <h3 className="font-black text-base flex items-center gap-1.5">
             <Lock className="w-5 h-5 text-gold-deep" /> {t('أمان الحساب وكلمة المرور', 'Account Security')}
           </h3>
-          <form onSubmit={(e) => { e.preventDefault(); onShowToast(t('تم تحديث كلمة المرور بنجاح', 'Password updated successfully')); }} className="space-y-4">
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            {passwordError && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-[#FEF0EC] border border-[#FF4560]/20 text-[#FF4560] text-xs font-bold">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{passwordError}</span>
+              </div>
+            )}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-text-secondary block">{t('كلمة المرور الحالية', 'Current Password')}</label>
-              <input required type="password" className="w-full bg-secondary border border-border-default rounded-md py-2.5 px-3 focus:border-gold-primary outline-none text-xs font-bold" />
+              <input required type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} disabled={passwordLoading} className="w-full bg-secondary border border-border-default rounded-md py-2.5 px-3 focus:border-gold-primary outline-none text-xs font-bold disabled:opacity-60" />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-text-secondary block">{t('كلمة المرور الجديدة', 'New Password')}</label>
-              <input required type="password" className="w-full bg-secondary border border-border-default rounded-md py-2.5 px-3 focus:border-gold-primary outline-none text-xs font-bold" />
+              <input required type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} disabled={passwordLoading} minLength={8} className="w-full bg-secondary border border-border-default rounded-md py-2.5 px-3 focus:border-gold-primary outline-none text-xs font-bold disabled:opacity-60" />
             </div>
-            <Button type="submit" className="w-full py-2.5 text-xs font-bold">{t('حفظ وتحديث كلمة المرور', 'Update Password')}</Button>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-text-secondary block">{t('تأكيد كلمة المرور الجديدة', 'Confirm New Password')}</label>
+              <input required type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} disabled={passwordLoading} minLength={8} className="w-full bg-secondary border border-border-default rounded-md py-2.5 px-3 focus:border-gold-primary outline-none text-xs font-bold disabled:opacity-60" />
+            </div>
+            <Button type="submit" isLoading={passwordLoading} className="w-full py-2.5 text-xs font-bold">{t('حفظ وتحديث كلمة المرور', 'Update Password')}</Button>
           </form>
         </Card>
 
@@ -47,11 +93,11 @@ export function SettingsTab({ clientPhone, onClientPhoneChange, onShowToast }: S
           <div className="space-y-4 text-xs font-bold text-text-secondary">
             <div className="space-y-1">
               <label className="text-text-muted">{t('الاسم القانوني', 'Legal Name')}</label>
-              <div className="p-2.5 bg-secondary rounded border text-text-primary font-black">أحمد الغامدي</div>
+              <div className="p-2.5 bg-secondary rounded border text-text-primary font-black">{profile?.name || '—'}</div>
             </div>
             <div className="space-y-1">
               <label className="text-text-muted">{t('البريد الإلكتروني', 'Registered Email')}</label>
-              <div className="p-2.5 bg-secondary rounded border text-text-primary font-black font-mono">ahmed@example.com</div>
+              <div className="p-2.5 bg-secondary rounded border text-text-primary font-black font-mono">{profile?.email || '—'}</div>
             </div>
             <div className="space-y-1.5">
               <label className="text-text-muted">{t('رقم الجوال', 'Phone Number')}</label>

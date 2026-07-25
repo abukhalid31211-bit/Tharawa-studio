@@ -169,7 +169,7 @@ function LoginPage() {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-[13px] font-bold text-text-secondary">{t('كلمة المرور', 'Password')}</label>
-                <button type="button" className="text-[12px] font-semibold text-gold-deep hover:text-gold-dark hover:underline">{t('نسيت كلمة المرور؟', 'Forgot Password?')}</button>
+                <Link to="/forgot-password" className="text-[12px] font-semibold text-gold-deep hover:text-gold-dark hover:underline">{t('نسيت كلمة المرور؟', 'Forgot Password?')}</Link>
               </div>
               <div className="relative">
                 <Lock className="absolute rtl:right-4 ltr:left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />

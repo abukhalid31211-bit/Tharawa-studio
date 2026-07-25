@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useLang } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -18,9 +18,14 @@ interface DashboardHomeProps {
   tier?: string;
   /** Real growth percentage from the backend portfolio */
   growthPercent?: number;
+  /** Real assets belonging to the client portfolio (from the backend) */
+  assets?: any[];
 }
 
-export function DashboardHome({ totalBalance, profitAmount, greeting, sessionName, onOpenTransfer, portfolioCode, tier, growthPercent = 18.5 }: DashboardHomeProps) {
+/** Fixed, deterministic palette used when rendering real backend asset classes */
+const ALLOCATION_COLORS = ['#C9A84C', '#334155', '#0EA5E9', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#14B8A6'];
+
+export function DashboardHome({ totalBalance, profitAmount, greeting, sessionName, onOpenTransfer, portfolioCode, tier, growthPercent = 18.5, assets }: DashboardHomeProps) {
   const { t } = useLang();
 
   const chartData = [
@@ -32,13 +37,38 @@ export function DashboardHome({ totalBalance, profitAmount, greeting, sessionNam
     { name: 'Jun', value: totalBalance, market: totalBalance * 0.93 },
   ];
 
-  const pieData = [
-    { name: t('الأسهم العالمية', 'Global Equities'), value: totalBalance * 0.35, color: '#C9A84C' },
-    { name: t('الصكوك والسندات', 'Sukuk & Fixed Income'), value: totalBalance * 0.25, color: '#334155' },
-    { name: t('العقارات', 'Real Estate'), value: totalBalance * 0.20, color: '#0EA5E9' },
-    { name: t('رأس المال الجريء', 'Venture Capital'), value: totalBalance * 0.15, color: '#8B5CF6' },
-    { name: t('النقد والسيولة', 'Cash & Liquid'), value: totalBalance * 0.05, color: '#10B981' },
-  ];
+  // Real allocation grouped by asset_class when the backend returned assets,
+  // otherwise fall back to the indicative relative split.
+  const pieData = useMemo(() => {
+    if (assets && assets.length > 0) {
+      const grouped = new Map<string, number>();
+      assets.forEach((asset: any) => {
+        const key = String(asset?.asset_class || t('أخرى', 'Other'));
+        const value = Number(asset?.valuation ?? 0);
+        grouped.set(key, (grouped.get(key) || 0) + (isNaN(value) ? 0 : value));
+      });
+      const entries = Array.from(grouped.entries()).sort((a, b) => b[1] - a[1]);
+      if (entries.length > 0 && entries.some(([, value]) => value > 0)) {
+        return entries.map(([name, value], index) => ({
+          name,
+          value,
+          color: ALLOCATION_COLORS[index % ALLOCATION_COLORS.length],
+        }));
+      }
+    }
+    return [
+      { name: t('الأسهم العالمية', 'Global Equities'), value: totalBalance * 0.35, color: ALLOCATION_COLORS[0] },
+      { name: t('الصكوك والسندات', 'Sukuk & Fixed Income'), value: totalBalance * 0.25, color: ALLOCATION_COLORS[1] },
+      { name: t('العقارات', 'Real Estate'), value: totalBalance * 0.20, color: ALLOCATION_COLORS[2] },
+      { name: t('رأس المال الجريء', 'Venture Capital'), value: totalBalance * 0.15, color: ALLOCATION_COLORS[3] },
+      { name: t('النقد والسيولة', 'Cash & Liquid'), value: totalBalance * 0.05, color: ALLOCATION_COLORS[4] },
+    ];
+  }, [assets, totalBalance, t]);
+
+  const allocationTotal = useMemo(
+    () => pieData.reduce((sum, item) => sum + (Number(item.value) || 0), 0),
+    [pieData]
+  );
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -88,7 +118,7 @@ export function DashboardHome({ totalBalance, profitAmount, greeting, sessionNam
         </Card>
         <Card className="p-6">
           <div className="text-text-muted text-xs font-bold mb-1">{t('أصول مستثمرة نشطة', 'Active Assets')}</div>
-          <div className="text-2xl font-black text-text-primary mb-1">5 {t('أصول', 'Assets')}</div>
+          <div className="text-2xl font-black text-text-primary mb-1">{assets && assets.length > 0 ? assets.length : 5} {t('أصول', 'Assets')}</div>
           <div className="text-xs text-text-muted">{t('موزعة بين العقار والأسهم والصكوك', 'Allocated across sectors')}</div>
         </Card>
       </div>
@@ -148,7 +178,7 @@ export function DashboardHome({ totalBalance, profitAmount, greeting, sessionNam
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
                   <span className="truncate">{item.name}</span>
                 </div>
-                <span className="font-mono">{((item.value / totalBalance) * 100).toFixed(0)}%</span>
+                <span className="font-mono">{allocationTotal > 0 ? ((item.value / allocationTotal) * 100).toFixed(0) : '0'}%</span>
               </div>
             ))}
           </div>

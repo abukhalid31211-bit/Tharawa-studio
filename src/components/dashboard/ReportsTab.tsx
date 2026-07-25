@@ -6,10 +6,15 @@ import { Download } from 'lucide-react';
 
 interface ReportsTabProps {
   onExportPDF: () => void;
+  /** Real client transactions from the backend */
+  transactions?: any[];
+  /** Real authenticated client profile from the backend */
+  profile?: any;
 }
 
-export function ReportsTab({ onExportPDF }: ReportsTabProps) {
+export function ReportsTab({ onExportPDF, transactions, profile }: ReportsTabProps) {
   const { t } = useLang();
+  const transactionsCount = transactions?.length ?? 0;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -17,6 +22,10 @@ export function ReportsTab({ onExportPDF }: ReportsTabProps) {
         <div>
           <h2 className="text-xl font-black">{t('التقارير وكشوفات الحساب المعتمدة', 'Investment Reports & Statements')}</h2>
           <p className="text-xs text-text-muted">{t('توليد وتصدير التقارير المالية الدورية', 'Generate and download certified financial reports')}</p>
+        </div>
+        <div className="hidden md:flex flex-col items-end gap-0.5 text-[11px] font-bold text-text-muted">
+          {profile?.name && <span className="text-text-secondary">{profile.name}</span>}
+          <span className="font-mono">{t('عدد المعاملات', 'Total Transactions')}: {transactionsCount}</span>
         </div>
       </div>
 

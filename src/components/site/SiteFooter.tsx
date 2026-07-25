@@ -8,6 +8,7 @@ import {
   Calendar, MessageSquare, Camera, Video, Share2
 } from 'lucide-react';
 import { useCmsSection } from '@/lib/cms';
+import { api } from '@/lib/api';
 
 export function SiteFooter() {
   const { lang, t } = useLang();
@@ -24,14 +25,22 @@ export function SiteFooter() {
     sessionStorage.setItem('tharwah_announcement_closed', 'true');
   };
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) { setNewsletterState('error'); return; }
     setNewsletterState('loading');
-    setTimeout(() => {
+    try {
+      await api.submitContact({
+        name: 'مشترك في النشرة',
+        email,
+        subject: 'الاشتراك في النشرة الإخبارية',
+        message: `طلب اشتراك في النشرة البريدية. البريد: ${email}`,
+      });
       setNewsletterState('success');
       setEmail('');
-    }, 1500);
+    } catch {
+      setNewsletterState('error');
+    }
   };
 
   return (
@@ -206,7 +215,7 @@ export function SiteFooter() {
                     {t('اشتراك', 'Subscribe')}
                   </Button>
                 </div>
-                {newsletterState === 'error' && <p className="text-error-text text-xs mt-2">Error</p>}
+                {newsletterState === 'error' && <p className="text-error-text text-xs mt-2">{t('تعذر إتمام الاشتراك — تأكد من بريدك وحاول مرة أخرى', 'Subscription failed — check your email and try again')}</p>}
                 <div className="flex items-center gap-1 mt-2 text-text-muted text-xs">
                   <Shield className="w-3 h-3" /> {t('لن نرسل spam أبداً', 'We never send spam')}
                 </div>
