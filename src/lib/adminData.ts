@@ -9,6 +9,8 @@ import { logger } from './logger';
 import { api } from './api';
 import { useRemoteCollection } from './adminRemote';
 import { sanitizeInput, sanitizeEmail, sanitizeCsvValue } from './security';
+// Safe: auth.ts does not import adminData.ts, so there is no circular dependency
+import { getAdminSession } from './auth';
 
 const CHANGE_EVENT = 'tharwah_admin_data_changed_v2';
 const STORE_VERSION = 'v2';
@@ -684,10 +686,15 @@ export function unreadNotificationsCount(notifications: AdminNotification[]) {
 }
 
 export function addAuditEntry(actor: string, action: string, actionEn: string, result: 'success' | 'failed' = 'success') {
+  // Always attribute the entry to the real signed-in admin instead of the
+  // hard-coded placeholder that the CMS managers still pass around.
+  const sessionEmail = getAdminSession()?.email;
+  const realActor = (!actor || actor === 'admin@tharwah.com') ? (sessionEmail || actor) : actor;
+
   const list = load<AuditLog[]>(ADMIN_KEYS.AUDIT, AUDIT_SEED);
   const entry: AuditLog = {
     id: nextCode(list, 'A'),
-    actor: sanitizeEmail(actor),
+    actor: sanitizeEmail(realActor),
     action: sanitizeInput(action),
     actionEn: sanitizeInput(actionEn),
     date: new Date().toISOString().slice(0, 16).replace('T', ' '),
@@ -695,7 +702,7 @@ export function addAuditEntry(actor: string, action: string, actionEn: string, r
     result,
   };
   persist(ADMIN_KEYS.AUDIT, [entry, ...list].slice(0, 100));
-  logger.audit(actor, action, { result });
+  logger.audit(realActor, action, { result });
 }
 
 export function addLoginAttempt(email: string, result: 'success' | 'failed') {

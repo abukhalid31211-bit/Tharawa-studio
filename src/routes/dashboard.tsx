@@ -230,6 +230,7 @@ function DashboardPage() {
     doc.text(`Account No: ${profile?.portfolio_code || 'TH-0000000'}`, 20, 40);
     doc.text(`Total Valuation: SAR ${totalBalance.toLocaleString()}`, 20, 50);
     doc.text(`Date of Report: ${new Date().toISOString().slice(0, 10)}`, 20, 60);
+    doc.text(`Total Transactions: ${transactions?.length ?? 0}`, 20, 70);
     doc.save(`Tharwah_Report_${session?.name || 'Client'}.pdf`);
     showToast(t('تم تحميل التقرير بصيغة PDF', 'PDF report downloaded'));
   };
@@ -237,23 +238,23 @@ function DashboardPage() {
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'info':
-        return <DashboardHome totalBalance={totalBalance} profitAmount={profitAmount} greeting={greeting} sessionName={session?.name || ''} onOpenTransfer={(type) => { setTransferType(type); setTransferModalOpen(true); }} lang={lang} portfolioCode={profile?.portfolio_code ?? myPortfolio?.portfolio_code} tier={profile?.tier ?? undefined} growthPercent={portfolioGrowth} />;
+        return <DashboardHome totalBalance={totalBalance} profitAmount={profitAmount} greeting={greeting} sessionName={session?.name || ''} onOpenTransfer={(type) => { setTransferType(type); setTransferModalOpen(true); }} lang={lang} portfolioCode={profile?.portfolio_code ?? myPortfolio?.portfolio_code} tier={profile?.tier ?? undefined} growthPercent={portfolioGrowth} assets={myPortfolio?.assets || []} />;
       case 'investments':
-        return <InvestmentsTab totalBalance={totalBalance} onExportPDF={exportToPDF} />;
+        return <InvestmentsTab totalBalance={totalBalance} onExportPDF={exportToPDF} portfolio={myPortfolio} />;
       case 'performance':
-        return <PerformanceTab totalBalance={totalBalance} />;
+        return <PerformanceTab totalBalance={totalBalance} portfolio={myPortfolio} transactions={transactions} />;
       case 'banking':
-        return <BankingTab bankRequestSent={bankRequestSent} onRequestBankUpdate={() => { setBankRequestSent(true); showToast(t('تم تقديم طلب تحديث البيانات البنكية', 'Bank update request submitted')); }} onShowToast={showToast} />;
+        return <BankingTab bankRequestSent={bankRequestSent} onRequestBankUpdate={() => { setBankRequestSent(true); showToast(t('تم تقديم طلب تحديث البيانات البنكية', 'Bank update request submitted')); }} onShowToast={showToast} profile={profile} />;
       case 'transactions':
         return <TransactionsTab transactions={transactions} onNewTransfer={() => { setTransferType('deposit'); setTransferModalOpen(true); }} onExportExcel={exportToExcel} />;
       case 'reports':
-        return <ReportsTab onExportPDF={exportToPDF} />;
+        return <ReportsTab onExportPDF={exportToPDF} transactions={transactions} profile={profile} />;
       case 'support':
         return <SupportTab tickets={tickets} newTicketTitle={newTicketTitle} newTicketMessage={newTicketMessage} onTicketTitleChange={setNewTicketTitle} onTicketMessageChange={setNewTicketMessage} onCreateTicket={handleCreateTicket} />;
       case 'advisor':
         return <AdvisorTab meetings={meetings} newMeetingDate={newMeetingDate} newMeetingTime={newMeetingTime} onMeetingDateChange={setNewMeetingDate} onMeetingTimeChange={setNewMeetingTime} onBookMeeting={handleBookMeeting} />;
       case 'settings':
-        return <SettingsTab clientPhone={clientPhone} onClientPhoneChange={setClientPhone} onShowToast={showToast} />;
+        return <SettingsTab clientPhone={clientPhone} onClientPhoneChange={setClientPhone} onShowToast={showToast} profile={profile} />;
       default:
         return null;
     }
