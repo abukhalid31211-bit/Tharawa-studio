@@ -315,3 +315,13 @@ export function useMarketsTicker() {
     staleTime: 60 * 1000,
   });
 }
+
+// Admin Stats — real aggregated data powering Overview.tsx charts
+export function useAdminStats() {
+  return useQuery({
+    queryKey: ['admin-stats-overview'],
+    queryFn: () => api.getAdminStats(),
+    staleTime: 2 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+  });
+}

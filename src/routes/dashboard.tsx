@@ -13,7 +13,7 @@ import { ReportsTab } from '@/components/dashboard/ReportsTab';
 import { SupportTab } from '@/components/dashboard/SupportTab';
 import { AdvisorTab } from '@/components/dashboard/AdvisorTab';
 import { SettingsTab } from '@/components/dashboard/SettingsTab';
-import { useTransactions, useMessages, useMeetings } from '@/lib/queries';
+import { useTransactions, useMessages, useMeetings, usePortfolios } from '@/lib/queries';
 import { useProfile } from '@/lib/queries';
 import { api } from '@/lib/api';
 import { jsPDF } from 'jspdf';
@@ -29,8 +29,14 @@ function DashboardPage() {
   const { data: transactionsData } = useTransactions();
   const { data: messagesData } = useMessages();
   const { data: meetingsData } = useMeetings();
+  const { data: portfoliosData } = usePortfolios();
 
-  const profile = profileData?.user;
+  const profile = (profileData as any)?.user;
+  // First active portfolio (clients typically have one)
+  const myPortfolio = useMemo(() => {
+    const list = (portfoliosData as any)?.data ?? [];
+    return list.find((p: any) => p.is_active !== false) ?? list[0] ?? null;
+  }, [portfoliosData]);
 
   useEffect(() => {
     if (!isClientAuthed()) navigate({ to: '/login' });
@@ -111,15 +117,20 @@ function DashboardPage() {
   }, [meetingsData]);
 
   const totalBalance = useMemo(() => {
+    // Prefer real portfolio total_valuation; fall back to transaction-based computation
+    if (myPortfolio?.total_valuation && Number(myPortfolio.total_valuation) > 0) {
+      return Number(myPortfolio.total_valuation);
+    }
     return 245000 + transactions.reduce((acc: number, t: any) => {
       if (t.status !== 'completed') return acc;
       if (t.type === 'deposit') return acc + t.amount;
       if (t.type === 'withdrawal') return acc - t.amount;
       return acc;
     }, 0);
-  }, [transactions]);
+  }, [transactions, myPortfolio]);
 
-  const profitAmount = totalBalance * 0.185;
+  const portfolioGrowth = myPortfolio?.growth_percent ? Number(myPortfolio.growth_percent) : 18.5;
+  const profitAmount = totalBalance * (portfolioGrowth / 100);
 
   const handleCreateTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -226,7 +237,7 @@ function DashboardPage() {
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'info':
-        return <DashboardHome totalBalance={totalBalance} profitAmount={profitAmount} greeting={greeting} sessionName={session?.name || ''} onOpenTransfer={(type) => { setTransferType(type); setTransferModalOpen(true); }} lang={lang} />;
+        return <DashboardHome totalBalance={totalBalance} profitAmount={profitAmount} greeting={greeting} sessionName={session?.name || ''} onOpenTransfer={(type) => { setTransferType(type); setTransferModalOpen(true); }} lang={lang} portfolioCode={profile?.portfolio_code ?? myPortfolio?.portfolio_code} tier={profile?.tier ?? undefined} growthPercent={portfolioGrowth} />;
       case 'investments':
         return <InvestmentsTab totalBalance={totalBalance} onExportPDF={exportToPDF} />;
       case 'performance':

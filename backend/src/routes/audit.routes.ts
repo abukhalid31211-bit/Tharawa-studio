@@ -22,7 +22,7 @@ router.get('/', async (req: AuthRequest, res) => {
     });
     res.json({ data: logs });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 

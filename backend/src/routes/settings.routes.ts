@@ -15,7 +15,7 @@ router.get('/', async (_req, res) => {
     }
     res.json({ data: result });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
@@ -25,7 +25,7 @@ router.get('/:key', async (req, res) => {
     if (!setting) return res.status(404).json({ error: 'NotFound' });
     res.json({ data: setting.value });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
@@ -52,7 +52,7 @@ router.put('/:key', requirePermission('content:write'), async (req: AuthRequest,
     broadcastPublicUpdate('settings_updated', { key: req.params.key, value: updated.value });
     res.json({ data: updated });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 

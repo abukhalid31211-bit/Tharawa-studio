@@ -1,7 +1,23 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { AuthRequest, authenticateToken, requirePermission } from '../middleware/auth.middleware.js';
 import { prisma } from '../lib/prisma.js';
 import { broadcastAdminUpdate, broadcastClientUpdate } from '../lib/socket.js';
+
+const idSchema = z.string().uuid();
+const createTxSchema = z.object({
+  user_id: z.string().uuid().optional(),
+  portfolio_id: z.string().uuid().optional(),
+  type: z.enum(['deposit', 'withdraw', 'withdrawal', 'buy', 'sell', 'transfer']),
+  amount: z.coerce.number().positive().max(100_000_000),
+  currency: z.string().max(10).default('SAR'),
+  method: z.string().max(120).optional(),
+  notes: z.string().max(2000).optional(),
+});
+const updateTxSchema = z.object({
+  status: z.enum(['pending', 'completed', 'failed', 'cancelled']).optional(),
+  notes: z.string().max(2000).optional(),
+});
 
 const router = Router();
 
@@ -27,7 +43,7 @@ router.get('/', async (req: AuthRequest, res) => {
     });
     res.json({ data: transactions, count: transactions.length });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
@@ -43,21 +59,20 @@ router.get('/:id', async (req: AuthRequest, res) => {
     }
     res.json({ data: transaction });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
 // Client can create pending transaction (deposit/withdrawal request)
 router.post('/', async (req: AuthRequest, res) => {
   try {
-    const { user_id: requestedUserId, portfolio_id, type, amount, currency, method, notes } = req.body;
+    const parsed = createTxSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'InvalidInput', details: parsed.error.flatten() });
+    const { user_id: requestedUserId, portfolio_id, type, amount, currency, method, notes } = parsed.data;
     const user_id = req.user!.role === 'client' ? req.user!.userId : requestedUserId;
-    const numericAmount = Number(amount);
-    const allowedTypes = ['deposit', 'withdraw', 'withdrawal', 'buy', 'sell', 'transfer'];
-    if (!user_id || !allowedTypes.includes(type) || !Number.isFinite(numericAmount) || numericAmount <= 0 || numericAmount > 100_000_000) {
-      return res.status(400).json({ error: 'InvalidInput' });
-    }
+    if (!user_id) return res.status(400).json({ error: 'InvalidInput', message: 'user_id مطلوب' });
     if (portfolio_id) {
+      if (!idSchema.safeParse(portfolio_id).success) return res.status(400).json({ error: 'InvalidId', field: 'portfolio_id' });
       const ownedPortfolio = await prisma.portfolio.findFirst({ where: { id: portfolio_id, user_id } });
       if (!ownedPortfolio) return res.status(400).json({ error: 'PortfolioOwnershipMismatch' });
     }
@@ -67,7 +82,7 @@ router.post('/', async (req: AuthRequest, res) => {
         user_id,
         portfolio_id: portfolio_id || null,
         type,
-        amount: numericAmount,
+        amount,
         currency: currency || 'SAR',
         method: method || '',
         status: 'pending',
@@ -81,14 +96,17 @@ router.post('/', async (req: AuthRequest, res) => {
 
     res.status(201).json({ data: transaction, message: 'تم إنشاء الطلب وهو قيد المراجعة' });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
 // Admin updates transaction status
 router.put('/:id', requirePermission('transactions:write'), async (req: AuthRequest, res) => {
   try {
-    const { status, notes } = req.body;
+    if (!idSchema.safeParse(req.params.id).success) return res.status(400).json({ error: 'InvalidId' });
+    const parsed = updateTxSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'InvalidInput', details: parsed.error.flatten() });
+    const { status, notes } = parsed.data;
     const updated = await prisma.transaction.update({
       where: { id: req.params.id },
       data: {
@@ -104,7 +122,7 @@ router.put('/:id', requirePermission('transactions:write'), async (req: AuthRequ
     res.json({ data: updated, message: 'تم تحديث المعاملة' });
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'NotFound' });
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 

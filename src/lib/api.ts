@@ -200,6 +200,9 @@ export const api = {
   submitContact: (data: { name: string; email: string; phone?: string; subject: string; message: string }) =>
     request('/api/contact', { method: 'POST', body: JSON.stringify(data), skipAuth: true }),
 
+  // Admin Stats — real aggregated metrics for the Overview dashboard
+  getAdminStats: () => request('/api/stats/overview'),
+
   // Health
   healthCheck: () => request('/health', { skipAuth: true }),
 };

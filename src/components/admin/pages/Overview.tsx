@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useCmsSection } from '@/lib/cms';
 import { useLang } from '@/contexts/LanguageContext';
 import { useNavigate } from '@tanstack/react-router';
+import { useAdminStats } from '@/lib/queries';
 import {
   Users, Briefcase, TrendingUp, CreditCard, BarChart3, Activity,
   MessageSquare, Bell, Calendar, Download, Heart, Zap, AlertTriangle,
@@ -139,6 +140,25 @@ export function Overview() {
   const { t, lang } = useLang();
   const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState('this-month');
+
+  // ── Real aggregated stats from backend ──────────────────
+  const { data: statsData } = useAdminStats();
+  const statsOverview = (statsData as any)?.data;
+
+  const aumChartData = useMemo(() => {
+    if (statsOverview?.aumByMonth?.length) return statsOverview.aumByMonth as typeof AUM_DATA;
+    return AUM_DATA;
+  }, [statsOverview]);
+
+  const revenueChartData = useMemo(() => {
+    if (statsOverview?.revenueByMonth?.length) return statsOverview.revenueByMonth as typeof REVENUE_DATA;
+    return REVENUE_DATA;
+  }, [statsOverview]);
+
+  const distChartData = useMemo(() => {
+    if (statsOverview?.distribution?.length) return statsOverview.distribution as typeof DISTRIBUTION;
+    return DISTRIBUTION;
+  }, [statsOverview]);
 
   // بيانات الأسواق من CMS — يضبطها المشرف عبر MarketsManager
   const { data: cmsMarketsData } = useCmsSection<{ markets?: typeof MARKET_TICKER }>('markets', { markets: MARKET_TICKER });
@@ -318,7 +338,7 @@ export function Overview() {
             <h3 className="text-sm font-bold text-text-primary">{t('نمو الأصول المُدارة (AUM)', 'Assets Under Management (AUM) Growth')}</h3>
             <p className="text-[11px] text-text-muted">{t('بالمليون دولار — آخر 12 شهراً', 'In USD Millions — Last 12 Months')}</p>
           </div>
-          <SparklineSVG data={AUM_DATA.map(d => d.aum)} color="#C9A84C" height={180} />
+          <SparklineSVG data={aumChartData.map(d => d.aum)} color="#C9A84C" height={180} />
         </div>
 
         {/* Distribution Pie */}
@@ -326,13 +346,13 @@ export function Overview() {
           <h3 className="text-sm font-bold text-text-primary">{t('توزيع المحافظ', 'Portfolio Distribution')}</h3>
           <div className="flex items-center justify-center">
             <DonutChart
-              segments={DISTRIBUTION.map(d => ({ pct: d.pct, color: d.color }))}
+              segments={distChartData.map(d => ({ pct: d.pct, color: d.color }))}
               centerLabel="100%"
               centerSub={t('إجمالي المحافظ', 'Total')}
             />
           </div>
           <div className="space-y-1.5">
-            {DISTRIBUTION.map((d, i) => (
+            {distChartData.map((d, i) => (
               <div key={i} className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
@@ -354,7 +374,7 @@ export function Overview() {
             <p className="text-[11px] text-text-muted">{t('بالألف دولار', 'In USD Thousands')}</p>
           </div>
           <MiniBarChart
-            data={REVENUE_DATA.map(d => ({ label: d.month, value: d.revenue }))}
+            data={revenueChartData.map(d => ({ label: d.month, value: d.revenue }))}
             colors={['#3B82F6', '#C9A84C']}
           />
         </div>

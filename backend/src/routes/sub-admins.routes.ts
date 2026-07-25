@@ -17,7 +17,7 @@ router.get('/', async (_req: AuthRequest, res) => {
     });
     res.json({ data: subAdmins });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
@@ -56,7 +56,7 @@ router.post('/', requireRole('super'), async (req: AuthRequest, res) => {
     res.status(201).json({ data: subAdmin, message: 'تم إنشاء المشرف الفرعي' });
   } catch (err: any) {
     if (err.code === 'P2002') return res.status(409).json({ error: 'DuplicateEmail', message: 'البريد مستخدم مسبقاً' });
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
@@ -88,7 +88,7 @@ router.put('/:id', requireRole('super'), async (req: AuthRequest, res) => {
     res.json({ data: subAdmin, message: 'تم التحديث' });
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'NotFound' });
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
@@ -100,7 +100,7 @@ router.delete('/:id', requireRole('super'), async (req: AuthRequest, res) => {
     res.json({ message: 'تم حذف المشرف الفرعي' });
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'NotFound' });
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 

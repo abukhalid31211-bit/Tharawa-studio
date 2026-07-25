@@ -12,9 +12,15 @@ interface DashboardHomeProps {
   sessionName: string;
   onOpenTransfer: (type: 'deposit' | 'withdrawal') => void;
   lang: 'ar' | 'en';
+  /** Real portfolio reference code from the backend (e.g. "TH-1234567") */
+  portfolioCode?: string;
+  /** Client membership tier from the backend (e.g. "Gold", "Platinum") */
+  tier?: string;
+  /** Real growth percentage from the backend portfolio */
+  growthPercent?: number;
 }
 
-export function DashboardHome({ totalBalance, profitAmount, greeting, sessionName, onOpenTransfer }: DashboardHomeProps) {
+export function DashboardHome({ totalBalance, profitAmount, greeting, sessionName, onOpenTransfer, portfolioCode, tier, growthPercent = 18.5 }: DashboardHomeProps) {
   const { t } = useLang();
 
   const chartData = [
@@ -44,9 +50,9 @@ export function DashboardHome({ totalBalance, profitAmount, greeting, sessionNam
             {t('نحن فخورون بمواكبة رحلتك المالية وتنمية ثروتك باحترافية وأمان ومطابقة كاملة للقيم الشرعية.', 'We are proud to partner on your financial journey, growing your wealth professionally and securely.')}
           </p>
           <div className="flex flex-wrap gap-4 text-xs font-bold text-text-secondary pt-2">
-            <span className="bg-white dark:bg-primary border px-2.5 py-1 rounded-lg">📍 {t('الرقم المرجعي', 'Acc No')}: TH-9842105</span>
-            <span className="bg-white dark:bg-primary border px-2.5 py-1 rounded-lg">⭐ {t('العضوية', 'Tier')}: {t('ذهبي', 'Gold')}</span>
-            <span className="bg-white dark:bg-primary border px-2.5 py-1 rounded-lg">📈 {t('معدل النمو', 'Returns')}: +18.5%</span>
+            <span className="bg-white dark:bg-primary border px-2.5 py-1 rounded-lg">📍 {t('الرقم المرجعي', 'Acc No')}: {portfolioCode || 'TH-0000000'}</span>
+            <span className="bg-white dark:bg-primary border px-2.5 py-1 rounded-lg">⭐ {t('العضوية', 'Tier')}: {tier || t('ذهبي', 'Gold')}</span>
+            <span className="bg-white dark:bg-primary border px-2.5 py-1 rounded-lg">📈 {t('معدل النمو', 'Returns')}: +{growthPercent.toFixed(1)}%</span>
           </div>
         </div>
         <div className="flex gap-2 relative z-10">
@@ -67,7 +73,7 @@ export function DashboardHome({ totalBalance, profitAmount, greeting, sessionNam
           <div className="text-text-muted text-xs font-bold mb-1">{t('القيمة الإجمالية للمحفظة', 'Total Portfolio Valuation')}</div>
           <div className="text-2xl font-black text-text-primary mb-1">SAR {totalBalance.toLocaleString()}</div>
           <div className="text-xs text-emerald-500 font-bold flex items-center gap-1">
-            <ArrowUpRight className="w-3.5 h-3.5" /> +18.5% (+SAR {profitAmount.toLocaleString()})
+            <ArrowUpRight className="w-3.5 h-3.5" /> +{growthPercent.toFixed(1)}% (+SAR {profitAmount.toLocaleString()})
           </div>
         </Card>
         <Card className="p-6">

@@ -26,7 +26,7 @@ router.get('/', async (req: AuthRequest, res) => {
     });
     res.json({ data: tickets });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
@@ -42,7 +42,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
     }
     res.json({ data: ticket });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
@@ -100,7 +100,7 @@ router.post('/', async (req: AuthRequest, res) => {
 
     res.status(201).json({ data: ticket, message: 'تم إرسال التذكرة' });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
@@ -132,7 +132,7 @@ router.put('/:id', requirePermission('messages:write'), async (req: AuthRequest,
     res.json({ data: updated, message: 'تم تحديث التذكرة' });
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'NotFound' });
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 

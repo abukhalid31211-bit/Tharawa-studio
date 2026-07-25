@@ -13,7 +13,7 @@ router.get('/:key', async (req, res) => {
     if (!section || !section.is_active) return res.status(404).json({ error: 'NotFound', message: 'المحتوى غير موجود' });
     res.json({ data: section });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
@@ -24,7 +24,7 @@ router.get('/', authenticateToken, requirePermission('content:read'), async (_re
     });
     res.json({ data: sections });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
@@ -61,7 +61,7 @@ router.put('/:key', authenticateToken, requirePermission('content:write'), async
 
     res.json({ data: updated, message: 'تم تحديث المحتوى' });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 

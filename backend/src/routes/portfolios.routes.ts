@@ -1,7 +1,42 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { AuthRequest, authenticateToken, requirePermission, requireRole } from '../middleware/auth.middleware.js';
 import { prisma } from '../lib/prisma.js';
 import { broadcastAdminUpdate, broadcastClientUpdate } from '../lib/socket.js';
+
+const idSchema = z.string().uuid();
+const createPortfolioSchema = z.object({
+  user_id: z.string().uuid(),
+  name: z.string().min(2).max(200),
+  name_en: z.string().max(200).optional(),
+  total_valuation: z.coerce.number().min(0).default(0),
+  risk_profile: z.string().max(40).default('balanced'),
+  currency: z.string().max(10).default('SAR'),
+  growth_percent: z.coerce.number().default(0),
+  portfolio_data: z.unknown().optional(),
+  assets: z.array(z.unknown()).optional(),
+});
+const updatePortfolioSchema = z.object({
+  name: z.string().min(2).max(200).optional(),
+  name_en: z.string().max(200).optional(),
+  total_valuation: z.coerce.number().min(0).optional(),
+  risk_profile: z.string().max(40).optional(),
+  currency: z.string().max(10).optional(),
+  growth_percent: z.coerce.number().optional(),
+  portfolio_data: z.unknown().optional(),
+});
+const assetSchema = z.object({
+  symbol: z.string().max(30),
+  name: z.string().max(200),
+  name_en: z.string().max(200).optional(),
+  asset_class: z.string().max(60),
+  weight_percent: z.coerce.number().default(0),
+  quantity: z.coerce.number().default(0),
+  avg_price: z.coerce.number().default(0),
+  valuation: z.coerce.number().default(0),
+  annual_yield: z.coerce.number().default(0),
+  status: z.string().max(30).default('active'),
+});
 
 const router = Router();
 
@@ -33,7 +68,7 @@ router.get('/', async (req: AuthRequest, res) => {
     });
     res.json({ data: portfolios, count: portfolios.length });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
@@ -52,29 +87,28 @@ router.get('/:id', async (req: AuthRequest, res) => {
 
     res.json({ data: portfolio });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
 // Create portfolio (admin/super only)
 router.post('/', requirePermission('portfolios:write'), async (req: AuthRequest, res) => {
   try {
-    const { user_id, name, name_en, total_valuation, risk_profile, currency, growth_percent, portfolio_data, assets } = req.body;
-    if (!user_id || !name) return res.status(400).json({ error: 'MissingFields' });
+    const parsed = createPortfolioSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'InvalidInput', details: parsed.error.flatten() });
+    const { user_id, name, name_en, total_valuation, risk_profile, currency, growth_percent, portfolio_data, assets } = parsed.data;
 
     const portfolio = await prisma.portfolio.create({
       data: {
         user_id,
         name,
         name_en,
-        total_valuation: total_valuation ? parseFloat(total_valuation) : 0,
+        total_valuation: total_valuation ?? 0,
         risk_profile: risk_profile || 'balanced',
         currency: currency || 'SAR',
-        growth_percent: growth_percent ? parseFloat(growth_percent) : 0,
+        growth_percent: growth_percent ?? 0,
         portfolio_data: portfolio_data || {},
-        assets: {
-          create: assets || [],
-        },
+        assets: { create: (assets as any[]) || [] },
       },
       include: { assets: true, user: { select: { id: true, name: true, email: true } } },
     });
@@ -84,23 +118,26 @@ router.post('/', requirePermission('portfolios:write'), async (req: AuthRequest,
 
     res.status(201).json({ data: portfolio, message: 'تم إنشاء المحفظة بنجاح' });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
 // Update portfolio
 router.put('/:id', requirePermission('portfolios:write'), async (req: AuthRequest, res) => {
   try {
-    const { name, name_en, total_valuation, risk_profile, currency, growth_percent, portfolio_data } = req.body;
+    if (!idSchema.safeParse(req.params.id).success) return res.status(400).json({ error: 'InvalidId' });
+    const parsed = updatePortfolioSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'InvalidInput', details: parsed.error.flatten() });
+    const { name, name_en, total_valuation, risk_profile, currency, growth_percent, portfolio_data } = parsed.data;
     const updated = await prisma.portfolio.update({
       where: { id: req.params.id },
       data: {
         ...(name !== undefined && { name }),
         ...(name_en !== undefined && { name_en }),
-        ...(total_valuation !== undefined && { total_valuation: parseFloat(total_valuation) }),
+        ...(total_valuation !== undefined && { total_valuation }),
         ...(risk_profile !== undefined && { risk_profile }),
         ...(currency !== undefined && { currency }),
-        ...(growth_percent !== undefined && { growth_percent: parseFloat(growth_percent) }),
+        ...(growth_percent !== undefined && { growth_percent }),
         ...(portfolio_data !== undefined && { portfolio_data }),
       },
       include: { assets: true, user: { select: { id: true, name: true, email: true } } },
@@ -112,7 +149,7 @@ router.put('/:id', requirePermission('portfolios:write'), async (req: AuthReques
     res.json({ data: updated, message: 'تم التحديث' });
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'NotFound' });
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
@@ -127,7 +164,7 @@ router.delete('/:id', requireRole('super'), async (req: AuthRequest, res) => {
     res.json({ message: 'تم حذف المحفظة' });
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'NotFound' });
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
@@ -150,7 +187,7 @@ router.post('/:id/assets', requirePermission('portfolios:write'), async (req: Au
 
     res.status(201).json({ data: asset });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 

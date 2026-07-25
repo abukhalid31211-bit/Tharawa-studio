@@ -62,11 +62,13 @@ function mapResource(resource: Resource, items: any[]): any[] {
 }
 
 async function syncClients(previous: Client[], next: Client[]) {
-  const removed = previous.filter(item => !next.some(current => current.id === item.id));
+  // SAFETY: Deletes are intentionally excluded from the sync path.
+  // Client deletions must go through an explicit UI action that calls api.deleteClient
+  // directly — never via a bulk array diff. Accidental bulk-delete from stale
+  // state would be unrecoverable in production.
   const added = next.filter(item => !previous.some(current => current.id === item.id));
   const changed = next.filter(item => previous.some(current => current.id === item.id && JSON.stringify(current) !== JSON.stringify(item)));
   await Promise.all([
-    ...removed.map(item => api.deleteClient(item.id)),
     ...added.map(item => api.createClient({ email: item.email, name: item.name, phone: item.phone, tier: item.tier, status: item.status,
       profile_data: { nameEn: item.nameEn, nationalId: item.nationalId, country: item.country, countryEn: item.countryEn, city: item.city,
         balance: item.balance, riskProfile: item.riskProfile, riskProfileEn: item.riskProfileEn, advisor: item.advisor, advisorEn: item.advisorEn, notes: item.notes } })),

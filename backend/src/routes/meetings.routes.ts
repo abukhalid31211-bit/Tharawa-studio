@@ -26,7 +26,7 @@ router.get('/', async (req: AuthRequest, res) => {
     });
     res.json({ data: meetings });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
@@ -57,7 +57,7 @@ router.post('/', async (req: AuthRequest, res) => {
 
     res.status(201).json({ data: meeting, message: 'تم حجز الموعد' });
   } catch (err: any) {
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
@@ -81,7 +81,7 @@ router.put('/:id', requirePermission('messages:write'), async (req: AuthRequest,
     res.json({ data: updated });
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'NotFound' });
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
@@ -93,7 +93,7 @@ router.delete('/:id', requirePermission('messages:write'), async (req: AuthReque
     res.json({ message: 'تم حذف الموعد' });
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'NotFound' });
-    res.status(500).json({ error: 'ServerError', message: err.message });
+    res.status(500).json({ error: 'ServerError', message: process.env.NODE_ENV === 'production' ? 'تعذر معالجة الطلب' : err.message });
   }
 });
 
