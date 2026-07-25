@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useLang } from '@/contexts/LanguageContext';
 import { ArrowLeft, Clock, Calendar, User } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
+import { usePublicNewsArticles } from '@/lib/publicContent';
 
 export const Route = createFileRoute('/article/$slug')({
   component: ArticleDetailsPage,
@@ -10,29 +11,22 @@ export const Route = createFileRoute('/article/$slug')({
 function ArticleDetailsPage() {
   const { t, lang } = useLang();
   const { slug } = Route.useParams();
+  const { articles } = usePublicNewsArticles();
 
-  const articles: Record<string, any> = {
-    'bitcoin-records': {
-      titleAr: 'بيتكوين يسجل مستويات قياسية جديدة — ماذا يعني للمستثمر العربي؟',
-      titleEn: 'Bitcoin Hits New Records — What Does It Mean for Arab Investors?',
-      categoryAr: 'العملات الرقمية', categoryEn: 'Crypto',
-      date: '18 Jul 2026', readTime: '5 min',
-      authorAr: 'م. فيصل العمري', authorEn: 'Faisal Al-Omari',
-      bodyAr: [
-        'بعد ارتفاع نسبته 45% خلال الربع الأول من 2025، سجّل Bitcoin مستويات قياسية جديدة تجاوزت $70,000.',
-        'نحلل الأسباب وراء هذا الارتفاع وما إذا كانت فرصة الدخول لا تزال قائمة للمستثمر العربي.',
-        'تُظهر البيانات أن الطلب المؤسسي على العملات الرقمية في المنطقة العربية نما بنسبة 120% خلال العام الماضي.'
-      ],
-      bodyEn: [
-        'After a 45% surge in Q1 2025, Bitcoin recorded new highs exceeding $70,000.',
-        'We analyze the reasons behind this rally and whether the entry opportunity still exists for Arab investors.',
-        'Data shows institutional demand for cryptocurrencies in the Arab region grew by 120% over the past year.'
-      ],
-    },
-  };
+  const article = articles.find((item) => item.slug === slug) || articles[0];
 
-  const art = articles[slug] || articles['bitcoin-records'];
-  const body = lang === 'ar' ? art.bodyAr : art.bodyEn;
+  if (!article) {
+    return (
+      <div className="w-full min-h-screen bg-primary dark:bg-[#0D0D1A] flex items-center justify-center px-4">
+        <div className="text-center text-text-muted">
+          <div className="text-5xl mb-4">📰</div>
+          <p>{t('المقال غير متاح حالياً', 'The article is not available right now')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const body = lang === 'ar' ? article.bodyAr : article.bodyEn;
 
   return (
     <div className="w-full min-h-screen bg-primary dark:bg-[#0D0D1A]">
@@ -43,13 +37,13 @@ function ArticleDetailsPage() {
             <ArrowLeft className="w-3 h-3" />
             <Link to="/news" className="hover:text-gold-deep">{t('الأخبار', 'News')}</Link>
             <ArrowLeft className="w-3 h-3" />
-            <span className="text-gold-deep font-semibold">{lang === 'ar' ? art.categoryAr : art.categoryEn}</span>
+            <span className="text-gold-deep font-semibold">{lang === 'ar' ? article.categoryAr : article.categoryEn}</span>
           </div>
-          <h1 className="font-black text-3xl md:text-5xl text-text-primary mb-6 leading-tight">{lang === 'ar' ? art.titleAr : art.titleEn}</h1>
+          <h1 className="font-black text-3xl md:text-5xl text-text-primary mb-6 leading-tight">{lang === 'ar' ? article.title : article.titleEn}</h1>
           <div className="flex items-center gap-6 text-sm text-text-muted">
-            <span className="flex items-center gap-2"><User className="w-4 h-4" /> {lang === 'ar' ? art.authorAr : art.authorEn}</span>
-            <span className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {art.date}</span>
-            <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> {art.readTime}</span>
+            <span className="flex items-center gap-2"><User className="w-4 h-4" /> {lang === 'ar' ? article.author : article.authorEn}</span>
+            <span className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {lang === 'ar' ? article.date : article.dateEn}</span>
+            <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> {lang === 'ar' ? article.readTime : article.readTimeEn}</span>
           </div>
         </div>
       </section>

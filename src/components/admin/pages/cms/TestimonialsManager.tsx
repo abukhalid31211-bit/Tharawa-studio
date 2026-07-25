@@ -2,10 +2,12 @@
 // CMS — TestimonialsManager إدارة شهادات وتقييمات العملاء
 // اعتماد / رفض / تعديل آراء المستثمرين
 // ─────────────────────────────────────────────────────────────
-import React, { useMemo, useState } from 'react';
-import { Star, Check, X, Pencil, Trash2 } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Star, Check, X, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
 import { useCmsTestimonials, TestimonialItem, addAuditEntry } from '@/lib/adminData';
+import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import {
   PageHeader, Panel, Pill, StatCard, FilterTabs, Modal, ConfirmDialog,
   Field, TextInput, TextArea, PrimaryBtn, GhostBtn, IconBtn,
@@ -37,6 +39,16 @@ export function TestimonialsManager() {
   const [editing, setEditing] = useState<TestimonialItem | null>(null);
   const [form, setForm] = useState({ name: '', role: '', text: '', textEn: '', rating: 5 });
   const [deleting, setDeleting] = useState<TestimonialItem | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.getContent('testimonials')
+      .then((res: any) => {
+        const remoteTestimonials = res.data?.content_data;
+        if (Array.isArray(remoteTestimonials)) setTestimonials(remoteTestimonials);
+      })
+      .catch(error => logger.warn('Failed to load remote testimonials content', error));
+  }, [setTestimonials]);
 
   const counts = useMemo(() => ({
     all: testimonials.length,
@@ -47,8 +59,23 @@ export function TestimonialsManager() {
 
   const filtered = useMemo(() => testimonials.filter(x => filter === 'all' || x.status === filter), [testimonials, filter]);
 
-  const setStatus = (x: TestimonialItem, status: TestimonialItem['status']) => {
-    setTestimonials(prev => prev.map(y => y.id === x.id ? { ...y, status } : y));
+  const syncToBackend = async (updatedTestimonials: TestimonialItem[]) => {
+    setSaving(true);
+    try {
+      await api.updateContent('testimonials', { content_data: updatedTestimonials });
+      addAuditEntry('admin@tharwah.com', 'تحديث شهادات العملاء', 'Updated testimonials content');
+    } catch (error: any) {
+      show(error?.message || t('فشل الحفظ', 'Save failed'), 'error');
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const setStatus = async (x: TestimonialItem, status: TestimonialItem['status']) => {
+    const updatedTestimonials = testimonials.map(y => y.id === x.id ? { ...y, status } : y);
+    setTestimonials(updatedTestimonials);
+    await syncToBackend(updatedTestimonials);
     addAuditEntry('admin@tharwah.com',
       status === 'approved' ? `اعتماد شهادة ${x.name}` : status === 'rejected' ? `رفض شهادة ${x.name}` : `تعليق شهادة ${x.name}`,
       status === 'approved' ? `Approved testimonial by ${x.nameEn}` : status === 'rejected' ? `Rejected testimonial by ${x.nameEn}` : `Held testimonial by ${x.nameEn}`);
@@ -61,9 +88,12 @@ export function TestimonialsManager() {
     setForm({ name: x.name, role: x.role, text: x.text, textEn: x.textEn, rating: x.rating });
   };
 
-  const saveEdit = (e: React.FormEvent) => {
+  const saveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setTestimonials(prev => prev.map(y => y.id === editing!.id ? { ...y, ...form, nameEn: y.nameEn, roleEn: y.roleEn } : y));
+    if (!editing) return;
+    const updatedTestimonials = testimonials.map(y => y.id === editing.id ? { ...y, ...form, nameEn: y.nameEn, roleEn: y.roleEn } : y);
+    setTestimonials(updatedTestimonials);
+    await syncToBackend(updatedTestimonials);
     show(t('تم تحديث الشهادة', 'Testimonial updated'));
     setEditing(null);
   };
@@ -73,6 +103,7 @@ export function TestimonialsManager() {
       <PageHeader
         title={t('إدارة شهادات وتقييمات العملاء', 'Client Testimonials Manager')}
         subtitle={t('اعتماد ومراجعة آراء المستثمرين قبل نشرها في الصفحة الرئيسية', 'Review and approve investor reviews before they appear on the homepage')}
+        actions={saving ? <Loader2 className="w-5 h-5 animate-spin text-gold-primary" /> : undefined}
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -120,12 +151,12 @@ export function TestimonialsManager() {
                 <div className="flex items-center justify-between pt-2 border-t border-[#E2E8F0] dark:border-border-default">
                   <div className="flex items-center gap-1.5">
                     {x.status !== 'approved' && (
-                      <button onClick={() => setStatus(x, 'approved')} className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-white flex items-center gap-1 transition-colors bg-[#00B894] hover:bg-[#00A07F]">
+                      <button onClick={() => void setStatus(x, 'approved')} className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-white flex items-center gap-1 transition-colors bg-[#00B894] hover:bg-[#00A07F]">
                         <Check className="w-3 h-3" /> {t('اعتماد', 'Approve')}
                       </button>
                     )}
                     {x.status !== 'rejected' && (
-                      <button onClick={() => setStatus(x, 'rejected')} className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-[#FF4560] border border-[#FF4560]/25 hover:bg-[#FF4560]/5 flex items-center gap-1 transition-colors">
+                      <button onClick={() => void setStatus(x, 'rejected')} className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-[#FF4560] border border-[#FF4560]/25 hover:bg-[#FF4560]/5 flex items-center gap-1 transition-colors">
                         <X className="w-3 h-3" /> {t('رفض', 'Reject')}
                       </button>
                     )}
@@ -185,7 +216,14 @@ export function TestimonialsManager() {
       <ConfirmDialog
         open={!!deleting}
         onClose={() => setDeleting(null)}
-        onConfirm={() => { setTestimonials(prev => prev.filter(x => x.id !== deleting!.id)); show(t('تم حذف الشهادة', 'Testimonial deleted')); }}
+        onConfirm={() => {
+          if (!deleting) return;
+          const updatedTestimonials = testimonials.filter(x => x.id !== deleting.id);
+          setTestimonials(updatedTestimonials);
+          void syncToBackend(updatedTestimonials);
+          show(t('تم حذف الشهادة', 'Testimonial deleted'));
+          setDeleting(null);
+        }}
         title={t('حذف الشهادة', 'Delete Testimonial')}
         message={t(`حذف شهادة ${deleting?.name} نهائياً؟`, `Permanently delete ${deleting?.nameEn}'s testimonial?`)}
         confirmText={t('حذف', 'Delete')}

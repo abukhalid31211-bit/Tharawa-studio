@@ -10,6 +10,7 @@ import {
   useClients, useTransactions, usePortfolios, useMessages,
   useCmsServices, useCmsFaq, useCmsTestimonials, useCmsMarkets,
 } from '@/lib/adminData';
+import { usePublicNewsArticles } from '@/lib/publicContent';
 import { Panel, EmptyState, Pill } from '@/components/admin/ui';
 
 interface SearchHit {
@@ -37,6 +38,7 @@ export function GlobalSearch() {
   const [faq] = useCmsFaq();
   const [testimonials] = useCmsTestimonials();
   const [markets] = useCmsMarkets();
+  const { articles: newsArticles } = usePublicNewsArticles();
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
@@ -121,10 +123,17 @@ export function GlobalSearch() {
       subtitle: `${m.price} · ${m.change >= 0 ? '+' : ''}${m.change}%`,
       to: '/Akadmin/markets_mgr',
     }));
+    newsArticles.filter(article => match(article.title, article.titleEn, article.excerpt, article.excerptEn, article.author, article.authorEn)).slice(0, 4).forEach(article => hits.push({
+      group: 'الأخبار والتحليلات', groupEn: 'News & Analysis', icon: FileText, color: '#EC4899',
+      title: lang === 'ar' ? article.title : article.titleEn,
+      subtitle: `${lang === 'ar' ? article.author : article.authorEn} · ${lang === 'ar' ? article.date : article.dateEn}`,
+      badge: { text: lang === 'ar' ? article.categoryAr : article.categoryEn, color: '#EC4899' },
+      to: '/Akadmin/content',
+    }));
 
     return hits;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, clients, transactions, portfolios, messages, services, faq, testimonials, markets, lang]);
+  }, [query, clients, transactions, portfolios, messages, services, faq, testimonials, markets, newsArticles, lang]);
 
   const groups = useMemo(() => {
     const map = new Map<string, { group: string; groupEn: string; icon: any; color: string; hits: SearchHit[] }>();

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { ArrowLeft, BarChart3, ShieldCheck, Sparkles, TrendingUp, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCmsSection } from '@/lib/cms';
+import { usePublicStats } from '@/lib/queries';
 
 interface HeroStats {
   value: string;
@@ -47,7 +48,9 @@ const FALLBACK_HERO: HeroContent = {
 
 export function Hero() {
   const { t, lang } = useLang();
-  const { data: cms } = useCmsSection<HeroContent>('hero', FALLBACK_HERO);
+  const { data: cms } = useCmsSection<HeroContent>('hero', import.meta.env.DEV ? FALLBACK_HERO : {});
+  const { data: publicStatsData } = usePublicStats();
+  const publicStats = (publicStatsData as any)?.data;
   const [typedText, setTypedText] = useState('');
   const fullText = t('استثماراتك', 'Your Investments');
 
@@ -74,7 +77,25 @@ export function Hero() {
   const badgeEn = cms.badgeEn || FALLBACK_HERO.badgeEn!;
   const ctaPrimary = lang === 'ar' ? (cms.ctaPrimary || FALLBACK_HERO.ctaPrimary!) : (cms.ctaPrimaryEn || FALLBACK_HERO.ctaPrimaryEn!);
   const ctaSecondary = lang === 'ar' ? (cms.ctaSecondary || FALLBACK_HERO.ctaSecondary!) : (cms.ctaSecondaryEn || FALLBACK_HERO.ctaSecondaryEn!);
-  const stats = cms.stats || FALLBACK_HERO.stats!;
+  const stats = (cms.stats && cms.stats.length > 0)
+    ? cms.stats
+    : [
+        {
+          value: typeof publicStats?.totalAum === 'number' ? `+${(publicStats.totalAum / 1_000_000_000).toFixed(1)}B` : FALLBACK_HERO.stats![0].value,
+          label: 'ريال أصول مدارة',
+          labelEn: 'SAR Assets Managed',
+        },
+        {
+          value: typeof publicStats?.activeClients === 'number' ? `+${publicStats.activeClients.toLocaleString()}` : FALLBACK_HERO.stats![1].value,
+          label: 'عميل نشط',
+          labelEn: 'Active Clients',
+        },
+        {
+          value: typeof publicStats?.activePortfolios === 'number' ? `+${publicStats.activePortfolios.toLocaleString()}` : FALLBACK_HERO.stats![2].value,
+          label: 'محفظة نشطة',
+          labelEn: 'Active Portfolios',
+        },
+      ];
 
   return (
     <section className="relative w-full min-h-[90vh] flex items-center overflow-hidden bg-primary dark:bg-elevated">

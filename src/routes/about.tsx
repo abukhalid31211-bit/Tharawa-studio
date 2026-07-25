@@ -6,12 +6,15 @@ import { Card } from '@/components/ui/Card';
 import { Users, Download, Shield, Award, Globe, ShieldCheck, Briefcase, Calendar, Phone } from 'lucide-react';
 import { CtaSection } from '@/components/home/CtaSection'; // Reusing CTA
 import { useCmsSection } from '@/lib/cms';
+import { usePublicStats } from '@/lib/queries';
 
 export const Route = createFileRoute('/about')({ component: AboutPage });
 
 function AboutPage() {
   const { t, lang } = useLang();
   const { data: managedAbout } = useCmsSection<any>('about', {});
+  const { data: publicStatsData } = usePublicStats();
+  const publicStats = (publicStatsData as any)?.data;
 
   const fallbackValues = [
     { icon: Shield, titleAr: 'الثقة والشفافية الكاملة', titleEn: 'Trust & Full Transparency', descAr: 'نُقدم تقارير شهرية مفصلة تُوضح كل معاملة وكل قرار استثماري. شفافية كاملة في كل خطوة', descEn: 'We provide detailed monthly reports clarifying every transaction. Complete transparency at every step' },
@@ -21,13 +24,15 @@ function AboutPage() {
   ];
   const values = managedAbout.values?.length ? managedAbout.values.map((value: any) => ({
     icon: Shield, titleAr: value.title, titleEn: value.titleEn, descAr: value.desc, descEn: value.descEn,
-  })) : fallbackValues;
+  })) : (import.meta.env.DEV ? fallbackValues : []);
 
-  const team = [
-    { avatar: 'خ', nameAr: 'م. خالد الحربي', nameEn: 'Khalid Al-Harbi', roleAr: 'الرئيس التنفيذي', roleEn: 'CEO & Co-Founder', descAr: '25 عاماً من الخبرة في الأسواق المالية الخليجية والعالمية. حاصل على CFA وماجستير إدارة الأعمال.', descEn: '25 years experience in Gulf and global markets. CFA holder and MBA.' },
-    { avatar: 'س', nameAr: 'د. سارة المطيري', nameEn: 'Dr. Sara Al-Mutairi', roleAr: 'مديرة الاستثمار والمحافظ', roleEn: 'Director of Investment', descAr: 'دكتوراه في الاقتصاد المالي من MIT، متخصصة في الأسواق الناشئة وتحليل المخاطر.', descEn: 'PhD in Financial Economics from MIT, specializing in emerging markets and risk analysis.' },
-    { avatar: 'ف', nameAr: 'م. فيصل العمري', nameEn: 'Faisal Al-Omari', roleAr: 'رئيس قسم البحث والتحليل', roleEn: 'Head of Research', descAr: 'محلل مالي CFA معتمد بخبرة 18 عاماً في أسواق وول ستريت وبورصات الخليج.', descEn: 'Certified CFA financial analyst with 18 years experience in Wall Street and Gulf exchanges.' }
-  ];
+  const team = Array.isArray(managedAbout.team)
+    ? managedAbout.team
+    : (import.meta.env.DEV ? [
+        { avatar: 'خ', nameAr: 'م. خالد الحربي', nameEn: 'Khalid Al-Harbi', roleAr: 'الرئيس التنفيذي', roleEn: 'CEO & Co-Founder', descAr: '25 عاماً من الخبرة في الأسواق المالية الخليجية والعالمية. حاصل على CFA وماجستير إدارة الأعمال.', descEn: '25 years experience in Gulf and global markets. CFA holder and MBA.' },
+        { avatar: 'س', nameAr: 'د. سارة المطيري', nameEn: 'Dr. Sara Al-Mutairi', roleAr: 'مديرة الاستثمار والمحافظ', roleEn: 'Director of Investment', descAr: 'دكتوراه في الاقتصاد المالي من MIT، متخصصة في الأسواق الناشئة وتحليل المخاطر.', descEn: 'PhD in Financial Economics from MIT, specializing in emerging markets and risk analysis.' },
+        { avatar: 'ف', nameAr: 'م. فيصل العمري', nameEn: 'Faisal Al-Omari', roleAr: 'رئيس قسم البحث والتحليل', roleEn: 'Head of Research', descAr: 'محلل مالي CFA معتمد بخبرة 18 عاماً في أسواق وول ستريت وبورصات الخليج.', descEn: 'Certified CFA financial analyst with 18 years experience in Wall Street and Gulf exchanges.' }
+      ] : []);
 
   return (
     <div className="w-full">
@@ -61,24 +66,24 @@ function AboutPage() {
           <div className="relative">
             <Card className="grid grid-cols-2 gap-6 bg-primary dark:bg-elevated border-border-gold/30 shadow-gold-sm">
               <div className="text-center p-4 border-b border-border-light rtl:border-l ltr:border-r">
-                <div className="text-3xl mb-2">🏢</div>
-                <div className="font-mono font-black text-2xl md:text-3xl text-gold-deep mb-1">2010</div>
-                <div className="text-xs text-text-muted">{t('عام التأسيس في دبي', 'Founded in Dubai')}</div>
+                <div className="text-3xl mb-2">👥</div>
+                <div className="font-mono font-black text-2xl md:text-3xl text-gold-deep mb-1">{publicStats?.activeClients ? `+${publicStats.activeClients.toLocaleString()}` : '—'}</div>
+                <div className="text-xs text-text-muted">{t('مستثمر نشط', 'Active Investors')}</div>
               </div>
               <div className="text-center p-4 border-b border-border-light">
                 <div className="text-3xl mb-2">🌍</div>
-                <div className="font-mono font-black text-2xl md:text-3xl text-gold-deep mb-1">15+</div>
-                <div className="text-xs text-text-muted">{t('سوقاً عالمياً', 'Global Markets')}</div>
+                <div className="font-mono font-black text-2xl md:text-3xl text-gold-deep mb-1">{publicStats?.visibleMarkets ? `${publicStats.visibleMarkets}+` : '—'}</div>
+                <div className="text-xs text-text-muted">{t('سوق ظاهر', 'Visible Markets')}</div>
               </div>
               <div className="text-center p-4 rtl:border-l ltr:border-r border-border-light">
-                <div className="text-3xl mb-2">👥</div>
-                <div className="font-mono font-black text-2xl md:text-3xl text-gold-deep mb-1">50+</div>
-                <div className="text-xs text-text-muted">{t('خبيراً معتمداً', 'Certified Experts')}</div>
+                <div className="text-3xl mb-2">💼</div>
+                <div className="font-mono font-black text-2xl md:text-3xl text-gold-deep mb-1">{typeof publicStats?.totalAum === 'number' ? `+${(publicStats.totalAum / 1_000_000_000).toFixed(1)}B` : '—'}</div>
+                <div className="text-xs text-text-muted">{t('أصول مُدارة', 'Assets Under Management')}</div>
               </div>
               <div className="text-center p-4">
-                <div className="text-3xl mb-2">🏆</div>
-                <div className="font-mono font-black text-2xl md:text-3xl text-gold-deep mb-1">12+</div>
-                <div className="text-xs text-text-muted">{t('جائزة دولية', 'International Awards')}</div>
+                <div className="text-3xl mb-2">📁</div>
+                <div className="font-mono font-black text-2xl md:text-3xl text-gold-deep mb-1">{publicStats?.activePortfolios ? `+${publicStats.activePortfolios.toLocaleString()}` : '—'}</div>
+                <div className="text-xs text-text-muted">{t('محفظة نشطة', 'Active Portfolios')}</div>
               </div>
             </Card>
             <div className="mt-4 bg-gold-subtle border border-border-gold rounded-lg py-3 px-4 flex justify-center items-center gap-2">
@@ -104,17 +109,23 @@ function AboutPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
-            {values.map((v: { icon: ElementType; titleAr: string; titleEn: string; descAr: string; descEn: string }, i: number) => (
-              <Card key={i} variant="interactive" className="p-8 flex flex-col items-center hover:-translate-y-1">
-                <div className="w-16 h-16 rounded-xl bg-gold-subtle border border-border-gold flex items-center justify-center mb-6">
-                  <v.icon className="w-7 h-7 text-gold-deep" />
-                </div>
-                <h3 className="font-bold text-lg text-text-primary mb-3">{lang === 'ar' ? v.titleAr : v.titleEn}</h3>
-                <p className="text-sm text-text-secondary leading-relaxed">{lang === 'ar' ? v.descAr : v.descEn}</p>
-              </Card>
-            ))}
-          </div>
+          {values.length === 0 ? (
+            <Card className="p-8 text-center text-text-muted">
+              {t('سيتم نشر قيم الشركة من لوحة الإدارة قريباً', 'Company values will be published from the admin panel soon')}
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+              {values.map((v: { icon: ElementType; titleAr: string; titleEn: string; descAr: string; descEn: string }, i: number) => (
+                <Card key={i} variant="interactive" className="p-8 flex flex-col items-center hover:-translate-y-1">
+                  <div className="w-16 h-16 rounded-xl bg-gold-subtle border border-border-gold flex items-center justify-center mb-6">
+                    <v.icon className="w-7 h-7 text-gold-deep" />
+                  </div>
+                  <h3 className="font-bold text-lg text-text-primary mb-3">{lang === 'ar' ? v.titleAr : v.titleEn}</h3>
+                  <p className="text-sm text-text-secondary leading-relaxed">{lang === 'ar' ? v.descAr : v.descEn}</p>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -130,18 +141,24 @@ function AboutPage() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {team.map((m, i) => (
-              <Card key={i} variant="interactive" className="p-8 text-center hover:-translate-y-1">
-                <div className="w-20 h-20 rounded-full gradient-gold mx-auto flex items-center justify-center text-white font-black text-3xl mb-4 shadow-gold-sm">
-                  {lang === 'ar' ? m.avatar : m.nameEn.charAt(0)}
-                </div>
-                <h3 className="font-bold text-xl text-text-primary mb-1">{lang === 'ar' ? m.nameAr : m.nameEn}</h3>
-                <div className="font-semibold text-sm text-gold-deep mb-4">{lang === 'ar' ? m.roleAr : m.roleEn}</div>
-                <p className="text-sm text-text-secondary leading-relaxed">{lang === 'ar' ? m.descAr : m.descEn}</p>
-              </Card>
-            ))}
-          </div>
+          {team.length === 0 ? (
+            <Card className="p-8 text-center text-text-muted">
+              {t('سيتم نشر أعضاء الفريق من لوحة الإدارة قريباً', 'Team members will be published from the admin panel soon')}
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {team.map((m: any, i: number) => (
+                <Card key={i} variant="interactive" className="p-8 text-center hover:-translate-y-1">
+                  <div className="w-20 h-20 rounded-full gradient-gold mx-auto flex items-center justify-center text-white font-black text-3xl mb-4 shadow-gold-sm">
+                    {lang === 'ar' ? (m.avatar || m.nameAr?.charAt(0) || 'ث') : (m.nameEn?.charAt(0) || 'T')}
+                  </div>
+                  <h3 className="font-bold text-xl text-text-primary mb-1">{lang === 'ar' ? m.nameAr : m.nameEn}</h3>
+                  <div className="font-semibold text-sm text-gold-deep mb-4">{lang === 'ar' ? m.roleAr : m.roleEn}</div>
+                  <p className="text-sm text-text-secondary leading-relaxed">{lang === 'ar' ? m.descAr : m.descEn}</p>
+                </Card>
+              ))}
+            </div>
+          )}
 
           <div className="mt-12 bg-gold-subtle border border-border-gold rounded-xl p-8 max-w-[560px] mx-auto text-center">
             <Briefcase className="w-8 h-8 text-gold-deep mx-auto mb-4" />

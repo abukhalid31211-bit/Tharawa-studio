@@ -5,15 +5,37 @@ import { Card } from '@/components/ui/Card';
 import { Shield, Check } from 'lucide-react';
 import { api } from '@/lib/api';
 
+interface BankingAccount {
+  name?: string;
+  bank?: string;
+  accountNumber?: string;
+  iban?: string;
+  status?: string;
+  isPrimary?: boolean;
+}
+
 interface BankingTabProps {
   bankRequestSent: boolean;
   onRequestBankUpdate: () => void;
   onShowToast: (msg: string) => void;
   /** Real authenticated client profile from the backend */
   profile?: any;
+  bankAccounts?: BankingAccount[];
 }
 
-export function BankingTab({ bankRequestSent, onRequestBankUpdate, onShowToast, profile }: BankingTabProps) {
+function maskIban(value?: string) {
+  if (!value) return '—';
+  if (value.length <= 8) return value;
+  return `${value.slice(0, 4)} ${'•'.repeat(Math.max(value.length - 8, 4))} ${value.slice(-4)}`;
+}
+
+function maskAccount(value?: string) {
+  if (!value) return '—';
+  if (value.length <= 4) return value;
+  return `${'•'.repeat(Math.max(value.length - 4, 4))}${value.slice(-4)}`;
+}
+
+export function BankingTab({ bankRequestSent, onRequestBankUpdate, onShowToast, profile, bankAccounts = [] }: BankingTabProps) {
   const { t } = useLang();
   const [submitting, setSubmitting] = useState(false);
 
@@ -54,25 +76,29 @@ export function BankingTab({ bankRequestSent, onRequestBankUpdate, onShowToast, 
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {[
-          { name: t('الحساب البنكي الرئيسي', 'Primary Account'), bank: 'SAUDI NATIONAL BANK', acc: '1234567890', iban: 'SA93 3000 0000 1234 5678 9012', border: 'border-l-emerald-500' },
-          { name: t('الحساب البنكي الثانوي', 'Secondary Account'), bank: 'AL RAJHI BANK', acc: '9876543210', iban: 'SA82 8000 0000 9876 5432 1098', border: 'border-l-sky-500' },
-        ].map((acct, i) => (
-          <Card key={i} className={`p-6 space-y-4 border-l-4 ${acct.border} relative overflow-hidden`}>
+        {bankAccounts.length === 0 ? (
+          <Card className="p-8 text-center text-text-muted md:col-span-2">
+            {t('لا توجد حسابات بنكية موثقة حالياً. اطلب من فريق ثروة كابيتال إضافة حساباتك من خلال الزر أدناه.', 'There are no verified bank accounts yet. Ask the Tharwah team to add your accounts using the button below.')}
+          </Card>
+        ) : bankAccounts.map((acct, i) => (
+          <Card key={i} className={`p-6 space-y-4 border-l-4 ${acct.isPrimary ? 'border-l-emerald-500' : 'border-l-sky-500'} relative overflow-hidden`}>
             <div className="flex items-center justify-between">
-              <span className="text-xs bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded font-black">{acct.name}</span>
-              <span className="text-xs font-mono font-bold text-text-muted">{acct.bank}</span>
+              <span className={`text-xs px-2 py-0.5 rounded font-black ${acct.isPrimary ? 'bg-emerald-500/10 text-emerald-600' : 'bg-sky-500/10 text-sky-600'}`}>
+                {acct.name || (acct.isPrimary ? t('الحساب البنكي الرئيسي', 'Primary Account') : t('الحساب البنكي الثانوي', 'Secondary Account'))}
+              </span>
+              <span className="text-xs font-mono font-bold text-text-muted">{acct.bank || '—'}</span>
             </div>
             <div className="space-y-2">
               <div className="text-[11px] text-text-muted uppercase tracking-wider">{t('رقم الحساب', 'Account Number')}</div>
-              <div className="text-lg font-black font-mono">{acct.acc}</div>
+              <div className="text-lg font-black font-mono">{maskAccount(acct.accountNumber)}</div>
             </div>
             <div className="space-y-1">
               <div className="text-[11px] text-text-muted uppercase tracking-wider">IBAN</div>
-              <div className="text-sm font-bold font-mono">{acct.iban}</div>
+              <div className="text-sm font-bold font-mono">{maskIban(acct.iban)}</div>
             </div>
             <div className="flex justify-between items-center text-xs font-bold pt-2 border-t text-text-muted">
-              <span>{t('حالة الحساب', 'Status')}: <span className="text-emerald-500">✓ {t('موثق ونشط', 'Verified & Active')}</span></span>
+              <span>
+                {t('حالة الحساب', 'Status')}: <span className="text-emerald-500">✓ {acct.status || t('موثق ونشط', 'Verified & Active')}</span></span>
             </div>
           </Card>
         ))}

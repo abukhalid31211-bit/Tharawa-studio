@@ -3,6 +3,46 @@ import { AuthRequest, authenticateToken, requireRole } from '../middleware/auth.
 import { prisma } from '../lib/prisma.js';
 
 const router = Router();
+
+router.get('/public', async (_req, res) => {
+  try {
+    const [
+      activeClients,
+      portfolioAgg,
+      activePortfolios,
+      marketsSection,
+    ] = await Promise.all([
+      prisma.user.count({ where: { role: 'client', status: 'active' } }),
+      prisma.portfolio.aggregate({ _sum: { total_valuation: true }, where: { is_active: true } }),
+      prisma.portfolio.count({ where: { is_active: true } }),
+      prisma.contentSection.findUnique({ where: { section_key: 'markets' }, select: { content_data: true, is_active: true } }),
+    ]);
+
+    const markets = marketsSection?.is_active && marketsSection.content_data && typeof marketsSection.content_data === 'object' && !Array.isArray(marketsSection.content_data)
+      ? (marketsSection.content_data as { markets?: unknown }).markets
+      : [];
+
+    const visibleMarkets = Array.isArray(markets)
+      ? markets.filter((item: any) => item?.visible !== false).length
+      : 0;
+
+    return res.json({
+      data: {
+        activeClients,
+        totalAum: Number(portfolioAgg._sum.total_valuation ?? 0),
+        activePortfolios,
+        visibleMarkets,
+      },
+    });
+  } catch (err: any) {
+    console.error('[Public Stats]', err);
+    return res.status(500).json({
+      error: 'ServerError',
+      message: process.env.NODE_ENV === 'production' ? 'تعذر جلب الإحصائيات العامة' : err.message,
+    });
+  }
+});
+
 router.use(authenticateToken);
 
 /**

@@ -286,6 +286,11 @@ export interface PlatformSettings {
   siteNameEn: string;
   supportPhone: string;
   supportEmail: string;
+  contactAddressAr: string;
+  contactAddressEn: string;
+  whatsappNumber: string;
+  businessHoursAr: string;
+  businessHoursEn: string;
   defaultCurrency: string;
   defaultLanguage: 'ar' | 'en';
   maintenanceMode: boolean;
@@ -477,6 +482,11 @@ export const SETTINGS_SEED: PlatformSettings = {
   siteNameEn: 'Tharwah Capital',
   supportPhone: '+966 9200 12345',
   supportEmail: 'support@tharwah.com',
+  contactAddressAr: 'الرياض، حي الملك عبد الله المالي، برج ثروة',
+  contactAddressEn: 'Riyadh, King Abdullah Financial District, Tharwah Tower',
+  whatsappNumber: '+966920012345',
+  businessHoursAr: 'الأحد إلى الخميس — 9:00 ص حتى 5:00 م',
+  businessHoursEn: 'Sunday to Thursday — 9:00 AM to 5:00 PM',
   defaultCurrency: 'SAR',
   defaultLanguage: 'ar',
   maintenanceMode: false,
@@ -561,6 +571,7 @@ export interface AboutContent {
   vision: string; visionEn: string;
   story: string; storyEn: string;
   values: { id: string; icon: string; title: string; titleEn: string; desc: string; descEn: string }[];
+  team?: { avatar?: string; nameAr: string; nameEn: string; roleAr: string; roleEn: string; descAr: string; descEn: string }[];
 }
 export const ABOUT_SEED: AboutContent = {
   missionTitle: 'رسالتنا', missionTitleEn: 'Our Mission',
@@ -576,6 +587,11 @@ export const ABOUT_SEED: AboutContent = {
     { id: 'V-2', icon: '🔍', title: 'الشفافية', titleEn: 'Transparency', desc: 'تقارير واضحة بلا رسوم خفية ولا مفاجآت.', descEn: 'Clear reporting with no hidden fees or surprises.' },
     { id: 'V-3', icon: '🕌', title: 'الالتزام الشرعي', titleEn: 'Sharia Commitment', desc: 'توافق شرعي موثق لكل منتجاتنا الاستثمارية.', descEn: 'Certified Sharia compliance across all investment products.' },
     { id: 'V-4', icon: '🚀', title: 'الابتكار', titleEn: 'Innovation', desc: 'نوظف الذكاء الاصطناعي لخدمة قراراتك الاستثمارية.', descEn: 'We harness AI to empower your investment decisions.' },
+  ],
+  team: [
+    { avatar: 'خ', nameAr: 'م. خالد الحربي', nameEn: 'Khalid Al-Harbi', roleAr: 'الرئيس التنفيذي', roleEn: 'CEO & Co-Founder', descAr: '25 عاماً من الخبرة في الأسواق المالية الخليجية والعالمية.', descEn: '25 years of experience across Gulf and global financial markets.' },
+    { avatar: 'س', nameAr: 'د. سارة المطيري', nameEn: 'Dr. Sara Al-Mutairi', roleAr: 'مديرة الاستثمار والمحافظ', roleEn: 'Director of Investment', descAr: 'متخصصة في الأسواق الناشئة وتحليل المخاطر وبناء المحافظ المؤسسية.', descEn: 'Specialized in emerging markets, risk analysis, and institutional portfolio construction.' },
+    { avatar: 'ف', nameAr: 'م. فيصل العمري', nameEn: 'Faisal Al-Omari', roleAr: 'رئيس قسم البحث والتحليل', roleEn: 'Head of Research', descAr: 'يقود التحليل الاستثماري الدوري وتغطية الفرص في الأسواق المحلية والعالمية.', descEn: 'Leads periodic investment research and opportunity coverage across local and global markets.' },
   ],
 };
 

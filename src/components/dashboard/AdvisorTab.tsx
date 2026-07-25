@@ -8,6 +8,15 @@ interface Meeting {
   id: string; advisor: string; date: string; time: string; status: string;
 }
 
+interface AdvisorProfile {
+  name?: string;
+  title?: string;
+  email?: string;
+  phone?: string;
+  experience?: string;
+  avatar?: string;
+}
+
 interface AdvisorTabProps {
   meetings: Meeting[];
   newMeetingDate: string;
@@ -15,10 +24,19 @@ interface AdvisorTabProps {
   onMeetingDateChange: (val: string) => void;
   onMeetingTimeChange: (val: string) => void;
   onBookMeeting: (e: React.FormEvent) => void;
+  advisorProfile?: AdvisorProfile;
 }
 
-export function AdvisorTab({ meetings, newMeetingDate, newMeetingTime, onMeetingDateChange, onMeetingTimeChange, onBookMeeting }: AdvisorTabProps) {
+export function AdvisorTab({ meetings, newMeetingDate, newMeetingTime, onMeetingDateChange, onMeetingTimeChange, onBookMeeting, advisorProfile }: AdvisorTabProps) {
   const { t } = useLang();
+  const advisor = {
+    name: advisorProfile?.name || 'خالد بن الوليد',
+    title: advisorProfile?.title || t('رئيس قسم إدارة الثروات', 'Head of Wealth Management'),
+    email: advisorProfile?.email || 'advisor@tharwah.com',
+    phone: advisorProfile?.phone || '+966 11 942 1052',
+    experience: advisorProfile?.experience || `12 ${t('عاماً', 'years')}`,
+    avatar: advisorProfile?.avatar || 'خ',
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -32,16 +50,16 @@ export function AdvisorTab({ meetings, newMeetingDate, newMeetingTime, onMeeting
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="p-6 lg:col-span-1 text-center space-y-4">
           <div className="w-24 h-24 rounded-full gradient-gold mx-auto flex items-center justify-center text-white text-3xl font-black shadow-gold-md">
-            خ
+            {advisor.avatar}
           </div>
           <div>
-            <h3 className="font-black text-lg text-text-primary">خالد بن الوليد</h3>
-            <p className="text-xs text-text-muted">{t('رئيس قسم إدارة الثروات', 'Head of Wealth Management')}</p>
+            <h3 className="font-black text-lg text-text-primary">{advisor.name}</h3>
+            <p className="text-xs text-text-muted">{advisor.title}</p>
           </div>
           <div className="text-xs font-bold text-text-secondary space-y-2 border-t pt-4 text-right">
-            <div>📧 Email: <span className="font-mono text-text-primary">khaled.w@tharwahcapital.com</span></div>
-            <div>📞 {t('الهاتف', 'Direct Line')}: <span className="font-mono text-text-primary">+966 11 942 1052</span></div>
-            <div>💼 {t('الخبرة', 'Experience')}: <span className="text-text-primary">12 {t('عاماً', 'years')}</span></div>
+            <div>📧 Email: <span className="font-mono text-text-primary">{advisor.email}</span></div>
+            <div>📞 {t('الهاتف', 'Direct Line')}: <span className="font-mono text-text-primary">{advisor.phone}</span></div>
+            <div>💼 {t('الخبرة', 'Experience')}: <span className="text-text-primary">{advisor.experience}</span></div>
           </div>
         </Card>
 

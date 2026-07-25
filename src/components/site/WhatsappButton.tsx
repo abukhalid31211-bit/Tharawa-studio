@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLang } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
 import { WhatsappIcon } from '@/components/icons/WhatsappIcon';
+import { digitsOnly, usePublicSiteSettings, useSiteDesignContent } from '@/lib/publicSite';
 
 export function WhatsappButton() {
   const { t } = useLang();
+  const { data: publicSettings } = usePublicSiteSettings();
+  const { data: design } = useSiteDesignContent();
   const [isTopVisible, setIsTopVisible] = useState(false);
 
   useEffect(() => {
@@ -15,16 +18,20 @@ export function WhatsappButton() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const whatsappNumber = digitsOnly(publicSettings.whatsapp_number || publicSettings.support_phone);
+
+  if (!design.showWhatsapp || !whatsappNumber) return null;
+
   return (
     <a
-      href="https://wa.me/97141234567"
+      href={`https://wa.me/${whatsappNumber}`}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="تواصل معنا عبر واتساب"
       className={cn(
-        "fixed left-6 z-40 bg-[#25D366] rounded-2xl shadow-[0_8px_24px_rgba(37,211,102,0.40)] flex items-center p-3.5 group transition-all duration-300",
-        "hover:-translate-y-[3px] hover:shadow-[0_12px_32px_rgba(37,211,102,0.55)] animate-[pulse-whatsapp_2.5s_ease-in-out_infinite]",
-        isTopVisible ? "bottom-[32px]" : "bottom-[32px]"
+        'fixed left-6 z-40 bg-[#25D366] rounded-2xl shadow-[0_8px_24px_rgba(37,211,102,0.40)] flex items-center p-3.5 group transition-all duration-300',
+        'hover:-translate-y-[3px] hover:shadow-[0_12px_32px_rgba(37,211,102,0.55)] animate-[pulse-whatsapp_2.5s_ease-in-out_infinite]',
+        isTopVisible ? 'bottom-[32px]' : 'bottom-[32px]'
       )}
     >
       <WhatsappIcon className="w-[22px] h-[22px] text-white fill-current shrink-0" />

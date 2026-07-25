@@ -18,6 +18,8 @@ interface DashboardHomeProps {
   tier?: string;
   /** Real growth percentage from the backend portfolio */
   growthPercent?: number;
+  /** Real client risk profile */
+  riskProfile?: string;
   /** Real assets belonging to the client portfolio (from the backend) */
   assets?: any[];
 }
@@ -25,7 +27,7 @@ interface DashboardHomeProps {
 /** Fixed, deterministic palette used when rendering real backend asset classes */
 const ALLOCATION_COLORS = ['#C9A84C', '#334155', '#0EA5E9', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#14B8A6'];
 
-export function DashboardHome({ totalBalance, profitAmount, greeting, sessionName, onOpenTransfer, portfolioCode, tier, growthPercent = 0, assets }: DashboardHomeProps) {
+export function DashboardHome({ totalBalance, profitAmount, greeting, sessionName, onOpenTransfer, portfolioCode, tier, growthPercent = 0, riskProfile, assets }: DashboardHomeProps) {
   const { t } = useLang();
 
   const chartData = [
@@ -113,7 +115,7 @@ export function DashboardHome({ totalBalance, profitAmount, greeting, sessionNam
         </Card>
         <Card className="p-6">
           <div className="text-text-muted text-xs font-bold mb-1">{t('مستوى المخاطرة', 'Risk profile level')}</div>
-          <div className="text-2xl font-black text-text-primary mb-1">{t('متوازن ومحافظ', 'Balanced/Conservative')}</div>
+          <div className="text-2xl font-black text-text-primary mb-1">{riskProfile || t('متوازن ومحافظ', 'Balanced/Conservative')}</div>
           <div className="text-xs text-gold-deep font-bold">💎 {t('متوافق مع الشريعة', '100% Shariah Compliant')}</div>
         </Card>
         <Card className="p-6">

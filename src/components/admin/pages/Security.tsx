@@ -1,12 +1,11 @@
 // ─────────────────────────────────────────────────────────────
 // Security v2 — SECURE - No hardcoded passwords
 // ─────────────────────────────────────────────────────────────
-import React, { useState } from 'react';
-import { Shield, ShieldCheck, ShieldAlert, KeyRound, Activity, FileSearch, Fingerprint, Lock } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Shield, ShieldCheck, ShieldAlert, KeyRound, FileSearch, Fingerprint, Lock, RefreshCw } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
 import {
-  useAuditLog, useLoginAttempts, usePlatformSettings, useAdminStore, ADMIN_KEYS,
-  resetLoginLock, relativeTime,
+  usePlatformSettings, useAdminStore, ADMIN_KEYS, relativeTime,
 } from '@/lib/adminData';
 import {
   PageHeader, Panel, PanelHeader, Pill, StatCard, FilterTabs,
@@ -25,10 +24,13 @@ interface SecurityPrefs {
 
 const PREFS_SEED: SecurityPrefs = { firewall: true, twoFactor: true, ipWhitelist: false, autoLock: true, bcryptRounds: 12 };
 
+type AuditRow = { id: string; actor: string; action: string; actionEn: string; date: string; ip: string; result: 'success' | 'failed' };
+type LoginRow = { id: string; email: string; date: string; ip: string; result: 'success' | 'failed' };
+
 export function Security() {
   const { t, lang } = useLang();
-  const [audit] = useAuditLog();
-  const [logins] = useLoginAttempts();
+  const [audit, setAudit] = useState<AuditRow[]>([]);
+  const [logins, setLogins] = useState<LoginRow[]>([]);
   const [settings, setSettings] = usePlatformSettings();
   const [prefs, setPrefs] = useAdminStore<SecurityPrefs>(ADMIN_KEYS.SECURITY_PREFS, PREFS_SEED);
   const { show, ToastView } = useToast();
@@ -39,13 +41,49 @@ export function Security() {
   const [confirmPw, setConfirmPw] = useState('');
   const [isChanging, setIsChanging] = useState(false);
 
-  const failedLogins = logins.filter(l => l.result === 'failed').length;
-  const lockInfo = (() => {
+  const loadSecurityData = async () => {
     try {
-      const locks = JSON.parse(localStorage.getItem(ADMIN_KEYS.LOGIN_LOCK) || '{}');
-      return Object.entries(locks).filter(([, v]) => (v as any).lockedUntil && (v as any).lockedUntil > Date.now());
-    } catch { return []; }
-  })();
+      const [auditResponse, loginResponse] = await Promise.all([
+        api.getAuditLogs({ limit: '200' }),
+        api.getLoginAttempts({ limit: '200' }),
+      ]);
+      setAudit(((auditResponse as any)?.data || []).map((item: any) => ({
+        id: item.id,
+        actor: item.actor_email || item.user?.name || '—',
+        action: item.action || '',
+        actionEn: item.action_en || item.action || '',
+        date: item.created_at || '',
+        ip: item.ip_address || '—',
+        result: item.result === 'failed' ? 'failed' : 'success',
+      })));
+      setLogins(((loginResponse as any)?.data || []).map((item: any) => ({
+        id: item.id,
+        email: item.email || '—',
+        date: item.created_at || '',
+        ip: item.ip_address || '—',
+        result: item.result === 'failed' ? 'failed' : 'success',
+      })));
+    } catch (error) {
+      logger.error('Failed to load security data', error);
+    }
+  };
+
+  useEffect(() => {
+    void loadSecurityData();
+  }, []);
+
+  const failedLogins = logins.filter(l => l.result === 'failed').length;
+  const lockInfo = useMemo(() => {
+    const thirtyMinutesAgo = Date.now() - (30 * 60 * 1000);
+    const failuresByEmail = new Map<string, number>();
+    for (const attempt of logins) {
+      if (attempt.result !== 'failed') continue;
+      const ts = new Date(attempt.date).getTime();
+      if (Number.isNaN(ts) || ts < thirtyMinutesAgo) continue;
+      failuresByEmail.set(attempt.email, (failuresByEmail.get(attempt.email) || 0) + 1);
+    }
+    return Array.from(failuresByEmail.entries()).filter(([, count]) => count >= 5);
+  }, [logins]);
 
   const changePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,10 +103,9 @@ export function Security() {
     }
   };
 
-  const unlockAll = () => {
-    lockInfo.forEach(([email]) => resetLoginLock(email as string));
-    show(t('تم فك قفل جميع الحسابات المقفلة', 'All locked accounts unlocked'));
-    logger.audit('super_admin', 'unlock_all_accounts', { count: lockInfo.length });
+  const refreshSecurityData = () => {
+    void loadSecurityData();
+    show(t('تم تحديث سجلات الأمان', 'Security logs refreshed'));
   };
 
   return (
@@ -83,10 +120,12 @@ export function Security() {
               BCRYPT + JWT + CSP
             </div>
             {lockInfo.length > 0 && (
-              <PrimaryBtn icon={ShieldAlert} color="#F59E0B" colorHover="#D97706" onClick={unlockAll}>
-                {t(`فك قفل ${lockInfo.length} حساب`, `Unlock ${lockInfo.length} accounts`)}
-              </PrimaryBtn>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F59E0B]/10 border border-[#F59E0B]/20 text-[10px] font-bold text-[#F59E0B]">
+                <ShieldAlert className="w-3 h-3" />
+                {t(`${lockInfo.length} حسابات ضمن مهلة التهدئة`, `${lockInfo.length} accounts in cooldown`)}
+              </div>
             )}
+            <PrimaryBtn icon={RefreshCw} onClick={refreshSecurityData}>{t('تحديث السجلات', 'Refresh Logs')}</PrimaryBtn>
           </div>
         }
       />

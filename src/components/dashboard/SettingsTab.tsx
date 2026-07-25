@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLang } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Lock, User, Phone, AlertTriangle } from 'lucide-react';
+import { Lock, User, Phone, AlertTriangle, Save } from 'lucide-react';
 import { api } from '@/lib/api';
 
 interface SettingsTabProps {
@@ -21,6 +21,11 @@ export function SettingsTab({ clientPhone, onClientPhoneChange, onShowToast, pro
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [contactLoading, setContactLoading] = useState(false);
+
+  useEffect(() => {
+    if (profile?.phone) onClientPhoneChange(profile.phone);
+  }, [onClientPhoneChange, profile?.phone]);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +51,24 @@ export function SettingsTab({ clientPhone, onClientPhoneChange, onShowToast, pro
       setPasswordError(err?.message || t('تعذر تحديث كلمة المرور', 'Failed to update password'));
     } finally {
       setPasswordLoading(false);
+    }
+  };
+
+  const handleSaveContact = async () => {
+    setContactLoading(true);
+    try {
+      await api.updateProfile({
+        phone: clientPhone,
+        profile_data: {
+          ...(profile?.profile_data || {}),
+          contactPhone: clientPhone,
+        },
+      });
+      onShowToast(t('تم تحديث معلومات التواصل', 'Contact info updated'));
+    } catch (err: any) {
+      onShowToast(err?.message || t('تعذر تحديث معلومات التواصل', 'Failed to update contact info'));
+    } finally {
+      setContactLoading(false);
     }
   };
 
@@ -106,8 +129,8 @@ export function SettingsTab({ clientPhone, onClientPhoneChange, onShowToast, pro
                 <input type="text" value={clientPhone} onChange={e => onClientPhoneChange(e.target.value)} className="w-full bg-secondary border border-border-default rounded-md py-2.5 rtl:pr-10 rtl:pl-4 ltr:pl-10 ltr:pr-4 focus:border-gold-primary outline-none text-xs font-bold font-mono" />
               </div>
             </div>
-            <Button onClick={() => onShowToast(t('تم تحديث معلومات التواصل', 'Contact info updated'))} className="w-full py-2.5 text-xs font-bold">
-              {t('حفظ تعديلات التواصل', 'Save Contact Info')}
+            <Button onClick={() => void handleSaveContact()} isLoading={contactLoading} className="w-full py-2.5 text-xs font-bold gap-1.5">
+              <Save className="w-4 h-4" /> {t('حفظ تعديلات التواصل', 'Save Contact Info')}
             </Button>
           </div>
         </Card>

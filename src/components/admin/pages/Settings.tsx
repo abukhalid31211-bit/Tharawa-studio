@@ -27,8 +27,14 @@ export function SettingsPage() {
     // public website and the backend read them straight from PostgreSQL.
     Promise.all([
       api.updateSettings('platform_name', { value: draft.siteName }),
+      api.updateSettings('platform_name_en', { value: draft.siteNameEn }),
       api.updateSettings('support_phone', { value: draft.supportPhone }),
       api.updateSettings('support_email', { value: draft.supportEmail }),
+      api.updateSettings('contact_address_ar', { value: draft.contactAddressAr }),
+      api.updateSettings('contact_address_en', { value: draft.contactAddressEn }),
+      api.updateSettings('whatsapp_number', { value: draft.whatsappNumber }),
+      api.updateSettings('business_hours_ar', { value: draft.businessHoursAr }),
+      api.updateSettings('business_hours_en', { value: draft.businessHoursEn }),
       api.updateSettings('maintenance_mode', { value: draft.maintenanceMode }),
     ]).catch(err => logger.error('Failed to sync public site settings', err));
 
@@ -65,6 +71,21 @@ export function SettingsPage() {
             </Field>
             <Field label={t('بريد الدعم', 'Support Email')}>
               <TextInput type="email" value={draft.supportEmail} onChange={e => setDraft({ ...draft, supportEmail: e.target.value })} dir="ltr" />
+            </Field>
+            <Field label={t('رقم واتساب', 'WhatsApp Number')}>
+              <TextInput value={draft.whatsappNumber} onChange={e => setDraft({ ...draft, whatsappNumber: e.target.value })} dir="ltr" />
+            </Field>
+            <Field label={t('العنوان (عربي)', 'Address (Arabic)')}>
+              <TextInput value={draft.contactAddressAr} onChange={e => setDraft({ ...draft, contactAddressAr: e.target.value })} />
+            </Field>
+            <Field label={t('Address (English)', 'Address (English)')}>
+              <TextInput value={draft.contactAddressEn} onChange={e => setDraft({ ...draft, contactAddressEn: e.target.value })} dir="ltr" />
+            </Field>
+            <Field label={t('ساعات العمل (عربي)', 'Business Hours (Arabic)')}>
+              <TextInput value={draft.businessHoursAr} onChange={e => setDraft({ ...draft, businessHoursAr: e.target.value })} />
+            </Field>
+            <Field label={t('Business Hours (English)', 'Business Hours (English)')}>
+              <TextInput value={draft.businessHoursEn} onChange={e => setDraft({ ...draft, businessHoursEn: e.target.value })} dir="ltr" />
             </Field>
             <Field label={t('العملة الافتراضية', 'Default Currency')}>
               <SelectBox value={draft.defaultCurrency} onChange={e => setDraft({ ...draft, defaultCurrency: e.target.value })}

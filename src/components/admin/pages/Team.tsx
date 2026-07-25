@@ -4,7 +4,8 @@
 import React, { useState } from 'react';
 import { Plus, Pencil, Trash2, Mail, Phone } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
-import { useTeam, TeamMember, nextCode } from '@/lib/adminData';
+import { TeamMember, nextCode, ADMIN_KEYS, TEAM_SEED } from '@/lib/adminData';
+import { usePlatformDataState } from '@/lib/platformState';
 import {
   PageHeader, Panel, Pill, StatCard, Modal, ConfirmDialog, Field,
   TextInput, SelectBox, PrimaryBtn, GhostBtn, IconBtn, EmptyState, useToast, ClientAvatar,
@@ -14,7 +15,7 @@ const EMPTY = { name: '', nameEn: '', role: '', roleEn: '', experience: '', emai
 
 export function Team() {
   const { t, lang } = useLang();
-  const [team, setTeam] = useTeam();
+  const [team, setTeam] = usePlatformDataState<TeamMember[]>(ADMIN_KEYS.TEAM, TEAM_SEED);
   const { show, ToastView } = useToast();
 
   const [editOpen, setEditOpen] = useState(false);

@@ -32,6 +32,9 @@ function DashboardPage() {
   const { data: portfoliosData } = usePortfolios();
 
   const profile = (profileData as any)?.user;
+  const profileDataMap = useMemo(() => (
+    profile?.profile_data && typeof profile.profile_data === 'object' ? profile.profile_data : {}
+  ), [profile?.profile_data]);
   // First active portfolio (clients typically have one)
   const myPortfolio = useMemo(() => {
     const list = (portfoliosData as any)?.data ?? [];
@@ -134,6 +137,20 @@ function DashboardPage() {
     : 0;
   const profitAmount = totalBalance * (portfolioGrowth / 100);
 
+  const bankAccounts = useMemo(() => {
+    const accounts = (profileDataMap as any)?.bankAccounts;
+    return Array.isArray(accounts) ? accounts : [];
+  }, [profileDataMap]);
+
+  const advisorProfile = useMemo(() => ({
+    name: (profileDataMap as any)?.advisor || meetings[0]?.advisor || 'خالد بن الوليد',
+    title: (profileDataMap as any)?.advisorTitle || t('المستشار المالي المسؤول', 'Assigned Financial Advisor'),
+    email: (profileDataMap as any)?.advisorEmail || 'advisor@tharwah.com',
+    phone: (profileDataMap as any)?.advisorPhone || '+966 11 942 1052',
+    experience: (profileDataMap as any)?.advisorExperience || `12 ${t('عاماً', 'years')}`,
+    avatar: ((profileDataMap as any)?.advisor || 'خ').toString().charAt(0),
+  }), [meetings, profileDataMap, t]);
+
   const handleCreateTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
     const amountNum = parseFloat(transferAmount);
@@ -192,7 +209,7 @@ function DashboardPage() {
     try {
       await api.createMeeting({
         user_id: session?.id,
-        advisor_name: 'خالد بن الوليد',
+        advisor_name: advisorProfile.name,
         meeting_date: newMeetingDate,
         meeting_time: newMeetingTime,
         duration_minutes: 60,
@@ -240,13 +257,13 @@ function DashboardPage() {
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'info':
-        return <DashboardHome totalBalance={totalBalance} profitAmount={profitAmount} greeting={greeting} sessionName={session?.name || ''} onOpenTransfer={(type) => { setTransferType(type); setTransferModalOpen(true); }} lang={lang} portfolioCode={profile?.portfolio_code ?? myPortfolio?.portfolio_code} tier={profile?.tier ?? undefined} growthPercent={portfolioGrowth} assets={myPortfolio?.assets || []} />;
+        return <DashboardHome totalBalance={totalBalance} profitAmount={profitAmount} greeting={greeting} sessionName={session?.name || ''} onOpenTransfer={(type) => { setTransferType(type); setTransferModalOpen(true); }} lang={lang} portfolioCode={profile?.portfolio_code ?? myPortfolio?.portfolio_code} tier={profile?.tier ?? undefined} growthPercent={portfolioGrowth} riskProfile={(profileDataMap as any)?.riskProfile || myPortfolio?.risk_profile} assets={myPortfolio?.assets || []} />;
       case 'investments':
         return <InvestmentsTab totalBalance={totalBalance} onExportPDF={exportToPDF} portfolio={myPortfolio} />;
       case 'performance':
         return <PerformanceTab totalBalance={totalBalance} portfolio={myPortfolio} transactions={transactions} />;
       case 'banking':
-        return <BankingTab bankRequestSent={bankRequestSent} onRequestBankUpdate={() => { setBankRequestSent(true); showToast(t('تم تقديم طلب تحديث البيانات البنكية', 'Bank update request submitted')); }} onShowToast={showToast} profile={profile} />;
+        return <BankingTab bankRequestSent={bankRequestSent} onRequestBankUpdate={() => { setBankRequestSent(true); showToast(t('تم تقديم طلب تحديث البيانات البنكية', 'Bank update request submitted')); }} onShowToast={showToast} profile={profile} bankAccounts={bankAccounts} />;
       case 'transactions':
         return <TransactionsTab transactions={transactions} onNewTransfer={() => { setTransferType('deposit'); setTransferModalOpen(true); }} onExportExcel={exportToExcel} />;
       case 'reports':
@@ -254,7 +271,7 @@ function DashboardPage() {
       case 'support':
         return <SupportTab tickets={tickets} newTicketTitle={newTicketTitle} newTicketMessage={newTicketMessage} onTicketTitleChange={setNewTicketTitle} onTicketMessageChange={setNewTicketMessage} onCreateTicket={handleCreateTicket} />;
       case 'advisor':
-        return <AdvisorTab meetings={meetings} newMeetingDate={newMeetingDate} newMeetingTime={newMeetingTime} onMeetingDateChange={setNewMeetingDate} onMeetingTimeChange={setNewMeetingTime} onBookMeeting={handleBookMeeting} />;
+        return <AdvisorTab meetings={meetings} newMeetingDate={newMeetingDate} newMeetingTime={newMeetingTime} onMeetingDateChange={setNewMeetingDate} onMeetingTimeChange={setNewMeetingTime} onBookMeeting={handleBookMeeting} advisorProfile={advisorProfile} />;
       case 'settings':
         return <SettingsTab clientPhone={clientPhone} onClientPhoneChange={setClientPhone} onShowToast={showToast} profile={profile} />;
       default:

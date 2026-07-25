@@ -5,7 +5,8 @@
 import React, { useMemo, useState } from 'react';
 import { FileBarChart2, Download, Play } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
-import { useClients, useTransactions, usePortfolios, useMessages, useAdminStore, ADMIN_KEYS, nextCode, addAuditEntry } from '@/lib/adminData';
+import { useClients, useTransactions, usePortfolios, useMessages, ADMIN_KEYS, nextCode, addAuditEntry } from '@/lib/adminData';
+import { usePlatformDataState } from '@/lib/platformState';
 import {
   PageHeader, Panel, PanelHeader, Pill, StatCard, Field, SelectBox,
   PrimaryBtn, EmptyState, DataTable, Tr, Td, useToast, exportCSV,
@@ -43,7 +44,7 @@ export function Reports() {
   const [transactions] = useTransactions();
   const [portfolios] = usePortfolios();
   const [messages] = useMessages();
-  const [history, setHistory] = useAdminStore<ReportRecord[]>(ADMIN_KEYS.REPORTS_HISTORY, [
+  const [history, setHistory] = usePlatformDataState<ReportRecord[]>(ADMIN_KEYS.REPORTS_HISTORY, [
     { id: 'RPT-3', type: 'تقرير أداء المنصة الشامل', typeEn: 'Overall Platform Performance', period: 'الربع الحالي', createdAt: '2026-07-01 09:00', rows: 18, size: '42 KB', format: 'CSV' },
     { id: 'RPT-2', type: 'تقرير العملاء والأرصدة', typeEn: 'Clients & Balances Report', period: 'السنة الحالية', createdAt: '2026-06-15 13:30', rows: 9, size: '15 KB', format: 'CSV' },
     { id: 'RPT-1', type: 'تقرير المعاملات المالية', typeEn: 'Financial Transactions Report', period: 'آخر 30 يوماً', createdAt: '2026-06-01 10:12', rows: 10, size: '11 KB', format: 'CSV' },

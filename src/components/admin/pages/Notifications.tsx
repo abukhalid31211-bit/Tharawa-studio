@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Send, CheckCheck, Trash2, Megaphone } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
-import { useAdminNotifications, relativeTime } from '@/lib/adminData';
+import { relativeTime } from '@/lib/adminData';
 import { api } from '@/lib/api';
 import {
   PageHeader, Panel, PanelHeader, Pill, StatCard, FilterTabs,
@@ -23,7 +23,7 @@ const ALERT_META: Record<string, { icon: string; color: string; ar: string; en: 
 export function Notifications() {
   const { t, lang } = useLang();
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useAdminNotifications();
+  const [notifications, setNotifications] = useState<any[]>([]);
   const { show, ToastView } = useToast();
 
   useEffect(() => {

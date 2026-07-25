@@ -63,11 +63,11 @@ function getIcon(iconName: string): React.ElementType {
 
 export function ServicesSection() {
   const { t, lang } = useLang();
-  const { data: cms } = useCmsSection<ServicesContent>('services', FALLBACK_CONTENT);
+  const { data: cms } = useCmsSection<ServicesContent>('services', import.meta.env.DEV ? FALLBACK_CONTENT : {});
 
   const title = lang === 'ar' ? (cms.title || FALLBACK_CONTENT.title) : (cms.titleEn || FALLBACK_CONTENT.titleEn);
   const subtitle = lang === 'ar' ? (cms.subtitle || FALLBACK_CONTENT.subtitle) : (cms.subtitleEn || FALLBACK_CONTENT.subtitleEn);
-  const services = (cms.services || FALLBACK_CONTENT.services!).filter(s => s.active !== false);
+  const services = (Array.isArray(cms.services) ? cms.services : (import.meta.env.DEV ? FALLBACK_CONTENT.services! : [])).filter(s => s.active !== false);
 
   return (
     <section className="py-24 bg-primary dark:bg-elevated relative overflow-hidden">
@@ -84,27 +84,33 @@ export function ServicesSection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {services.map((srv, idx) => {
-            const Icon = getIcon(srv.icon);
-            return (
-              <Card key={srv.id} variant="interactive" className="p-8 group animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: `${idx * 100}ms` }}>
-                <div className="w-14 h-14 bg-gold-subtle rounded-xl flex items-center justify-center mb-6 group-hover:bg-gold-primary transition-colors duration-300">
-                  <Icon className="w-7 h-7 text-gold-deep group-hover:text-white transition-colors duration-300" />
-                </div>
-                <h3 className="font-bold text-xl text-text-primary mb-3 group-hover:text-gold-dark transition-colors">
-                  {lang === 'ar' ? srv.title : srv.titleEn}
-                </h3>
-                <p className="text-sm text-text-secondary mb-6 leading-relaxed line-clamp-3">
-                  {lang === 'ar' ? srv.desc : srv.descEn}
-                </p>
-                <Link to={`/service/$id`} params={{ id: srv.id }} className="inline-flex items-center gap-2 font-bold text-[14px] text-gold-deep group-hover:text-gold-dark">
-                  {t('اكتشف المزيد', 'Explore More')} <ArrowLeft className={cn("w-4 h-4 transition-transform", lang === 'ar' ? "group-hover:-translate-x-1" : "rotate-180 group-hover:translate-x-1")} />
-                </Link>
-              </Card>
-            );
-          })}
-        </div>
+        {services.length === 0 ? (
+          <Card className="p-8 text-center text-text-muted">
+            {t('سيتم نشر الخدمات من لوحة الإدارة قريباً', 'Services will be published from the admin panel soon')}
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {services.map((srv, idx) => {
+              const Icon = getIcon(srv.icon);
+              return (
+                <Card key={srv.id} variant="interactive" className="p-8 group animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: `${idx * 100}ms` }}>
+                  <div className="w-14 h-14 bg-gold-subtle rounded-xl flex items-center justify-center mb-6 group-hover:bg-gold-primary transition-colors duration-300">
+                    <Icon className="w-7 h-7 text-gold-deep group-hover:text-white transition-colors duration-300" />
+                  </div>
+                  <h3 className="font-bold text-xl text-text-primary mb-3 group-hover:text-gold-dark transition-colors">
+                    {lang === 'ar' ? srv.title : srv.titleEn}
+                  </h3>
+                  <p className="text-sm text-text-secondary mb-6 leading-relaxed line-clamp-3">
+                    {lang === 'ar' ? srv.desc : srv.descEn}
+                  </p>
+                  <Link to={`/service/$id`} params={{ id: srv.id }} className="inline-flex items-center gap-2 font-bold text-[14px] text-gold-deep group-hover:text-gold-dark">
+                    {t('اكتشف المزيد', 'Explore More')} <ArrowLeft className={cn("w-4 h-4 transition-transform", lang === 'ar' ? "group-hover:-translate-x-1" : "rotate-180 group-hover:translate-x-1")} />
+                  </Link>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );

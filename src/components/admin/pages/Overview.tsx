@@ -12,9 +12,10 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import {
-  useClients, useTransactions, useMessages, useAdminNotifications,
-  relativeTime,
+  useClients, useTransactions, useMessages, relativeTime,
 } from '@/lib/adminData';
+import { useNotifications } from '@/lib/queries';
+import { api } from '@/lib/api';
 
 // ─── Mock Chart Data (static per design doc 4.3) ────────────
 const AUM_DATA = [
@@ -180,7 +181,7 @@ export function Overview() {
   const [clients] = useClients();
   const [transactions] = useTransactions();
   const [messages] = useMessages();
-  const [notifications, setNotifications] = useAdminNotifications();
+  const { data: notificationsData } = useNotifications();
 
   const activeClients = clients.filter(c => c.status === 'active').length;
   const doneDeposits = transactions.filter(x => x.type === 'deposit' && x.status === 'completed').reduce((s, x) => s + x.amount, 0);
@@ -213,15 +214,38 @@ export function Overview() {
     };
   });
 
-  const ALERTS = notifications.map(n => ({
+  type AlertView = {
+    id: string;
+    type: 'critical' | 'warning' | 'info' | 'success';
+    read: boolean;
+    title: string;
+    titleEn: string;
+    desc: string;
+    descEn: string;
+    time: string;
+    timeEn: string;
+    page: string;
+  };
+  const alertsSource = ((notificationsData as any)?.data || []).map((item: any) => ({
+    id: item.id,
+    type: (item.type || 'info') as AlertView['type'],
+    read: Boolean(item.is_read),
+    title: item.title || '',
+    titleEn: item.title_en || item.title || '',
+    desc: item.message || '',
+    descEn: item.message_en || item.message || '',
+    date: item.created_at || '',
+    page: item.action_url || '/Akadmin/overview',
+  }));
+  const ALERTS: AlertView[] = alertsSource.map((n: any) => ({
     id: n.id, type: n.type, read: n.read,
     title: n.title, titleEn: n.titleEn, desc: n.desc, descEn: n.descEn,
     time: relativeTime(n.date, 'ar'), timeEn: relativeTime(n.date, 'en'),
     page: n.page,
   }));
-  const unreadAlerts = ALERTS.filter(a => !a.read).length;
+  const unreadAlerts = ALERTS.filter((a: AlertView) => !a.read).length;
   const markAlertRead = (id: string, page?: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    void api.markNotificationRead(id).catch(() => undefined);
     if (page) navigate({ to: page as any });
   };
 
@@ -558,7 +582,7 @@ export function Overview() {
           </button>
         </div>
         <div className="divide-y divide-border-light/50">
-          {ALERTS.map((alert) => (
+          {ALERTS.map((alert: AlertView) => (
             <div
               key={alert.id}
               onClick={() => markAlertRead(alert.id, alert.page)}

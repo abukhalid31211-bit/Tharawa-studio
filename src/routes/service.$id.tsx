@@ -1,96 +1,30 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useLang } from '@/contexts/LanguageContext';
-import { ArrowLeft, ShieldCheck, TrendingUp, Clock, BarChart3, CheckCircle2, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, CheckCircle2, ChevronDown } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { SERVICE_DETAILS, SERVICE_ICON_MAP, usePublicServices } from '@/lib/publicContent';
 
 export const Route = createFileRoute('/service/$id')({
   component: ServiceDetailsPage,
 });
 
 function ServiceDetailsPage() {
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const { id } = Route.useParams();
+  const { content } = usePublicServices();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
-  const serviceData: Record<string, any> = {
-    'gulf-stocks': {
-      titleAr: 'الأسهم الخليجية والعربية', titleEn: 'Gulf & Arab Equities',
-      descAr: 'استثمار في أسرع أسواق المال نمواً في المنطقة مع دعم تحليلي يومي وفريق محلي متخصص.',
-      descEn: 'Invest in the fastest-growing capital markets in the region with daily analytical support and a specialized local team.',
-      icon: TrendingUp, emoji: '📈',
-      stats: { return: '+18.5%', risk: 'متوسط', min: '5,000 ريال', duration: '1-5 سنوات', liquidity: 'عالية', shariah: true },
-      sectorsAr: ['البنوك', 'الطاقة', 'العقارات', 'التكنولوجيا', 'الرعاية الصحية', 'الاتصالات'],
-      sectorsEn: ['Banking', 'Energy', 'Real Estate', 'Technology', 'Healthcare', 'Telecom'],
-      marketsAr: ['تداول السعودية', 'أبوظبي', 'دبي', 'الكويت', 'مصر', 'قطر', 'البحرين'],
-      marketsEn: ['Saudi Tadawul', 'Abu Dhabi', 'Dubai', 'Kuwait', 'Egypt', 'Qatar', 'Bahrain'],
-    },
-    'global-stocks': {
-      titleAr: 'الأسهم العالمية', titleEn: 'Global Equities',
-      descAr: 'وصول مباشر لـ 15 سوق مالي عالمي بما فيها وول ستريت وناسداك ولندن وطوكيو.',
-      descEn: 'Direct access to 15 global financial markets including Wall Street, NASDAQ, London and Tokyo.',
-      icon: TrendingUp, emoji: '🌍',
-      stats: { return: '+22.3%', risk: 'متوسط إلى مرتفع', min: '10,000 ريال', duration: '3-10 سنوات', liquidity: 'عالية', shariah: false },
-      sectorsAr: ['التكنولوجيا', 'الطاقة المتجددة', 'الرعاية الصحية', 'المال', 'الاستهلاك', 'الصناعة'],
-      sectorsEn: ['Technology', 'Renewable Energy', 'Healthcare', 'Finance', 'Consumer', 'Industry'],
-      marketsAr: ['NYSE', 'NASDAQ', 'لندن', 'طوكيو', 'هونغ كونغ', 'فرانكفورت'],
-      marketsEn: ['NYSE', 'NASDAQ', 'London', 'Tokyo', 'Hong Kong', 'Frankfurt'],
-    },
-    'crypto': {
-      titleAr: 'العملات الرقمية', titleEn: 'Cryptocurrencies',
-      descAr: 'محافظ منوّعة من العملات الرقمية مع حفظ بارد بنسبة 95% وتأمين مؤسسي.',
-      descEn: 'Diversified digital currency portfolios with 95% cold storage and institutional insurance.',
-      icon: TrendingUp, emoji: '₿',
-      stats: { return: '+45.8%', risk: 'مرتفع', min: '2,000 ريال', duration: '2-7 سنوات', liquidity: 'متوسطة', shariah: false },
-      sectorsAr: ['بيتكوين', 'إيثيريوم', 'سولانا', 'بينانس كوين', 'ريبل', 'كارديانو'],
-      sectorsEn: ['Bitcoin', 'Ethereum', 'Solana', 'BNB', 'Ripple', 'Cardano'],
-      marketsAr: ['BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD', 'XRP/USD', 'ADA/USD'],
-      marketsEn: ['BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD', 'XRP/USD', 'ADA/USD'],
-    },
-    'funds': {
-      titleAr: 'صناديق الاستثمار', titleEn: 'Investment Funds',
-      descAr: 'صناديق متخصصة بمستويات مخاطر متعددة مع إدارة احترافية من أفضل المحللين.',
-      descEn: 'Specialized funds with multiple risk levels managed by top certified analysts.',
-      icon: TrendingUp, emoji: '🏛',
-      stats: { return: '+14.2%', risk: 'منخفض إلى مرتفع', min: '1,000 ريال', duration: '1-10 سنوات', liquidity: 'مرنة', shariah: true },
-      sectorsAr: ['صناديق نقدية', 'دخل ثابت', 'متوازنة', 'أسهم', 'نمو', 'إسلامية'],
-      sectorsEn: ['Money Market', 'Fixed Income', 'Balanced', 'Equity', 'Growth', 'Islamic'],
-      marketsAr: ['صندوق النقد', 'صندوق الدخل', 'صندوق النمو', 'صندوق متوازن', 'صندوق إسلامي'],
-      marketsEn: ['Money Fund', 'Income Fund', 'Growth Fund', 'Balanced Fund', 'Islamic Fund'],
-    },
-    'metals': {
-      titleAr: 'المعادن والذهب', titleEn: 'Metals & Gold',
-      descAr: 'تحوط ذكي عبر الذهب والفضة والبلاتين مع خيار الذهب الفيزيائي وخدمة التخزين الآمن.',
-      descEn: 'Smart hedging through gold, silver, and platinum with physical gold option and secure storage.',
-      icon: TrendingUp, emoji: '💎',
-      stats: { return: '+11.7%', risk: 'منخفض', min: '3,000 ريال', duration: '5-15 سنة', liquidity: 'عالية', shariah: true },
-      sectorsAr: ['ذهب', 'فضة', 'بلاتين', 'بلاديوم'],
-      sectorsEn: ['Gold', 'Silver', 'Platinum', 'Palladium'],
-      marketsAr: ['XAU/USD', 'XAG/USD', 'XPT/USD', 'XPD/USD'],
-      marketsEn: ['XAU/USD', 'XAG/USD', 'XPT/USD', 'XPD/USD'],
-    },
-    'energy': {
-      titleAr: 'النفط والطاقة', titleEn: 'Oil & Energy',
-      descAr: 'استثمارات في عقود النفط الخام وأسهم شركات الطاقة المتجددة العالمية.',
-      descEn: 'Investments in crude oil contracts and global renewable energy company equities.',
-      icon: TrendingUp, emoji: '⛽',
-      stats: { return: '+16.9%', risk: 'متوسط إلى مرتفع', min: '4,000 ريال', duration: '3-8 سنوات', liquidity: 'عالية', shariah: false },
-      sectorsAr: ['نفط WTI', 'برنت', 'غاز طبيعي', 'طاقة شمسية', 'طاقة رياح', 'تكرير'],
-      sectorsEn: ['WTI Oil', 'Brent Crude', 'Natural Gas', 'Solar', 'Wind', 'Refinery'],
-      marketsAr: ['CL (WTI)', 'BZ (Brent)', 'NG (Gas)', 'أسهم طاقة متجددة'],
-      marketsEn: ['CL (WTI)', 'BZ (Brent)', 'NG (Gas)', 'Renewable Equities'],
-    },
-  };
-
-  const data = serviceData[id] || serviceData['gulf-stocks'];
+  const service = useMemo(() => content.services.find((item) => item.id === id) || content.services[0], [content.services, id]);
+  const details = SERVICE_DETAILS[id] || SERVICE_DETAILS[service?.id || 'gulf-stocks'] || SERVICE_DETAILS['gulf-stocks'];
   const isAr = lang === 'ar';
-
-  const features = [
-    { ar: 'تحليل يومي معمّق', en: 'In-depth Daily Analysis' },
-    { ar: 'محافظ مخصصة بالكامل', en: 'Fully Custom Portfolios' },
-    { ar: 'تقارير شهرية مفصلة', en: 'Detailed Monthly Reports' },
-    { ar: 'دعم مباشر 24/7', en: '24/7 Direct Support' },
+  const features = (isAr ? service?.featuresAr : service?.featuresEn) || [
+    isAr ? 'تحليل يومي معمّق' : 'In-depth Daily Analysis',
+    isAr ? 'محافظ مخصصة بالكامل' : 'Fully Custom Portfolios',
+    isAr ? 'تقارير شهرية مفصلة' : 'Detailed Monthly Reports',
+    isAr ? 'دعم مباشر 24/7' : '24/7 Direct Support',
   ];
+  const Icon = SERVICE_ICON_MAP[service?.icon || 'TrendingUp'] || SERVICE_ICON_MAP.TrendingUp;
 
   return (
     <div className="w-full min-h-screen bg-primary dark:bg-[#0D0D1A]">
@@ -102,10 +36,13 @@ function ServiceDetailsPage() {
             <ArrowLeft className="w-3 h-3" />
             <Link to="/services" className="hover:text-gold-deep">{isAr ? 'خدماتنا' : 'Services'}</Link>
             <ArrowLeft className="w-3 h-3" />
-            <span className="text-gold-deep font-semibold">{isAr ? data.titleAr : data.titleEn}</span>
+            <span className="text-gold-deep font-semibold">{isAr ? service?.title : service?.titleEn}</span>
           </div>
-          <h1 className="font-black text-4xl md:text-6xl text-text-primary mb-6 leading-tight">{isAr ? data.titleAr : data.titleEn}</h1>
-          <p className="text-xl text-text-secondary max-w-[700px] leading-relaxed">{isAr ? data.descAr : data.descEn}</p>
+          <h1 className="font-black text-4xl md:text-6xl text-text-primary mb-6 leading-tight flex items-center gap-3">
+            <Icon className="w-10 h-10 text-gold-deep shrink-0" />
+            <span>{isAr ? service?.title : service?.titleEn}</span>
+          </h1>
+          <p className="text-xl text-text-secondary max-w-[700px] leading-relaxed">{isAr ? service?.desc : service?.descEn}</p>
         </div>
       </section>
 
@@ -114,19 +51,19 @@ function ServiceDetailsPage() {
         <div className="max-w-[1280px] mx-auto px-4 md:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="text-center p-4 rounded-xl bg-white dark:bg-[#1A1A3A] border border-border-light">
-              <div className="text-2xl font-mono font-black text-success">{data.stats.return}</div>
+              <div className="text-2xl font-mono font-black text-success">{isAr ? details.returnAr : details.returnEn}</div>
               <div className="text-xs text-text-muted mt-1">{isAr ? 'متوسط العائد السنوي' : 'Avg Annual Return'}</div>
             </div>
             <div className="text-center p-4 rounded-xl bg-white dark:bg-[#1A1A3A] border border-border-light">
-              <div className="text-xl font-bold text-warning">{data.stats.risk}</div>
+              <div className="text-xl font-bold text-warning">{isAr ? details.riskAr : details.riskEn}</div>
               <div className="text-xs text-text-muted mt-1">{isAr ? 'مستوى المخاطر' : 'Risk Level'}</div>
             </div>
             <div className="text-center p-4 rounded-xl bg-white dark:bg-[#1A1A3A] border border-border-light">
-              <div className="text-xl font-mono font-bold text-text-primary">{data.stats.min}</div>
+              <div className="text-xl font-mono font-bold text-text-primary">{details.minimum}</div>
               <div className="text-xs text-text-muted mt-1">{isAr ? 'الحد الأدنى' : 'Minimum'}</div>
             </div>
             <div className="text-center p-4 rounded-xl bg-white dark:bg-[#1A1A3A] border border-border-light">
-              <div className="text-sm font-semibold text-info">{data.stats.duration}</div>
+              <div className="text-sm font-semibold text-info">{isAr ? details.durationAr : details.durationEn}</div>
               <div className="text-xs text-text-muted mt-1">{isAr ? 'أفق الاستثمار' : 'Horizon'}</div>
             </div>
           </div>
@@ -140,16 +77,16 @@ function ServiceDetailsPage() {
           <div className="lg:col-span-2 space-y-10">
             <div>
               <h2 className="text-2xl font-black mb-4 flex items-center gap-2">{isAr ? 'نظرة عامة' : 'Overview'} <ShieldCheck className="text-gold-deep w-5 h-5" /></h2>
-              <p className="text-text-secondary leading-relaxed text-base">{data.descAr}</p>
+              <p className="text-text-secondary leading-relaxed text-base">{isAr ? service?.desc : service?.descEn}</p>
             </div>
 
             <div>
               <h2 className="text-2xl font-black mb-4">{isAr ? 'ما يشمله البرنامج' : 'What It Includes'}</h2>
               <div className="grid sm:grid-cols-2 gap-3">
-                {features.map((f, i) => (
+                {features.map((feature, i) => (
                   <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-secondary dark:bg-[#13132A] border border-border-light">
                     <CheckCircle2 className="w-5 h-5 text-gold-primary shrink-0" />
-                    <span className="text-sm font-medium text-text-primary">{isAr ? f.ar : f.en}</span>
+                    <span className="text-sm font-medium text-text-primary">{feature}</span>
                   </div>
                 ))}
               </div>
@@ -158,7 +95,7 @@ function ServiceDetailsPage() {
             <div>
               <h2 className="text-2xl font-black mb-4">{isAr ? 'الأسواق المغطاة' : 'Markets Covered'}</h2>
               <div className="flex flex-wrap gap-2">
-                {(isAr ? data.marketsAr : data.marketsEn).map((m: string, i: number) => (
+                {(isAr ? details.marketsAr : details.marketsEn).map((m: string, i: number) => (
                   <span key={i} className="px-3 py-1 rounded-full text-xs font-semibold bg-gold-subtle text-gold-deep border border-border-gold">{m}</span>
                 ))}
               </div>
@@ -169,8 +106,8 @@ function ServiceDetailsPage() {
               <h2 className="text-2xl font-black mb-4">{isAr ? 'أسئلة شائعة' : 'FAQ'}</h2>
               <div className="space-y-2">
                 {[
-                  { q: isAr ? 'هل الخدمة متوافقة مع الشريعة؟' : 'Is the service Shariah-compliant?', a: isAr ? 'نعم، هذه الخدمة متوافقة مع أحكام الشريعة ومعتمدة من هيئة الرقابة الشرعية.' : 'Yes, this service complies with Shariah rulings and is approved by the Shariah Supervisory Board.' },
-                  { q: isAr ? 'ما هو الحد الأدنى للاستثمار؟' : 'What is the minimum investment?', a: isAr ? `الحد الأدنى هو ${data.stats.min} حسب نوع المحفظة.` : `The minimum is ${data.stats.min} depending on portfolio type.` },
+                  { q: isAr ? 'هل الخدمة متوافقة مع الشريعة؟' : 'Is the service Shariah-compliant?', a: details.shariah ? (isAr ? 'نعم، هذه الخدمة متوافقة مع أحكام الشريعة ومعتمدة من هيئة الرقابة الشرعية.' : 'Yes, this service complies with Shariah rulings and is approved by the Shariah Supervisory Board.') : (isAr ? 'لا، هذا المنتج لا يحمل علامة التوافق الشرعي ضمن إعداداته الحالية.' : 'No. This product is not marked as Sharia-compliant in its current configuration.') },
+                  { q: isAr ? 'ما هو الحد الأدنى للاستثمار؟' : 'What is the minimum investment?', a: isAr ? `الحد الأدنى هو ${details.minimum} حسب نوع المحفظة.` : `The minimum is ${details.minimum} depending on portfolio type.` },
                 ].map((faq, i) => (
                   <div key={i} className="border border-border-light rounded-xl overflow-hidden bg-white dark:bg-[#13132A]">
                     <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="w-full text-left px-5 py-4 flex items-center justify-between font-bold text-text-primary hover:bg-gold-subtle transition-colors">
@@ -197,11 +134,11 @@ function ServiceDetailsPage() {
               <div className="rounded-2xl bg-white dark:bg-[#13132A] border border-border-light p-6">
                 <h4 className="font-bold text-lg mb-4 flex items-center gap-2">{isAr ? 'ملخص الخدمة' : 'Service Summary'}</h4>
                 <div className="space-y-3 text-sm">
-                  <div className="flex justify-between"><span className="text-text-muted">{isAr ? 'العائد المتوقع' : 'Expected Return'}</span><span className="font-mono font-bold text-success">{data.stats.return}</span></div>
-                  <div className="flex justify-between"><span className="text-text-muted">{isAr ? 'مستوى المخاطر' : 'Risk'}</span><span className="font-bold text-warning">{data.stats.risk}</span></div>
-                  <div className="flex justify-between"><span className="text-text-muted">{isAr ? 'الحد الأدنى' : 'Minimum'}</span><span className="font-mono font-bold">{data.stats.min}</span></div>
-                  <div className="flex justify-between"><span className="text-text-muted">{isAr ? 'الأفق' : 'Duration'}</span><span className="font-bold">{data.stats.duration}</span></div>
-                  <div className="flex justify-between"><span className="text-text-muted">{isAr ? 'التوافق الشرعي' : 'Shariah'}</span><span className="font-bold text-gold-deep">{data.stats.shariah ? (isAr ? 'متوافق' : 'Compliant') : (isAr ? 'غير متوافق' : 'Not Compliant')}</span></div>
+                  <div className="flex justify-between"><span className="text-text-muted">{isAr ? 'العائد المتوقع' : 'Expected Return'}</span><span className="font-mono font-bold text-success">{isAr ? details.returnAr : details.returnEn}</span></div>
+                  <div className="flex justify-between"><span className="text-text-muted">{isAr ? 'مستوى المخاطر' : 'Risk'}</span><span className="font-bold text-warning">{isAr ? details.riskAr : details.riskEn}</span></div>
+                  <div className="flex justify-between"><span className="text-text-muted">{isAr ? 'الحد الأدنى' : 'Minimum'}</span><span className="font-mono font-bold">{details.minimum}</span></div>
+                  <div className="flex justify-between"><span className="text-text-muted">{isAr ? 'الأفق' : 'Duration'}</span><span className="font-bold">{isAr ? details.durationAr : details.durationEn}</span></div>
+                  <div className="flex justify-between"><span className="text-text-muted">{isAr ? 'التوافق الشرعي' : 'Shariah'}</span><span className="font-bold text-gold-deep">{details.shariah ? (isAr ? 'متوافق' : 'Compliant') : (isAr ? 'غير متوافق' : 'Not Compliant')}</span></div>
                 </div>
               </div>
             </div>

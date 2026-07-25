@@ -5,7 +5,8 @@
 import React, { useMemo, useState } from 'react';
 import { Plus, Pencil, Trash2, CheckCircle2, Circle, Loader, Flag } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
-import { useTasks, AdminTask, TaskStatus, nextCode } from '@/lib/adminData';
+import { AdminTask, TaskStatus, nextCode, ADMIN_KEYS, TASKS_SEED } from '@/lib/adminData';
+import { usePlatformDataState } from '@/lib/platformState';
 import {
   PageHeader, Panel, Pill, StatCard, FilterTabs, Modal, ConfirmDialog,
   Field, TextInput, TextArea, SelectBox, PrimaryBtn, GhostBtn, IconBtn,
@@ -27,7 +28,7 @@ const EMPTY_FORM = { title: '', desc: '', due: '', priority: 'medium' as AdminTa
 
 export function Tasks() {
   const { t, lang } = useLang();
-  const [tasks, setTasks] = useTasks();
+  const [tasks, setTasks] = usePlatformDataState<AdminTask[]>(ADMIN_KEYS.TASKS, TASKS_SEED);
   const { show, ToastView } = useToast();
 
   const [filter, setFilter] = useState('all');
