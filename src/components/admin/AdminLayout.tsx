@@ -9,7 +9,7 @@ import { useLang } from '@/contexts/LanguageContext';
 import {
   Home, Users, Briefcase, CreditCard, MessageSquare,
   FileText, BarChart2, UserCheck, Layout, Ticket,
-  TrendingUp, HelpCircle, Star, Info, Palette, ShieldCheck,
+  TrendingUp, HelpCircle, Star, Info, Palette, ShieldCheck, Newspaper,
   Bell, Settings, Lock, UserCog, Menu, ChevronRight, ChevronLeft,
   LogOut, Search, CalendarDays, ListTodo,
 } from 'lucide-react';
@@ -48,6 +48,7 @@ const PAGE_NAMES: Record<string, [string, string]> = {
   testimonials: ['الشهادات', 'Testimonials'],
   site_design: ['التصميم والتنقل', 'Design & Navigation'],
   about_mgr: ['صفحة من نحن', 'About Page'],
+  news_mgr: ['الأخبار والمقالات', 'News & Articles'],
   sub_admins: ['إدارة المشرفين', 'Manage Admins'],
   privacy_policy: ['سياسة الخصوصية', 'Privacy Policy'],
   calendar: ['التقويم', 'Calendar'],
@@ -177,6 +178,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       { key: 'testimonials', to: '/Akadmin/testimonials', icon: Star, ar: 'الشهادات', en: 'Testimonials' },
       { key: 'about_mgr', to: '/Akadmin/about_mgr', icon: Info, ar: 'من نحن', en: 'About Us' },
       { key: 'site_design', to: '/Akadmin/site_design', icon: Palette, ar: 'التصميم والتنقل', en: 'Design & Nav' },
+      { key: 'news_mgr', to: '/Akadmin/news_mgr', icon: Newspaper, ar: 'الأخبار والمقالات', en: 'News & Articles' },
       { key: 'privacy_policy', to: '/Akadmin/privacy_policy', icon: ShieldCheck, ar: 'سياسة الخصوصية', en: 'Privacy Policy', special: true },
     ] },
     { ar: 'النظام', en: 'System', items: [

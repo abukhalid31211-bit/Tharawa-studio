@@ -8,14 +8,14 @@ const idSchema = z.string().uuid();
 const createTxSchema = z.object({
   user_id: z.string().uuid().optional(),
   portfolio_id: z.string().uuid().optional(),
-  type: z.enum(['deposit', 'withdraw', 'withdrawal', 'buy', 'sell', 'transfer']),
+  type: z.enum(['deposit', 'withdraw', 'withdrawal', 'buy', 'sell', 'transfer', 'dividend']),
   amount: z.coerce.number().positive().max(100_000_000),
   currency: z.string().max(10).default('SAR'),
   method: z.string().max(120).optional(),
   notes: z.string().max(2000).optional(),
 });
 const updateTxSchema = z.object({
-  status: z.enum(['pending', 'completed', 'failed', 'cancelled']).optional(),
+  status: z.enum(['pending', 'completed', 'failed', 'cancelled', 'rejected']).optional(),
   notes: z.string().max(2000).optional(),
 });
 

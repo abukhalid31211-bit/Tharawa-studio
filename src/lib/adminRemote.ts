@@ -86,7 +86,7 @@ async function syncPortfolios(previous: Portfolio[], next: Portfolio[]) {
     ...removed.map(item => api.deletePortfolio(item.id)),
     ...added.map(item => api.createPortfolio({ user_id: item.clientId, name: item.name, name_en: item.nameEn, total_valuation: item.value,
       risk_profile: item.risk, growth_percent: item.growth, portfolio_data: { ...(item as any).portfolio_data, strategy: item.strategy, strategyEn: item.strategyEn, riskEn: item.riskEn },
-      assets: item.holdings.map(asset => ({ symbol: asset.symbol, name: asset.name, name_en: asset.nameEn, asset_class: 'advisory', weight_percent: asset.weight, valuation: asset.value, annual_yield: asset.change })) })),
+      assets: item.holdings.map(asset => ({ symbol: asset.symbol, name: asset.name, name_en: asset.nameEn, asset_class: (asset as any).asset_class || 'equity', weight_percent: asset.weight, valuation: asset.value, annual_yield: asset.change })) })),
     ...changed.map(item => api.updatePortfolio(item.id, { name: item.name, name_en: item.nameEn, total_valuation: item.value,
       risk_profile: item.risk, growth_percent: item.growth, portfolio_data: { ...(item as any).portfolio_data, strategy: item.strategy, strategyEn: item.strategyEn, riskEn: item.riskEn } })),
   ]);

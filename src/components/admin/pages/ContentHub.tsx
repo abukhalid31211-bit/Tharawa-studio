@@ -3,9 +3,10 @@
 // ─────────────────────────────────────────────────────────────
 import React from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Layout, Ticket, TrendingUp, HelpCircle, Star, Info, Palette, ShieldCheck, FileText } from 'lucide-react';
+import { Layout, Ticket, TrendingUp, HelpCircle, Star, Info, Palette, ShieldCheck, Newspaper } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
 import { useCmsServices, useCmsMarkets, useCmsFaq, useCmsTestimonials, useCmsPrivacy, useCmsAbout } from '@/lib/adminData';
+import { usePlatformDataState } from '@/lib/platformState';
 import { PageHeader, Panel, Pill } from '@/components/admin/ui';
 
 export function Content() {
@@ -17,6 +18,7 @@ export function Content() {
   const [testimonials] = useCmsTestimonials();
   const [privacy] = useCmsPrivacy();
   const [about] = useCmsAbout();
+  const [newsCms] = usePlatformDataState<{ articles?: any[] }>('tharwah_cms_news_v2', { articles: [] });
 
   const sections = [
     { to: '/Akadmin/hero', icon: Layout, color: '#0EA5E9', ar: 'قسم البطل', en: 'Hero Section', descAr: 'عنوان الصفحة الرئيسية وأزرار الإجراء والإحصائيات', descEn: 'Homepage headline, CTAs & stats', count: t('4 إحصائيات', '4 stats') },
@@ -27,6 +29,7 @@ export function Content() {
     { to: '/Akadmin/about_mgr', icon: Info, color: '#8B5CF6', ar: 'صفحة من نحن', en: 'About Page', descAr: 'الرسالة والرؤية والقيم المؤسسية', descEn: 'Mission, vision & corporate values', count: `${about.values.length} ${t('قيم', 'values')}` },
     { to: '/Akadmin/site_design', icon: Palette, color: '#EC4899', ar: 'التصميم والتنقل', en: 'Design & Navigation', descAr: 'الألوان والشعار وعناصر الواجهة', descEn: 'Colors, logo & UI elements', count: t('هوية ذهبية', 'Gold identity') },
     { to: '/Akadmin/privacy_policy', icon: ShieldCheck, color: '#B8912F', ar: 'سياسة الخصوصية', en: 'Privacy Policy', descAr: 'بنود حماية البيانات والأحكام القانونية', descEn: 'Data protection clauses & legal terms', count: `${privacy.sections.length} ${t('بنود', 'clauses')}` },
+    { to: '/Akadmin/news_mgr', icon: Newspaper, color: '#0EA5E9', ar: 'الأخبار والمقالات', en: 'News & Articles', descAr: 'إدارة المقالات التحليلية والأخبار الاستثمارية', descEn: 'Analytical articles & investment news', count: `${(newsCms?.articles || []).length} ${t('مقالات', 'articles')}` },
   ];
 
   const pendingTestimonials = testimonials.filter(x => x.status === 'pending').length;

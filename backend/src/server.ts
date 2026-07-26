@@ -25,6 +25,7 @@ import contactRoutes from './routes/contact.routes.js';
 import homeRoutes from './routes/home.routes.js';
 import statsRoutes from './routes/stats.routes.js';
 import searchRoutes from './routes/search.routes.js';
+import reportsRoutes from './routes/reports.routes.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -115,6 +116,43 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
+// ─── Maintenance mode gate ───────────────────────────────────────────────────
+// Reads maintenance_mode from DB (cached 30 s). Skips public + auth + admin roles.
+let _maintenanceCached: { value: boolean; ts: number } | null = null;
+app.use('/api/', async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const path = req.path;
+  // Always allow: auth, public content, health
+  if (
+    path.startsWith('/auth/') ||
+    path === '/contact' || path.startsWith('/contact/') ||
+    path === '/home' || path.startsWith('/home/') ||
+    path.startsWith('/settings') ||
+    path.startsWith('/markets') ||
+    path.startsWith('/content')
+  ) return next();
+  // Allow admin/super to pass through during maintenance
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      const jwtMod = await import('jsonwebtoken');
+      const decoded: any = jwtMod.default.decode(authHeader.slice(7));
+      if (decoded?.role === 'super' || decoded?.role === 'admin') return next();
+    } catch { /* ignore */ }
+  }
+  try {
+    const now = Date.now();
+    if (!_maintenanceCached || now - _maintenanceCached.ts > 30_000) {
+      const setting = await prisma.siteSetting.findUnique({ where: { key: 'maintenance_mode' } });
+      const isOn = setting?.value === true || (typeof setting?.value === 'object' && (setting.value as any)?.value === true);
+      _maintenanceCached = { value: isOn, ts: now };
+    }
+    if (_maintenanceCached.value) {
+      return res.status(503).json({ error: 'Maintenance', message: 'الخدمة في وضع الصيانة مؤقتاً', messageEn: 'Service is temporarily under maintenance' });
+    }
+  } catch { /* ignore DB errors in maintenance check — allow traffic */ }
+  return next();
+});
+
 // Health check includes the database, so deployment systems do not route traffic to a broken API.
 app.get('/health', async (_req, res) => {
   try {
@@ -152,6 +190,7 @@ app.use('/api/markets', marketsRoutes);
 app.use('/api/platform-data', platformDataRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/reports', reportsRoutes);
 
 // Socket.io rooms are assigned from the verified access token only.
 io.on('connection', (socket) => {
@@ -172,7 +211,8 @@ io.on('connection', (socket) => {
   socket.on('subscribe:admin_updates', () => {
     if (['super', 'admin', 'sub'].includes(role)) socket.join('admin_updates');
   });
-  socket.on('subscribe:client_updates', () => {
+  socket.on('subscribe:client_updates', (_ignoredClientId?: string) => {
+    // clientId is intentionally ignored — JWT identity is authoritative
     if (userId) socket.join(`client:${userId}`);
   });
 

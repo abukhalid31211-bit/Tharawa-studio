@@ -203,4 +203,82 @@ router.post('/change-password', authenticateToken, async (req: AuthRequest, res)
   return res.json({ success: true });
 });
 
+// ─── Forgot Password (token stored in platform_data — no external email service) ───
+router.post('/forgot-password', async (req, res) => {
+  const parsed = z.object({ email: z.string().email().max(254) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'InvalidInput', message: 'البريد الإلكتروني غير صالح' });
+  const email = parsed.data.email.toLowerCase().trim();
+  // Always return 200 to prevent user enumeration
+  const user = await prisma.user.findUnique({ where: { email } }).catch(() => null);
+  if (user && user.status === 'active') {
+    const token = randomUUID();
+    const tokenKey = `pwd_reset_${createHash('sha256').update(email).digest('hex').slice(0, 24)}`;
+    await prisma.platformData.upsert({
+      where: { key: tokenKey },
+      update: { value: { token: createHash('sha256').update(token).digest('hex'), email, expires: Date.now() + 3_600_000 } as any },
+      create: { key: tokenKey, value: { token: createHash('sha256').update(token).digest('hex'), email, expires: Date.now() + 3_600_000 } as any },
+    });
+    await logAudit({ actor_email: email, user_id: user.id, action: 'طلب إعادة تعيين كلمة المرور', action_en: 'Password reset requested', ...requestMeta(req) }).catch(() => undefined);
+    // In development, return the raw token so the super-admin can relay it manually
+    if (config.nodeEnv !== 'production') {
+      return res.json({ success: true, debug_token: token, debug_note: 'dev-only — not returned in production' });
+    }
+  }
+  return res.json({ success: true, message: 'إذا كان البريد مسجلاً ونشطاً، أبلغ المشرف لإرسال رابط إعادة التعيين' });
+});
+
+router.post('/reset-password', async (req, res) => {
+  const parsed = z.object({
+    email: z.string().email().max(254),
+    token: z.string().min(10).max(200),
+    newPassword: z.string().min(8).max(128),
+  }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'InvalidInput', message: 'بيانات غير صالحة' });
+  const { email, token, newPassword } = parsed.data;
+  const tokenKey = `pwd_reset_${createHash('sha256').update(email.toLowerCase()).digest('hex').slice(0, 24)}`;
+  const entry = await prisma.platformData.findUnique({ where: { key: tokenKey } }).catch(() => null);
+  const stored = entry?.value as any;
+  if (!stored || Date.now() > stored.expires) return res.status(400).json({ error: 'TokenExpired', message: 'رمز إعادة التعيين منتهي الصلاحية أو غير صالح' });
+  if (createHash('sha256').update(token).digest('hex') !== stored.token) return res.status(400).json({ error: 'InvalidToken', message: 'رمز إعادة التعيين غير صالح' });
+  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+  if (!user || user.status !== 'active') return res.status(404).json({ error: 'NotFound' });
+  const password_hash = await bcrypt.hash(newPassword, 12);
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: user.id }, data: { password_hash } }),
+    prisma.platformData.delete({ where: { key: tokenKey } }),
+    prisma.refreshSession.updateMany({ where: { user_id: user.id, revoked_at: null }, data: { revoked_at: new Date() } }),
+  ]);
+  await logAudit({ actor_email: email, user_id: user.id, action: 'إعادة تعيين كلمة المرور', action_en: 'Password reset completed', ...requestMeta(req) }).catch(() => undefined);
+  return res.json({ success: true, message: 'تم تغيير كلمة المرور بنجاح' });
+});
+
+// ─── Public Registration (gated by registration_open setting) ───
+router.post('/register', async (req, res) => {
+  try {
+    const regSetting = await prisma.siteSetting.findUnique({ where: { key: 'registration_open' } });
+    const isOpen = regSetting?.value === true
+      || (typeof regSetting?.value === 'object' && (regSetting.value as any)?.value === true);
+    if (!isOpen) return res.status(403).json({ error: 'RegistrationClosed', message: 'التسجيل الذاتي مغلق حالياً. تواصل مع الإدارة لفتح حساب.' });
+    const parsed = z.object({
+      email: z.string().email().max(254),
+      name: z.string().min(2).max(100),
+      phone: z.string().max(30).optional(),
+      password: z.string().min(8).max(128),
+      tier: z.string().max(30).default('Regular'),
+    }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'InvalidInput', details: parsed.error.issues });
+    const { email, name, phone, password, tier } = parsed.data;
+    const password_hash = await bcrypt.hash(password, 12);
+    const client = await prisma.user.create({
+      data: { email: email.toLowerCase(), name, phone, role: 'client', tier, status: 'pending', password_hash },
+      select: { id: true, email: true, name: true, role: true, tier: true, status: true },
+    });
+    await logAudit({ actor_email: email, user_id: client.id, action: 'تسجيل عميل جديد', action_en: 'New client self-registration', ...requestMeta(req) }).catch(() => undefined);
+    return res.status(201).json({ data: client, message: 'تم تسجيلك بنجاح. حسابك قيد المراجعة من قِبَل الإدارة.' });
+  } catch (error: any) {
+    if (error?.code === 'P2002') return res.status(409).json({ error: 'DuplicateEmail', message: 'البريد الإلكتروني مستخدم مسبقاً' });
+    return res.status(500).json({ error: 'ServerError', message: 'تعذر إتمام التسجيل' });
+  }
+});
+
 export default router;

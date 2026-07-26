@@ -96,8 +96,9 @@ export function subscribeToAdminUpdates() {
   }
 }
 
-export function subscribeToClientUpdates(clientId: string) {
+export function subscribeToClientUpdates(_clientId?: string) {
+  // clientId argument is intentionally NOT sent — backend derives identity from JWT for security
   if (socket && socket.connected) {
-    socket.emit('subscribe:client_updates', clientId);
+    socket.emit('subscribe:client_updates');
   }
 }

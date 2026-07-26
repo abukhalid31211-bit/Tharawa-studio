@@ -207,6 +207,11 @@ export const api = {
   // Admin Stats — real aggregated metrics for the Overview dashboard
   getAdminStats: () => request('/api/stats/overview'),
 
+  // ─── Reports (server-side aggregation) ───
+  getReportsSummary: (period?: string) => request('/api/reports/summary', { params: period ? { period } : undefined }),
+  getReportsClients: (page?: number, limit?: number) => request('/api/reports/clients', { params: { ...(page ? { page: String(page) } : {}), ...(limit ? { limit: String(limit) } : {}) } }),
+  getReportsTransactions: (period?: string, page?: number) => request('/api/reports/transactions', { params: { ...(period ? { period } : {}), ...(page ? { page: String(page) } : {}) } }),
+
   // Search
   globalSearch: (q: string) => request('/api/search', { params: { q } }),
 

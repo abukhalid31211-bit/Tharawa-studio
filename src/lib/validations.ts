@@ -46,7 +46,7 @@ export const portfolioSchema = z.object({
 
 // Transaction
 export const transactionTypeSchema = z.enum(['deposit', 'withdraw', 'buy', 'sell', 'transfer', 'dividend', 'withdrawal']);
-export const transactionStatusSchema = z.enum(['completed', 'pending', 'rejected']);
+export const transactionStatusSchema = z.enum(['completed', 'pending', 'rejected', 'failed', 'cancelled']);
 
 export const createTransactionSchema = z.object({
   clientId: idSchema,

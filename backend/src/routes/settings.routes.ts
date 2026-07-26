@@ -19,6 +19,14 @@ const PUBLIC_SETTING_KEYS = [
   'whatsapp_number',
   'business_hours_ar',
   'business_hours_en',
+  // Security / registration settings consumed by Frontend
+  'registration_open',
+  'two_factor_required',
+  'default_currency',
+  'default_language',
+  'session_timeout_hours',
+  'weekly_digest',
+  'instant_alerts',
 ] as const;
 
 const PUBLIC_SETTING_KEY_SET = new Set<string>(PUBLIC_SETTING_KEYS);
@@ -34,6 +42,13 @@ const LEGACY_PLATFORM_MAP: Record<string, string> = {
   whatsapp_number: 'whatsappNumber',
   business_hours_ar: 'businessHoursAr',
   business_hours_en: 'businessHoursEn',
+  registration_open: 'registrationOpen',
+  two_factor_required: 'twoFactorRequired',
+  default_currency: 'defaultCurrency',
+  default_language: 'defaultLanguage',
+  session_timeout_hours: 'sessionTimeout',
+  weekly_digest: 'weeklyDigest',
+  instant_alerts: 'instantAlerts',
 };
 
 function legacyValue(platformSetting: unknown, publicKey: string) {

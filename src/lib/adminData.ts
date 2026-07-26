@@ -109,7 +109,7 @@ export function useAdminStore<T>(key: string, seed: T): [T, (v: T | ((prev: T) =
 
 export type ClientStatus = 'active' | 'pending' | 'suspended';
 export type TxType = 'deposit' | 'withdraw' | 'buy' | 'sell' | 'transfer';
-export type TxStatus = 'completed' | 'pending' | 'rejected';
+export type TxStatus = 'completed' | 'pending' | 'rejected' | 'failed' | 'cancelled';
 export type AlertType = 'critical' | 'warning' | 'info' | 'success';
 
 export interface Client {

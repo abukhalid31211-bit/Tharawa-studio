@@ -18,6 +18,8 @@ const cmsKeys: Record<string, string> = {
   tharwah_cms_about_v2: 'about',
   tharwah_cms_design_v2: 'design',
   tharwah_cms_privacy_v2: 'privacy',
+  tharwah_cms_news_v2: 'news',
+  tharwah_cms_service_details_v2: 'service_details',
 };
 
 router.use(authenticateToken);

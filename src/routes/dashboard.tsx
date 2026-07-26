@@ -143,12 +143,12 @@ function DashboardPage() {
   }, [profileDataMap]);
 
   const advisorProfile = useMemo(() => ({
-    name: (profileDataMap as any)?.advisor || meetings[0]?.advisor || 'خالد بن الوليد',
+    name: (profileDataMap as any)?.advisor || meetings[0]?.advisor || t('مستشارك المالي', 'Your Financial Advisor'),
     title: (profileDataMap as any)?.advisorTitle || t('المستشار المالي المسؤول', 'Assigned Financial Advisor'),
-    email: (profileDataMap as any)?.advisorEmail || 'advisor@tharwah.com',
-    phone: (profileDataMap as any)?.advisorPhone || '+966 11 942 1052',
-    experience: (profileDataMap as any)?.advisorExperience || `12 ${t('عاماً', 'years')}`,
-    avatar: ((profileDataMap as any)?.advisor || 'خ').toString().charAt(0),
+    email: (profileDataMap as any)?.advisorEmail || '',
+    phone: (profileDataMap as any)?.advisorPhone || '',
+    experience: (profileDataMap as any)?.advisorExperience || '',
+    avatar: ((profileDataMap as any)?.advisor || meetings[0]?.advisor || t('م', 'A')).toString().charAt(0),
   }), [meetings, profileDataMap, t]);
 
   const handleCreateTransfer = async (e: React.FormEvent) => {

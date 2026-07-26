@@ -58,7 +58,8 @@ export const config = {
   superAdminEmail: requireEnv('SUPER_ADMIN_EMAIL', 'admin@your-domain.com').toLowerCase(),
   superAdminPasswordHash: process.env.SUPER_ADMIN_PASSWORD_HASH || '',
   // Plain password for seeding only — never use in production
-  superAdminPlainPassword: process.env.SUPER_ADMIN_PLAIN_PASSWORD || '',
+  // Plain password for local seeding only — cleared automatically in production
+  superAdminPlainPassword: process.env.NODE_ENV === 'production' ? '' : (process.env.SUPER_ADMIN_PLAIN_PASSWORD || ''),
 
   // Logging
   logLevel: process.env.LOG_LEVEL || 'info',

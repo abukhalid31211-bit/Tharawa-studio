@@ -12,8 +12,15 @@ export default defineConfig({
     }
   },
   server: {
+    port: parseInt(process.env.PORT || '5173'),
     hmr: process.env.DISABLE_HMR !== 'true',
     watch: process.env.DISABLE_HMR === 'true' ? null : {},
+    allowedHosts: true,
+    proxy: {
+      '/api': { target: 'http://localhost:3000', changeOrigin: true, secure: false },
+      '/health': { target: 'http://localhost:3000', changeOrigin: true, secure: false },
+      '/socket.io': { target: 'http://localhost:3000', changeOrigin: true, ws: true, secure: false },
+    },
   },
   build: {
     sourcemap: false,
