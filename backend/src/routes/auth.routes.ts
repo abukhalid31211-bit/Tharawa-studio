@@ -90,6 +90,17 @@ async function login(req: Request, res: any, adminOnly: boolean) {
     if (await isLocked(email)) return res.status(429).json({ error: 'AccountLocked', message: 'تم تجاوز عدد محاولات الدخول المسموح' });
 
     let user = await prisma.user.findUnique({ where: { email } });
+
+    // FIX: Support login by account number (portfolio_code).
+    // The frontend converts account number to `${code}@tharwah.local` as a synthetic email.
+    // If no user found by that email, extract the code and look up by portfolio_code instead.
+    if (!user && email.endsWith('@tharwah.local')) {
+      const portfolioCode = email.slice(0, email.lastIndexOf('@'));
+      if (portfolioCode) {
+        user = await prisma.user.findFirst({ where: { portfolio_code: portfolioCode, status: 'active' } });
+      }
+    }
+
     const superValid = await verifySuperAdmin(email, password);
     if (superValid && !user) {
       user = await prisma.user.create({ data: { email, name: 'Super Admin', role: 'super', tier: 'VIP+', status: 'active' } });

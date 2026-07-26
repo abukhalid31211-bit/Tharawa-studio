@@ -9,32 +9,32 @@ import { logger } from './logger';
 
 const SESSION_SECRET = (import.meta.env.VITE_SESSION_SECRET as string) || (import.meta.env.PROD ? '' : 'tharwah-dev-secret-change-in-production');
 
-const JWT_TOKEN_KEY = 'tharwah_jwt_token';
+// FIX: JWT access token stored in memory only (not persisted) to prevent XSS token theft.
+// Refresh token stored in sessionStorage (cleared on tab/browser close, not accessible cross-tab).
 const REFRESH_TOKEN_KEY = 'tharwah_refresh_token';
 
+let _jwtTokenMemory: string | null = null;
+
 export function getJwtToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    return localStorage.getItem(JWT_TOKEN_KEY) || null;
-  } catch {
-    return null;
-  }
+  return _jwtTokenMemory;
 }
 
 export function setJwtToken(token: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(JWT_TOKEN_KEY, token);
+  _jwtTokenMemory = token;
+  // Remove any old localStorage entry if it exists
+  if (typeof window !== 'undefined') {
+    try { localStorage.removeItem('tharwah_jwt_token'); } catch { /* ignore */ }
+  }
 }
 
 export function removeJwtToken(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(JWT_TOKEN_KEY);
+  _jwtTokenMemory = null;
 }
 
 export function getRefreshToken(): string | null {
   if (typeof window === 'undefined') return null;
   try {
-    return localStorage.getItem(REFRESH_TOKEN_KEY) || null;
+    return sessionStorage.getItem(REFRESH_TOKEN_KEY) || null;
   } catch {
     return null;
   }
@@ -42,12 +42,16 @@ export function getRefreshToken(): string | null {
 
 export function setRefreshToken(token: string): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(REFRESH_TOKEN_KEY, token);
+  try {
+    sessionStorage.setItem(REFRESH_TOKEN_KEY, token);
+    // Remove any old localStorage entry if it exists
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  } catch { /* ignore */ }
 }
 
 export function removeRefreshToken(): void {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  try { sessionStorage.removeItem(REFRESH_TOKEN_KEY); } catch { /* ignore */ }
 }
 
 export function setAuthTokens(token: string, refreshToken: string): void {

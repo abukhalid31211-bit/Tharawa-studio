@@ -7,6 +7,7 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { config } from './config/env.js';
+import { prisma } from './lib/prisma.js';
 import { setIo } from './lib/socket.js';
 import authRoutes from './routes/auth.routes.js';
 import clientsRoutes from './routes/clients.routes.js';

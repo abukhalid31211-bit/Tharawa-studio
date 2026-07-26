@@ -784,12 +784,8 @@ export async function verifySubAdminPassword(inputPassword: string, subAdmin: Su
     }
   }
   
-  // Legacy fallback - if old plain password exists, verify and migrate
-  if (subAdmin.password) {
-    const isValid = inputPassword === subAdmin.password;
-    return isValid;
-  }
-  
+  // FIX: Legacy plaintext password comparison removed — no plaintext comparison allowed.
+  // Any SubAdmin without a proper hash must reset their password through the admin panel.
   return false;
 }
 
