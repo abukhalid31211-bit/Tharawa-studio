@@ -17,30 +17,11 @@ import {
 import { useNotifications } from '@/lib/queries';
 import { api } from '@/lib/api';
 
-// ─── Mock Chart Data (static per design doc 4.3) ────────────
-const AUM_DATA = [
-  { month: 'Jul', aum: 1420 }, { month: 'Aug', aum: 1480 }, { month: 'Sep', aum: 1560 },
-  { month: 'Oct', aum: 1620 }, { month: 'Nov', aum: 1710 }, { month: 'Dec', aum: 1780 },
-  { month: 'Jan', aum: 1840 }, { month: 'Feb', aum: 1920 }, { month: 'Mar', aum: 1980 },
-  { month: 'Apr', aum: 1960 }, { month: 'May', aum: 2040 }, { month: 'Jun', aum: 2120 },
-];
-
-const REVENUE_DATA = [
-  { month: 'Jan', revenue: 142, profit: 38 },
-  { month: 'Feb', revenue: 168, profit: 45 },
-  { month: 'Mar', revenue: 195, profit: 52 },
-  { month: 'Apr', revenue: 178, profit: 48 },
-  { month: 'May', revenue: 212, profit: 58 },
-  { month: 'Jun', revenue: 234, profit: 64 },
-];
-
-const DISTRIBUTION = [
-  { name: 'الأسهم', nameEn: 'Equities', pct: 35, color: '#0EA5E9' },
-  { name: 'المعادن', nameEn: 'Metals', pct: 20, color: '#C9A84C' },
-  { name: 'العملات الرقمية', nameEn: 'Crypto', pct: 18, color: '#F59E0B' },
-  { name: 'صناديق', nameEn: 'Funds', pct: 15, color: '#00D97E' },
-  { name: 'طاقة', nameEn: 'Energy', pct: 12, color: '#8B5CF6' },
-];
+// ─── Chart type aliases ──────────────────────────────────────
+type AumPoint      = { month: string; aum: number };
+type RevenuePoint  = { month: string; revenue: number; profit: number };
+type DistPoint     = { name: string; nameEn: string; pct: number; color: string };
+type HealthData    = { profitable: number; neutral: number; loss: number; total: number; profitablePct: number; neutralPct: number; lossPct: number };
 
 // Live data derived from the shared admin store (see component below).
 
@@ -143,23 +124,14 @@ export function Overview() {
   const [timeRange, setTimeRange] = useState('this-month');
 
   // ── Real aggregated stats from backend ──────────────────
-  const { data: statsData } = useAdminStats();
+  const { data: statsData, isLoading: statsLoading } = useAdminStats();
   const statsOverview = (statsData as any)?.data;
 
-  const aumChartData = useMemo(() => {
-    if (statsOverview?.aumByMonth?.length) return statsOverview.aumByMonth as typeof AUM_DATA;
-    return AUM_DATA;
-  }, [statsOverview]);
-
-  const revenueChartData = useMemo(() => {
-    if (statsOverview?.revenueByMonth?.length) return statsOverview.revenueByMonth as typeof REVENUE_DATA;
-    return REVENUE_DATA;
-  }, [statsOverview]);
-
-  const distChartData = useMemo(() => {
-    if (statsOverview?.distribution?.length) return statsOverview.distribution as typeof DISTRIBUTION;
-    return DISTRIBUTION;
-  }, [statsOverview]);
+  const aumChartData     = useMemo(() => (statsOverview?.aumByMonth     ?? []) as AumPoint[],     [statsOverview]);
+  const revenueChartData = useMemo(() => (statsOverview?.revenueByMonth ?? []) as RevenuePoint[], [statsOverview]);
+  const distChartData    = useMemo(() => (statsOverview?.distribution    ?? []) as DistPoint[],    [statsOverview]);
+  const portfolioHealth  = (statsOverview?.portfolioHealth ?? null) as HealthData | null;
+  const heatmapData      = (statsOverview?.heatmap ?? null) as number[][] | null;
 
   // بيانات الأسواق من CMS — يضبطها المشرف عبر MarketsManager
   const { data: cmsMarketsData } = useCmsSection<{ markets?: typeof MARKET_TICKER }>('markets', { markets: MARKET_TICKER });
@@ -362,30 +334,41 @@ export function Overview() {
             <h3 className="text-sm font-bold text-text-primary">{t('نمو الأصول المُدارة (AUM)', 'Assets Under Management (AUM) Growth')}</h3>
             <p className="text-[11px] text-text-muted">{t('بالمليون دولار — آخر 12 شهراً', 'In USD Millions — Last 12 Months')}</p>
           </div>
-          <SparklineSVG data={aumChartData.map(d => d.aum)} color="#C9A84C" height={180} />
+          {aumChartData.length > 0
+            ? <SparklineSVG data={aumChartData.map(d => d.aum)} color="#C9A84C" height={180} />
+            : <div className="flex items-center justify-center h-[180px] text-xs text-text-muted">{statsLoading ? t('جاري التحميل...', 'Loading...') : t('لا توجد بيانات بعد', 'No data yet')}</div>
+          }
         </div>
 
         {/* Distribution Pie */}
         <div className="bg-[#F8FAFC] dark:bg-secondary border border-border-light rounded-xl p-5 space-y-3">
           <h3 className="text-sm font-bold text-text-primary">{t('توزيع المحافظ', 'Portfolio Distribution')}</h3>
-          <div className="flex items-center justify-center">
-            <DonutChart
-              segments={distChartData.map(d => ({ pct: d.pct, color: d.color }))}
-              centerLabel="100%"
-              centerSub={t('إجمالي المحافظ', 'Total')}
-            />
-          </div>
-          <div className="space-y-1.5">
-            {distChartData.map((d, i) => (
-              <div key={i} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
-                  <span className="text-text-primary">{lang === 'ar' ? d.name : d.nameEn}</span>
-                </div>
-                <span className="font-mono text-text-muted">{d.pct}%</span>
+          {distChartData.length > 0 ? (
+            <>
+              <div className="flex items-center justify-center">
+                <DonutChart
+                  segments={distChartData.map(d => ({ pct: d.pct, color: d.color }))}
+                  centerLabel="100%"
+                  centerSub={t('إجمالي المحافظ', 'Total')}
+                />
               </div>
-            ))}
-          </div>
+              <div className="space-y-1.5">
+                {distChartData.map((d, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
+                      <span className="text-text-primary">{lang === 'ar' ? d.name : d.nameEn}</span>
+                    </div>
+                    <span className="font-mono text-text-muted">{d.pct}%</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-[180px] text-xs text-text-muted">
+              {statsLoading ? t('جاري التحميل...', 'Loading...') : t('لا توجد بيانات بعد', 'No data yet')}
+            </div>
+          )}
         </div>
       </div>
 
@@ -397,10 +380,10 @@ export function Overview() {
             <h3 className="text-sm font-bold text-text-primary">{t('الإيرادات والأرباح', 'Revenue & Profits')}</h3>
             <p className="text-[11px] text-text-muted">{t('بالألف دولار', 'In USD Thousands')}</p>
           </div>
-          <MiniBarChart
-            data={revenueChartData.map(d => ({ label: d.month, value: d.revenue }))}
-            colors={['#3B82F6', '#C9A84C']}
-          />
+          {revenueChartData.length > 0
+            ? <MiniBarChart data={revenueChartData.map(d => ({ label: d.month, value: d.revenue }))} colors={['#3B82F6', '#C9A84C']} />
+            : <div className="flex items-center justify-center h-24 text-xs text-text-muted">{statsLoading ? t('جاري التحميل...', 'Loading...') : t('لا توجد بيانات بعد', 'No data yet')}</div>
+          }
         </div>
 
         {/* Recent Clients */}
@@ -508,15 +491,13 @@ export function Overview() {
                 </tr>
               </thead>
               <tbody>
-                {[0, 3, 6, 9, 12, 15, 18, 21].map((hour) => (
+                {[0, 3, 6, 9, 12, 15, 18, 21].map((hour, rowIdx) => (
                   <tr key={hour}>
                     <td className="text-[9px] text-text-muted font-mono text-left pr-1">
                       {hour === 0 ? '12ص' : hour === 12 ? '12م' : hour > 12 ? `${hour - 12}م` : `${hour}ص`}
                     </td>
                     {days.map((_, di) => {
-                      const isPeak = (di < 5 && (hour >= 9 && hour <= 11) || (hour >= 14 && hour <= 17));
-                      const isLow = di === 5 && hour <= 11;
-                      const level = isPeak ? 85 : isLow ? 40 : hour >= 22 || hour <= 5 ? 0 : 15 - di * 2;
+                      const level = heatmapData ? (heatmapData[di]?.[rowIdx] ?? 0) : 0;
                       return (
                         <td key={di} className="p-0.5">
                           <HeatmapCell level={level} />
@@ -546,15 +527,17 @@ export function Overview() {
           </div>
           <div className="flex flex-col md:flex-row items-center gap-6">
             <DonutChart
-              segments={[{ pct: 72, color: '#00D97E' }, { pct: 18, color: '#F59E0B' }, { pct: 10, color: '#FF4560' }]}
-              centerLabel="72%"
+              segments={portfolioHealth
+                ? [{ pct: portfolioHealth.profitablePct, color: '#00D97E' }, { pct: portfolioHealth.neutralPct, color: '#F59E0B' }, { pct: portfolioHealth.lossPct, color: '#FF4560' }]
+                : []}
+              centerLabel={portfolioHealth ? `${portfolioHealth.profitablePct}%` : '—'}
               centerSub={t('رابحة', 'Profitable')}
             />
             <div className="space-y-3 flex-1 w-full">
-              {[
-                { label: t('محافظ رابحة', 'Profitable Portfolios'), pct: 72, color: '#00D97E', count: '1,326' },
-                { label: t('محافظ محايدة (±5%)', 'Neutral Portfolios (±5%)'), pct: 18, color: '#F59E0B', count: '332' },
-                { label: t('محافظ خاسرة', 'Loss-Making Portfolios'), pct: 10, color: '#FF4560', count: '184' },
+              {portfolioHealth ? [
+                { label: t('محافظ رابحة', 'Profitable Portfolios'), pct: portfolioHealth.profitablePct, color: '#00D97E', count: portfolioHealth.profitable.toLocaleString() },
+                { label: t('محافظ محايدة (±5%)', 'Neutral Portfolios (±5%)'), pct: portfolioHealth.neutralPct, color: '#F59E0B', count: portfolioHealth.neutral.toLocaleString() },
+                { label: t('محافظ خاسرة', 'Loss-Making Portfolios'), pct: portfolioHealth.lossPct, color: '#FF4560', count: portfolioHealth.loss.toLocaleString() },
               ].map((item, i) => (
                 <div key={i} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
@@ -563,7 +546,9 @@ export function Overview() {
                   </div>
                   <span className="font-bold font-mono" style={{ color: item.color }}>{item.pct}% ({item.count})</span>
                 </div>
-              ))}
+              )) : (
+                <div className="text-xs text-text-muted">{statsLoading ? t('جاري التحميل...', 'Loading...') : t('لا توجد بيانات بعد', 'No data yet')}</div>
+              )}
             </div>
           </div>
         </div>

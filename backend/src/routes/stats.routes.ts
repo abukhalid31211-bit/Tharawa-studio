@@ -61,6 +61,9 @@ router.get('/overview', requireRole('super', 'admin', 'sub'), async (_req: AuthR
       pendingMessages,
       recentTxs,
       assetDist,
+      profitableCount,
+      neutralCount,
+      lossCount,
     ] = await Promise.all([
       prisma.user.groupBy({ by: ['status'], where: { role: 'client' }, _count: true }),
       prisma.portfolio.aggregate({
@@ -80,6 +83,9 @@ router.get('/overview', requireRole('super', 'admin', 'sub'), async (_req: AuthR
         _sum: { valuation: true },
         orderBy: { _sum: { valuation: 'desc' } },
       }),
+      prisma.portfolio.count({ where: { is_active: true, growth_percent: { gt: 5 } } }),
+      prisma.portfolio.count({ where: { is_active: true, growth_percent: { gte: -5, lte: 5 } } }),
+      prisma.portfolio.count({ where: { is_active: true, growth_percent: { lt: -5 } } }),
     ]);
 
     // ── Client counts ─────────────────────────────────────
@@ -149,6 +155,28 @@ router.get('/overview', requireRole('super', 'admin', 'sub'), async (_req: AuthR
       color: COLORS[i % COLORS.length],
     }));
 
+    // ── Portfolio health ──────────────────────────────────────
+    const totalHealthPortfolios = profitableCount + neutralCount + lossCount;
+    const portfolioHealth = {
+      profitable: profitableCount,
+      neutral: neutralCount,
+      loss: lossCount,
+      total: totalHealthPortfolios,
+      profitablePct: totalHealthPortfolios > 0 ? Math.round((profitableCount / totalHealthPortfolios) * 100) : 0,
+      neutralPct: totalHealthPortfolios > 0 ? Math.round((neutralCount / totalHealthPortfolios) * 100) : 0,
+      lossPct: totalHealthPortfolios > 0 ? Math.round((lossCount / totalHealthPortfolios) * 100) : 0,
+    };
+
+    // ── Activity heatmap from transaction timestamps (7 days × 8 three-hour buckets) ──
+    // Rows: [0,3,6,9,12,15,18,21] → bucket = Math.floor(hour/3). Cols: day 0=Sun … 6=Sat.
+    const heatmapRaw: number[][] = Array.from({ length: 7 }, () => Array(8).fill(0));
+    for (const tx of recentTxs) {
+      const d = new Date(tx.created_at as Date);
+      heatmapRaw[d.getDay()][Math.floor(d.getHours() / 3)]++;
+    }
+    const heatmapMax = Math.max(...heatmapRaw.flat(), 1);
+    const heatmap = heatmapRaw.map(row => row.map(v => Math.round((v / heatmapMax) * 100)));
+
     return res.json({
       data: {
         totalClients, activeClients, pendingClients,
@@ -156,6 +184,7 @@ router.get('/overview', requireRole('super', 'admin', 'sub'), async (_req: AuthR
         totalTransactions, pendingTransactions, completedTransactions,
         pendingMessages,
         aumByMonth, revenueByMonth, distribution,
+        portfolioHealth, heatmap,
       },
     });
   } catch (err: any) {
