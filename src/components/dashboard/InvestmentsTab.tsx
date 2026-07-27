@@ -64,7 +64,7 @@ export function InvestmentsTab({ totalBalance, onExportPDF, portfolio }: Investm
         status: asset?.status || 'active',
       };
     });
-  }, [realAssets, hasRealAssets, totalBalance, t]);
+  }, [realAssets, totalBalance, t]);
 
   // Group real assets by their class for the three summary cards
   const summaryGroups = useMemo(() => {
@@ -100,7 +100,7 @@ export function InvestmentsTab({ totalBalance, onExportPDF, portfolio }: Investm
           yield: avgYield === null ? '—' : `${avgYield >= 0 ? '+' : ''}${avgYield.toFixed(1)}%`,
         };
       });
-  }, [realAssets, hasRealAssets, totalBalance, t]);
+  }, [realAssets, hasRealAssets, t]);
 
   const emptyState = (
     <Card className="p-10 flex flex-col items-center justify-center text-center gap-3">

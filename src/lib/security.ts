@@ -129,7 +129,19 @@ export const passwordSchema = z.string().min(8, 'كلمة المرور يجب أ
 export const phoneSchema = z.string().regex(/^\+?[0-9\s\-()]+$/, 'رقم هاتف غير صالح').min(8).max(20);
 
 // Secure session validation
+/**
+ * UI TAMPER-EVIDENCE ONLY — NOT A SECURITY BOUNDARY
+ * This local session payload (and the `createAdminSession`/`createClientSession`
+ * signature built from it in `src/lib/auth.ts`) is signed with `VITE_SESSION_SECRET`,
+ * which is a public build-time value bundled into the client JS. It cannot function
+ * as a real cryptographic secret against a user who controls their own browser.
+ * All real authorization is enforced server-side via JWT verification in
+ * `backend/src/middleware/auth.middleware.ts`. This mechanism exists only to
+ * detect accidental/incidental localStorage corruption, not to resist a
+ * motivated attacker.
+ */
 export interface SecureSessionPayload {
+
   email: string;
   role: 'super' | 'admin' | 'sub' | 'client';
   exp: number; // expiry timestamp
@@ -156,20 +168,12 @@ export function createSecureSessionPayload(
   };
 }
 
-// Content Security Policy helper
-export function getCSPHeader(): string {
-  return [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.googletagmanager.com",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data: https: blob:",
-    "connect-src 'self' https://api.yourdomain.com wss://api.yourdomain.com",
-    "frame-ancestors 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-  ].join('; ');
-}
+// NOTE: The Content Security Policy for this app is defined and enforced via
+// real HTTP response headers in `vercel.json` (frontend) and
+// `backend/nginx/tharwah.conf` (API), not from any client-side helper. A
+// `<meta http-equiv="Content-Security-Policy">` tag cannot enforce every CSP
+// directive (e.g. frame-ancestors), so `vercel.json` is the single source of
+// truth for the deployed CSP — see AUDIT-REPORT.md §4.10 for background.
 
 // Audit logging
 export interface AuditEvent {

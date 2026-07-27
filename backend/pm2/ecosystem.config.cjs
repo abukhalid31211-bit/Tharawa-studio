@@ -4,8 +4,15 @@ module.exports = {
       name: 'tharwah-api',
       script: 'dist/server.js',
       cwd: '/var/www/tharwah-api',
-      instances: 'max',
+      // TODO: restore instances:'max' after adding
+      // @socket.io/redis-adapter + rate-limit-redis
+      // (Socket.IO rooms and express-rate-limit currently keep state in
+      // per-process memory only, so running >1 instance silently drops
+      // realtime broadcasts to some clients and multiplies effective
+      // rate limits across workers — see AUDIT-REPORT.md §4.7.)
+      instances: 1,
       exec_mode: 'cluster',
+
       env: {
         NODE_ENV: 'production',
         PORT: 3000,

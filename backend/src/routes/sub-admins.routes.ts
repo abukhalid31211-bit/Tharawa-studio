@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import { AuthRequest, authenticateToken, requireRole } from '../middleware/auth.middleware.js';
 import { prisma } from '../lib/prisma.js';
 import { broadcastAdminUpdate } from '../lib/socket.js';
+import { logAudit } from '../lib/audit.js';
+
 
 const router = Router();
 
@@ -53,6 +55,16 @@ router.post('/', requireRole('super'), async (req: AuthRequest, res) => {
     });
 
     broadcastAdminUpdate({ action: 'sub_admin_created', subAdminId: subAdmin.id, email: user.email });
+    await logAudit({
+      actor_email: req.user!.email,
+      user_id: req.user!.userId,
+      action: `إضافة مشرف فرعي ${subAdmin.name}`,
+      action_en: `Added sub-admin ${subAdmin.name}`,
+      resource_type: 'sub_admin',
+      resource_id: subAdmin.id,
+      ip_address: req.ip,
+      user_agent: req.get('user-agent'),
+    });
     res.status(201).json({ data: subAdmin, message: 'تم إنشاء المشرف الفرعي' });
   } catch (err: any) {
     if (err.code === 'P2002') return res.status(409).json({ error: 'DuplicateEmail', message: 'البريد مستخدم مسبقاً' });
@@ -85,6 +97,17 @@ router.put('/:id', requireRole('super'), async (req: AuthRequest, res) => {
     }
 
     broadcastAdminUpdate({ action: 'sub_admin_updated', subAdminId: subAdmin.id });
+    await logAudit({
+      actor_email: req.user!.email,
+      user_id: req.user!.userId,
+      action: status === 'suspended' ? `إيقاف مشرف ${subAdmin.name}` : password ? `تعديل مشرف ${subAdmin.name} (تغيير كلمة المرور)` : `تعديل مشرف ${subAdmin.name}`,
+      action_en: status === 'suspended' ? `Suspended sub-admin ${subAdmin.name}` : password ? `Updated sub-admin ${subAdmin.name} (password changed)` : `Updated sub-admin ${subAdmin.name}`,
+      resource_type: 'sub_admin',
+      resource_id: subAdmin.id,
+      details: { status, permissionsChanged: !!permissions },
+      ip_address: req.ip,
+      user_agent: req.get('user-agent'),
+    });
     res.json({ data: subAdmin, message: 'تم التحديث' });
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'NotFound' });
@@ -97,6 +120,16 @@ router.delete('/:id', requireRole('super'), async (req: AuthRequest, res) => {
     const subAdmin = await prisma.subAdmin.delete({ where: { id: req.params.id } });
     await prisma.user.delete({ where: { id: subAdmin.user_id } }).catch(() => {});
     broadcastAdminUpdate({ action: 'sub_admin_deleted', subAdminId: req.params.id });
+    await logAudit({
+      actor_email: req.user!.email,
+      user_id: req.user!.userId,
+      action: `حذف مشرف فرعي ${subAdmin.name}`,
+      action_en: `Deleted sub-admin ${subAdmin.name}`,
+      resource_type: 'sub_admin',
+      resource_id: req.params.id,
+      ip_address: req.ip,
+      user_agent: req.get('user-agent'),
+    });
     res.json({ message: 'تم حذف المشرف الفرعي' });
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'NotFound' });

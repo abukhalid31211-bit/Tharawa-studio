@@ -8,16 +8,18 @@ import { logAudit } from '../lib/audit.js';
 
 const router = Router();
 const idSchema = z.string().uuid();
+// Zod's default .strip() behavior (i.e. NOT calling .passthrough()) silently drops any
+// unrecognized keys, preventing mass-assignment of privileged columns (e.g. role, password_hash).
 const createSchema = z.object({
   email: z.string().email().max(254), name: z.string().min(2).max(100), phone: z.string().max(30).optional(),
   tier: z.string().max(30).default('Regular'), status: z.enum(['pending', 'active', 'suspended']).default('pending'),
   password: z.string().min(8).max(128).optional(), profile_data: z.unknown().optional(),
-}).passthrough();
+});
 const updateSchema = z.object({
   name: z.string().min(2).max(100).optional(), tier: z.string().max(30).optional(),
   status: z.enum(['pending', 'active', 'suspended']).optional(), phone: z.string().max(30).nullable().optional(),
   kyc_status: z.enum(['pending', 'review', 'verified', 'rejected']).optional(), profile_data: z.unknown().optional(),
-}).passthrough();
+});
 
 const safeUser = {
   id: true, email: true, name: true, role: true, tier: true, status: true, portfolio_code: true,
@@ -81,7 +83,21 @@ router.put('/:id', requirePermission('clients:write'), async (req: AuthRequest, 
   if (!parsed.success) return res.status(400).json({ error: 'InvalidInput', details: parsed.error.issues });
   const existing = await prisma.user.findFirst({ where: { id: req.params.id, role: 'client' } });
   if (!existing) return res.status(404).json({ error: 'NotFound' });
-  const updated = await prisma.user.update({ where: { id: existing.id }, data: parsed.data as any, select: safeUser });
+  // Explicit field mapping — never spread/pass raw parsed input into Prisma `data`,
+  // since the User model also contains privileged columns (role, password_hash, etc.)
+  // that must never be settable from this endpoint.
+  const updated = await prisma.user.update({
+    where: { id: existing.id },
+    data: {
+      name: parsed.data.name,
+      phone: parsed.data.phone,
+      tier: parsed.data.tier,
+      status: parsed.data.status,
+      kyc_status: parsed.data.kyc_status,
+      profile_data: parsed.data.profile_data as any,
+    },
+    select: safeUser,
+  });
   broadcastAdminUpdate({ action: 'client_updated', clientId: updated.id });
   broadcastClientUpdate(updated.id, { action: 'client_updated' });
   await logAudit({ actor_email: req.user!.email, user_id: req.user!.userId, action: 'تحديث عميل', action_en: 'Updated client', resource_type: 'client', resource_id: updated.id, details: parsed.data as any, ip_address: req.ip, user_agent: req.get('user-agent') });

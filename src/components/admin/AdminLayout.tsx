@@ -251,9 +251,22 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const markAllRead = () => setLocalNotifications(prev => prev.map((n: any) => ({ ...n, read: true })));
+  const markAllRead = () => {
+    setLocalNotifications(prev => {
+      const unreadIds = prev.filter((n: any) => !n.read).map((n: any) => n.id);
+      unreadIds.forEach((id: string) => {
+        if (/^[0-9a-f-]{36}$/i.test(id)) {
+          void api.markNotificationRead(id).catch(() => undefined);
+        }
+      });
+      return prev.map((n: any) => ({ ...n, read: true }));
+    });
+  };
   const markRead = (id: string, page: string) => {
     setLocalNotifications(prev => prev.map((n: any) => n.id === id ? { ...n, read: true } : n));
+    if (/^[0-9a-f-]{36}$/i.test(id)) {
+      void api.markNotificationRead(id).catch(() => undefined);
+    }
     setNotifOpen(false);
     if (page) navigate({ to: page as any });
   };

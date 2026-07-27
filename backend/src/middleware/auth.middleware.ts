@@ -16,7 +16,7 @@ function deny(res: Response, status: number, error: string, message: string) {
   return res.status(status).json({ error, message });
 }
 
-export function authenticateToken(req: AuthRequest, res: Response, next: NextFunction) {
+export async function authenticateToken(req: AuthRequest, res: Response, next: NextFunction) {
   if (req.user) return next();
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -32,6 +32,23 @@ export function authenticateToken(req: AuthRequest, res: Response, next: NextFun
     const email = typeof decoded.email === 'string' ? decoded.email : '';
     const role = typeof decoded.role === 'string' ? decoded.role : 'client';
     if (!userId || !email) return deny(res, 403, 'Forbidden', 'رمز المصادقة غير صالح');
+
+    // Admin/super access tokens are re-checked against the current DB status so a
+    // just-suspended privileged account cannot keep using an already-issued token
+    // until it naturally expires. Client tokens are intentionally NOT re-checked
+    // here to avoid a DB round-trip on every request for the highest-traffic role.
+    if (role === 'admin' || role === 'super') {
+      try {
+        const user = await prisma.user.findUnique({ where: { id: userId }, select: { status: true } });
+        if (!user || user.status !== 'active') {
+          return res.status(401).json({ error: 'SESSION_REVOKED', message: 'الجلسة لم تعد صالحة' });
+        }
+      } catch (statusError) {
+        console.error('[Auth] Admin status re-check failed', statusError);
+        return res.status(500).json({ error: 'ServerError', message: 'تعذر التحقق من الجلسة' });
+      }
+    }
+
     req.user = { userId, email, role, tier: typeof decoded.tier === 'string' ? decoded.tier : undefined };
     return next();
   } catch (error) {
@@ -43,6 +60,7 @@ export function authenticateToken(req: AuthRequest, res: Response, next: NextFun
     });
   }
 }
+
 
 export function requireRole(...allowedRoles: string[]) {
   return (req: AuthRequest, res: Response, next: NextFunction) => {

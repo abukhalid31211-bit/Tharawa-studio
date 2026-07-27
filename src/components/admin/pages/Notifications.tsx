@@ -64,7 +64,15 @@ export function Notifications() {
   };
 
   const markAll = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setNotifications(prev => {
+      const unreadIds = prev.filter(n => !n.read).map(n => n.id);
+      unreadIds.forEach((id: string) => {
+        if (/^[0-9a-f-]{36}$/i.test(id)) {
+          void api.markNotificationRead(id).catch(error => console.error('[Notifications] mark read failed', error));
+        }
+      });
+      return prev.map(n => ({ ...n, read: true }));
+    });
     show(t('تم تعليم كل الإشعارات كمقروءة', 'All notifications marked as read'));
   };
 

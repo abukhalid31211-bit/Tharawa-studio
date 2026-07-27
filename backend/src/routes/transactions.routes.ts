@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { AuthRequest, authenticateToken, requireClientOrPermission, requirePermission } from '../middleware/auth.middleware.js';
 import { prisma } from '../lib/prisma.js';
 import { broadcastAdminUpdate, broadcastClientUpdate } from '../lib/socket.js';
+import { logAudit } from '../lib/audit.js';
+
 
 const idSchema = z.string().uuid();
 const createTxSchema = z.object({
@@ -118,6 +120,18 @@ router.put('/:id', requirePermission('transactions:write'), async (req: AuthRequ
 
     broadcastAdminUpdate({ action: 'transaction_updated', transactionId: updated.id, clientId: updated.user_id, status });
     broadcastClientUpdate(updated.user_id, { action: 'transaction_updated', transactionId: updated.id, status });
+
+    await logAudit({
+      actor_email: req.user!.email,
+      user_id: req.user!.userId,
+      action: status === 'completed' ? 'اعتماد معاملة' : status === 'rejected' ? 'رفض معاملة' : 'تحديث معاملة',
+      action_en: status === 'completed' ? 'Approved transaction' : status === 'rejected' ? 'Rejected transaction' : 'Updated transaction',
+      resource_type: 'transaction',
+      resource_id: updated.id,
+      details: { status, clientId: updated.user_id },
+      ip_address: req.ip,
+      user_agent: req.get('user-agent'),
+    });
 
     res.json({ data: updated, message: 'تم تحديث المعاملة' });
   } catch (err: any) {

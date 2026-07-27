@@ -36,6 +36,13 @@ export function SettingsPage() {
       api.updateSettings('business_hours_ar', { value: draft.businessHoursAr }),
       api.updateSettings('business_hours_en', { value: draft.businessHoursEn }),
       api.updateSettings('maintenance_mode', { value: draft.maintenanceMode }),
+      api.updateSettings('registration_open', { value: draft.registrationOpen }),
+      api.updateSettings('two_factor_required', { value: draft.twoFactorRequired }),
+      api.updateSettings('default_currency', { value: draft.defaultCurrency }),
+      api.updateSettings('default_language', { value: draft.defaultLanguage }),
+      api.updateSettings('session_timeout_hours', { value: draft.sessionTimeout }),
+      api.updateSettings('weekly_digest', { value: draft.weeklyDigest }),
+      api.updateSettings('instant_alerts', { value: draft.instantAlerts }),
     ]).catch(err => logger.error('Failed to sync public site settings', err));
 
     addAuditEntry('admin@tharwah.com', 'تحديث إعدادات المنصة العامة', 'Updated platform settings');
