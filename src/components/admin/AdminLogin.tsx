@@ -143,7 +143,7 @@ export function AdminLogin() {
       const response = await api.adminLogin(mail, password);
 
       if (response.user && response.token) {
-        setAuthTokens(response.token, response.refreshToken);
+        setAuthTokens(response.token);
         const role = response.user.role as 'super' | 'sub' | 'admin';
         const permissions = Array.isArray(response.user.permissions) ? response.user.permissions : [];
         const session = await createAdminSession(mail, response.user.name, role, permissions);

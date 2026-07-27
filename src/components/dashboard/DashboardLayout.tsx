@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLang } from '@/contexts/LanguageContext';
 import { useNavigate, Link } from '@tanstack/react-router';
-import { clearClientSession, getClientSession, getRefreshToken } from '@/lib/auth';
+import { clearClientSession, getClientSession } from '@/lib/auth';
 import { api } from '@/lib/api';
 import {
   Home, BarChart3, TrendingUp, Landmark, FileText, BarChart2,
@@ -29,8 +29,7 @@ export function DashboardLayout({ activeTab, onTabChange, children, isDarkMode, 
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
 
   const handleSignOut = () => {
-    const refreshToken = getRefreshToken();
-    void api.logout(refreshToken).finally(() => {
+    void api.logout().finally(() => {
       clearClientSession();
       navigate({ to: '/' });
     });

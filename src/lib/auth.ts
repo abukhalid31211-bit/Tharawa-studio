@@ -9,9 +9,8 @@ import { logger } from './logger';
 
 const SESSION_SECRET = (import.meta.env.VITE_SESSION_SECRET as string) || (import.meta.env.PROD ? '' : 'tharwah-dev-secret-change-in-production');
 
-// FIX: JWT access token stored in memory only (not persisted) to prevent XSS token theft.
-// Refresh token stored in sessionStorage (cleared on tab/browser close, not accessible cross-tab).
-const REFRESH_TOKEN_KEY = 'tharwah_refresh_token';
+// Access token: memory only — never in any browser storage — immune to XSS theft.
+// Refresh token: HttpOnly cookie managed exclusively by the backend — JS cannot read it.
 
 let _jwtTokenMemory: string | null = null;
 
@@ -21,9 +20,13 @@ export function getJwtToken(): string | null {
 
 export function setJwtToken(token: string): void {
   _jwtTokenMemory = token;
-  // Remove any old localStorage entry if it exists
+  // Purge any legacy entries from previous versions
   if (typeof window !== 'undefined') {
-    try { localStorage.removeItem('tharwah_jwt_token'); } catch { /* ignore */ }
+    try {
+      localStorage.removeItem('tharwah_jwt_token');
+      localStorage.removeItem('tharwah_refresh_token');
+      sessionStorage.removeItem('tharwah_refresh_token');
+    } catch { /* ignore */ }
   }
 }
 
@@ -31,37 +34,15 @@ export function removeJwtToken(): void {
   _jwtTokenMemory = null;
 }
 
-export function getRefreshToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    return sessionStorage.getItem(REFRESH_TOKEN_KEY) || null;
-  } catch {
-    return null;
-  }
-}
-
-export function setRefreshToken(token: string): void {
-  if (typeof window === 'undefined') return;
-  try {
-    sessionStorage.setItem(REFRESH_TOKEN_KEY, token);
-    // Remove any old localStorage entry if it exists
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-  } catch { /* ignore */ }
-}
-
-export function removeRefreshToken(): void {
-  if (typeof window === 'undefined') return;
-  try { sessionStorage.removeItem(REFRESH_TOKEN_KEY); } catch { /* ignore */ }
-}
-
-export function setAuthTokens(token: string, refreshToken: string): void {
+// Second parameter kept optional for backward-compat call sites; it is intentionally ignored.
+// Refresh token is handled solely via HttpOnly cookie by the backend.
+export function setAuthTokens(token: string, _refreshToken?: string): void {
   setJwtToken(token);
-  setRefreshToken(refreshToken);
 }
 
 export function clearAuthTokens(): void {
   removeJwtToken();
-  removeRefreshToken();
+  // No client-side refresh token to clear — the backend clears the HttpOnly cookie on logout.
 }
 
 export interface AdminSession {

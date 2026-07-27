@@ -60,11 +60,12 @@ function LoginPage() {
     setLoading(true);
 
     try {
-      const loginEmail = loginMethod === 'email' ? email : `${accountNumber}@tharwah.local`;
-      const response = await api.login(sanitizeEmail(loginEmail), password);
+      // Send identifier as-is: email or raw account number — no @tharwah.local conversion
+      const loginIdentifier = loginMethod === 'email' ? email.trim() : accountNumber.trim();
+      const response = await api.login(loginIdentifier, password);
 
       if (response.user && response.token) {
-        setAuthTokens(response.token, response.refreshToken);
+        setAuthTokens(response.token);
         const session = await createClientSession(
           response.user.id,
           response.user.email,
@@ -73,7 +74,7 @@ function LoginPage() {
           response.user.role || 'client'
         );
         saveClientSession(session);
-        loginRateLimiter.recordAttempt(sanitizeEmail(loginEmail), true);
+        loginRateLimiter.recordAttempt(sanitizeEmail(loginIdentifier), true);
         logger.audit(response.user.email, 'client_login_success');
         navigate({ to: '/dashboard' });
         return;

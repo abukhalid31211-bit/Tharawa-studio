@@ -13,7 +13,7 @@ import {
   Bell, Settings, Lock, UserCog, Menu, ChevronRight, ChevronLeft,
   LogOut, Search, CalendarDays, ListTodo,
 } from 'lucide-react';
-import { clearAdminSession, getAdminSession, getRefreshToken } from '@/lib/auth';
+import { clearAdminSession, getAdminSession } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { useClients, useTransactions, useMessages, useNotifications, useSubAdmins } from '@/lib/queries';
 import { ADMIN_KEYS, relativeTime } from '@/lib/adminData';
@@ -244,8 +244,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pageName = PAGE_NAMES[pageKey] ? (lang === 'ar' ? PAGE_NAMES[pageKey][0] : PAGE_NAMES[pageKey][1]) : pageKey;
 
   const handleLogout = () => {
-    const refreshToken = getRefreshToken();
-    void api.logout(refreshToken).finally(() => {
+    void api.logout().finally(() => {
       clearAdminSession();
       localStorage.removeItem('admin_permissions');
       navigate({ to: '/Akadmin' });

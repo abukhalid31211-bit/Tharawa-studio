@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { config } from './config/env.js';
@@ -75,6 +76,7 @@ const userSockets = new Map<string, string[]>();
 // Middleware
 app.use(helmet());
 app.use(morgan(config.logLevel === 'debug' ? 'dev' : 'combined'));
+app.use(cookieParser());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 

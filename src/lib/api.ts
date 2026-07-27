@@ -5,7 +5,7 @@
 import { env } from './env';
 import { logger } from './logger';
 import { sanitizeInput } from './security';
-import { getJwtToken, getRefreshToken, setAuthTokens, clearAllSessions } from './auth';
+import { getJwtToken, setAuthTokens, clearAllSessions } from './auth';
 
 const BASE_URL = env.apiUrl;
 
@@ -69,6 +69,7 @@ export async function request<T = any>(endpoint: string, options: ApiOptions = {
       ...fetchOptions,
       headers,
       signal: controller.signal,
+      credentials: 'include', // send HttpOnly refresh-token cookie automatically
     });
 
     clearTimeout(timeoutId);
@@ -89,17 +90,19 @@ export async function request<T = any>(endpoint: string, options: ApiOptions = {
 
     if (!response.ok) {
       if (!skipAuth && !authRetried && data?.code === 'TOKEN_EXPIRED') {
-        const refreshToken = getRefreshToken();
-        if (refreshToken) {
+        // Cookie is sent automatically via credentials:'include' — no token in body
+        try {
           const refreshResponse = await fetch(`${BASE_URL}/api/auth/refresh`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken }),
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
           });
           if (refreshResponse.ok) {
             const refreshed = await refreshResponse.json();
-            setAuthTokens(refreshed.token, refreshed.refreshToken);
+            setAuthTokens(refreshed.token); // only access token returned in body
             return request<T>(endpoint, { ...options, authRetried: true });
           }
-        }
+        } catch { /* fall through */ }
         clearAllSessions();
       }
       const message = data?.message || data?.error || `API error: ${response.statusText}`;
@@ -139,13 +142,16 @@ export const api = {
   updatePlatformData: (key: string, value: unknown) => request(`/api/platform-data/${encodeURIComponent(key)}`, { method: 'PUT', body: JSON.stringify({ value }) }),
 
   // Auth
-  login: (email: string, password: string) =>
-    request('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }), skipAuth: true }),
+  // identifier: email address OR portfolio_code (account number) sent as-is — no @tharwah.local wrapping
+  login: (identifier: string, password: string) =>
+    request('/api/auth/login', { method: 'POST', body: JSON.stringify({ identifier, password }), skipAuth: true }),
   adminLogin: (email: string, password: string) =>
     request('/api/auth/admin/login', { method: 'POST', body: JSON.stringify({ email, password }), skipAuth: true }),
-  refreshToken: (refreshToken: string) =>
-    request('/api/auth/refresh', { method: 'POST', body: JSON.stringify({ refreshToken }), skipAuth: true }),
-  logout: (refreshToken?: string | null) => request('/api/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken }), skipAuth: true }),
+  // Cookie is sent automatically — no token in body
+  refreshToken: () =>
+    request('/api/auth/refresh', { method: 'POST', skipAuth: true }),
+  // Backend reads token from cookie, revokes it, and clears the cookie
+  logout: () => request('/api/auth/logout', { method: 'POST', skipAuth: true }),
   changePassword: (currentPassword: string, newPassword: string) => request('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   getProfile: () => request('/api/auth/profile'),
   updateProfile: (data: { phone?: string; profile_data?: Record<string, unknown> }) => request('/api/auth/profile', { method: 'PATCH', body: JSON.stringify(data) }),

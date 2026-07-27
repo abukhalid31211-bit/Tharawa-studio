@@ -10,7 +10,8 @@ import { logAudit } from '../lib/audit.js';
 
 const router = Router();
 const loginSchema = z.object({ email: z.string().email().max(254), password: z.string().min(1).max(128) });
-const refreshSchema = z.object({ refreshToken: z.string().min(20).max(4096) });
+// Client login: identifier can be an email address or a portfolio_code (account number)
+const clientLoginSchema = z.object({ identifier: z.string().min(1).max(254), password: z.string().min(1).max(128) });
 const accessExpiry = config.jwtExpiresIn as SignOptions['expiresIn'];
 const refreshExpiry = config.jwtRefreshExpiresIn as SignOptions['expiresIn'];
 
@@ -28,6 +29,14 @@ function expiryDate(value: string): Date {
   const unit = match?.[2] || 'd';
   const multiplier = unit === 'm' ? 60_000 : unit === 'h' ? 3_600_000 : 86_400_000;
   return new Date(Date.now() + amount * multiplier);
+}
+
+function cookieMaxAge(value: string): number {
+  const match = /^(\d+)([mhd])$/.exec(value);
+  const amount = match ? Number(match[1]) : 7;
+  const unit = match?.[2] || 'd';
+  const multiplier = unit === 'm' ? 60_000 : unit === 'h' ? 3_600_000 : 86_400_000;
+  return amount * multiplier;
 }
 
 function accessToken(user: { id: string; email: string; role: string; tier: string | null }) {
@@ -81,36 +90,52 @@ function permissionsFrom(value: unknown): string[] {
 }
 
 async function login(req: Request, res: any, adminOnly: boolean) {
-  const parsed = loginSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: 'InvalidInput', message: 'بيانات الدخول غير صالحة' });
-  const email = parsed.data.email.toLowerCase().trim();
-  const password = parsed.data.password;
+  // Admin login: email required. Client login: identifier = email OR portfolio_code (account number).
+  let lookupEmail = '';
+  let lookupAccountNumber: string | undefined;
+  let password: string;
+  let auditIdentifier: string;
+
+  if (adminOnly) {
+    const parsed = loginSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'InvalidInput', message: 'بيانات الدخول غير صالحة' });
+    lookupEmail = parsed.data.email.toLowerCase().trim();
+    password = parsed.data.password;
+    auditIdentifier = lookupEmail;
+  } else {
+    const parsed = clientLoginSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'InvalidInput', message: 'بيانات الدخول غير صالحة' });
+    const raw = parsed.data.identifier.trim();
+    password = parsed.data.password;
+    auditIdentifier = raw.toLowerCase();
+    // Emails contain '@'; everything else is treated as a portfolio_code
+    if (raw.includes('@')) {
+      lookupEmail = raw.toLowerCase();
+    } else {
+      lookupAccountNumber = raw;
+    }
+  }
 
   try {
-    if (await isLocked(email)) return res.status(429).json({ error: 'AccountLocked', message: 'تم تجاوز عدد محاولات الدخول المسموح' });
+    if (await isLocked(auditIdentifier)) return res.status(429).json({ error: 'AccountLocked', message: 'تم تجاوز عدد محاولات الدخول المسموح' });
 
-    let user = await prisma.user.findUnique({ where: { email } });
+    // Direct lookup — no @tharwah.local wrapper ever
+    let user = lookupAccountNumber
+      ? await prisma.user.findFirst({ where: { portfolio_code: lookupAccountNumber } })
+      : await prisma.user.findUnique({ where: { email: lookupEmail } });
 
-    // FIX: Support login by account number (portfolio_code).
-    // The frontend converts account number to `${code}@tharwah.local` as a synthetic email.
-    // If no user found by that email, extract the code and look up by portfolio_code instead.
-    if (!user && email.endsWith('@tharwah.local')) {
-      const portfolioCode = email.slice(0, email.lastIndexOf('@'));
-      if (portfolioCode) {
-        user = await prisma.user.findFirst({ where: { portfolio_code: portfolioCode, status: 'active' } });
-      }
-    }
-
-    const superValid = await verifySuperAdmin(email, password);
+    // Super-admin auth only applies when an email credential is provided
+    const superValid = lookupEmail ? await verifySuperAdmin(lookupEmail, password) : false;
     if (superValid && !user) {
-      user = await prisma.user.create({ data: { email, name: 'Super Admin', role: 'super', tier: 'VIP+', status: 'active' } });
+      user = await prisma.user.create({ data: { email: lookupEmail, name: 'Super Admin', role: 'super', tier: 'VIP+', status: 'active' } });
     }
 
+    const logEmail = user?.email ?? auditIdentifier;
     let valid = superValid;
     if (!valid && user?.password_hash) valid = await bcrypt.compare(password, user.password_hash);
     const allowedRole = user && (!adminOnly || ['super', 'admin', 'sub'].includes(user.role));
     if (!user || user.status !== 'active' || !valid || !allowedRole) {
-      await recordLogin(req, email, 'failed', 'invalid_credentials');
+      await recordLogin(req, logEmail, 'failed', 'invalid_credentials');
       return res.status(401).json({ error: 'InvalidCredentials', message: 'بيانات الدخول غير صحيحة' });
     }
 
@@ -125,9 +150,18 @@ async function login(req: Request, res: any, adminOnly: boolean) {
     }
 
     const tokens = await createTokens(user, req);
-    await recordLogin(req, email, 'success');
-    await logAudit({ actor_email: email, user_id: user.id, action: 'تسجيل دخول', action_en: 'Signed in', ...requestMeta(req) });
-    return res.json({ ...tokens, user: { id: user.id, email: user.email, name: user.name, role: user.role, tier: user.tier, permissions } });
+    await recordLogin(req, logEmail, 'success');
+    await logAudit({ actor_email: logEmail, user_id: user.id, action: 'تسجيل دخول', action_en: 'Signed in', ...requestMeta(req) });
+
+    // Refresh token lives in an HttpOnly cookie only — never in the response body
+    res.cookie('rt', tokens.refreshToken, {
+      httpOnly: true,
+      secure: config.nodeEnv === 'production',
+      sameSite: 'lax' as const,
+      maxAge: cookieMaxAge(config.jwtRefreshExpiresIn),
+      path: '/api/auth',
+    });
+    return res.json({ token: tokens.token, user: { id: user.id, email: user.email, name: user.name, role: user.role, tier: user.tier, permissions } });
   } catch (error) {
     console.error('[Auth Login]', error);
     return res.status(500).json({ error: 'ServerError', message: 'تعذر تسجيل الدخول' });
@@ -138,30 +172,48 @@ router.post('/login', (req, res) => login(req, res, false));
 router.post('/admin/login', (req, res) => login(req, res, true));
 
 router.post('/refresh', async (req, res) => {
-  const parsed = refreshSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(401).json({ error: 'NoRefreshToken' });
+  // Refresh token is read exclusively from the HttpOnly cookie — never from the request body
+  const rawToken = typeof req.cookies?.rt === 'string' ? req.cookies.rt : '';
+  if (!rawToken) return res.status(401).json({ error: 'NoRefreshToken' });
   try {
-    const payload = jwt.verify(parsed.data.refreshToken, config.jwtRefreshSecret, {
+    const payload = jwt.verify(rawToken, config.jwtRefreshSecret, {
       issuer: config.jwtIssuer, audience: config.jwtAudience, algorithms: ['HS256'],
     }) as JwtPayload;
     if (payload.tokenType !== 'refresh' || !payload.sub || !payload.sid) throw new Error('Invalid refresh token');
-    const session = await prisma.refreshSession.findUnique({ where: { token_hash: tokenHash(parsed.data.refreshToken) } });
+    const session = await prisma.refreshSession.findUnique({ where: { token_hash: tokenHash(rawToken) } });
     if (!session || session.revoked_at || session.expires_at <= new Date() || session.user_id !== payload.sub) {
       throw new Error('Revoked refresh token');
     }
     const user = await prisma.user.findUnique({ where: { id: payload.sub } });
     if (!user || user.status !== 'active') throw new Error('Inactive user');
+    // Rotate: revoke old session, issue new tokens
     await prisma.refreshSession.update({ where: { id: session.id }, data: { revoked_at: new Date() } });
     const tokens = await createTokens(user, req);
-    return res.json(tokens);
+    // Rotate cookie with the new refresh token
+    res.cookie('rt', tokens.refreshToken, {
+      httpOnly: true,
+      secure: config.nodeEnv === 'production',
+      sameSite: 'lax' as const,
+      maxAge: cookieMaxAge(config.jwtRefreshExpiresIn),
+      path: '/api/auth',
+    });
+    return res.json({ token: tokens.token }); // only access token in body
   } catch {
+    res.clearCookie('rt', { httpOnly: true, secure: config.nodeEnv === 'production', sameSite: 'lax' as const, path: '/api/auth' });
     return res.status(403).json({ error: 'InvalidRefreshToken', message: 'جلسة التجديد غير صالحة' });
   }
 });
 
 router.post('/logout', async (req, res) => {
-  const token = typeof req.body?.refreshToken === 'string' ? req.body.refreshToken : '';
-  if (token) await prisma.refreshSession.updateMany({ where: { token_hash: tokenHash(token), revoked_at: null }, data: { revoked_at: new Date() } });
+  // Read refresh token from HttpOnly cookie, revoke in DB, then clear the cookie
+  const token = typeof req.cookies?.rt === 'string' ? req.cookies.rt : '';
+  if (token) {
+    await prisma.refreshSession.updateMany({
+      where: { token_hash: tokenHash(token), revoked_at: null },
+      data: { revoked_at: new Date() },
+    }).catch(() => undefined);
+  }
+  res.clearCookie('rt', { httpOnly: true, secure: config.nodeEnv === 'production', sameSite: 'lax' as const, path: '/api/auth' });
   return res.json({ success: true });
 });
 
