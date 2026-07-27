@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLang } from '@/contexts/LanguageContext';
 import { useNavigate, Link } from '@tanstack/react-router';
 import { clearClientSession, getClientSession } from '@/lib/auth';
 import { api } from '@/lib/api';
+import { useNotifications } from '@/lib/queries';
+import { relativeTime } from '@/lib/adminData';
 import {
   Home, BarChart3, TrendingUp, Landmark, FileText, BarChart2,
   MessageSquare, UserCircle, Settings, LogOut, Globe,
@@ -21,12 +23,32 @@ interface DashboardLayoutProps {
   sessionName: string;
 }
 
+const ALERT_COLORS: Record<string, string> = { critical: '#FF4560', warning: '#F59E0B', info: '#0EA5E9', success: '#00D97E' };
+const ALERT_ICONS: Record<string, string> = { critical: '🔴', warning: '🟡', info: '🔵', success: '🟢' };
+
 export function DashboardLayout({ activeTab, onTabChange, children, isDarkMode, onToggleDarkMode, sessionName }: DashboardLayoutProps) {
   const { t, lang, setLang } = useLang();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  const { data: notificationsData } = useNotifications();
+  const notifications = useMemo(() => (notificationsData as any)?.data || [], [notificationsData]);
+  const unreadCount = notifications.filter((n: any) => !n.is_read).length;
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotificationsOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const markNotificationRead = (id: string) => {
+    void api.markNotificationRead(id).catch(() => undefined);
+  };
 
   const handleSignOut = () => {
     void api.logout().finally(() => {
@@ -34,6 +56,7 @@ export function DashboardLayout({ activeTab, onTabChange, children, isDarkMode, 
       navigate({ to: '/' });
     });
   };
+
 
   const tabLabels: Record<DashboardTab, { label: string; labelEn: string; icon: React.ElementType }> = {
     info: { label: t('الرئيسية', 'Overview'), labelEn: 'Overview', icon: Home },
@@ -204,10 +227,46 @@ export function DashboardLayout({ activeTab, onTabChange, children, isDarkMode, 
             <button onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} className="px-2.5 py-1.5 rounded-lg border border-border-default bg-secondary hover:bg-gold-light text-xs font-black text-text-primary transition-all">
               {lang === 'ar' ? 'English' : 'العربية'}
             </button>
-            <button onClick={() => setNotificationsOpen(!notificationsOpen)} className="relative p-2 rounded-lg hover:bg-[#F1F5F9] dark:hover:bg-[#20203A] text-text-secondary transition-all">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white ring-1 ring-rose-500/20" />
-            </button>
+            <div className="relative" ref={notifRef}>
+              <button onClick={() => setNotificationsOpen(!notificationsOpen)} className="relative p-2 rounded-lg hover:bg-[#F1F5F9] dark:hover:bg-[#20203A] text-text-secondary transition-all">
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white ring-1 ring-rose-500/20" />
+                )}
+              </button>
+              {notificationsOpen && (
+                <div className="absolute rtl:left-0 ltr:right-0 top-full mt-2 w-80 bg-white dark:bg-[#1C1C34] border border-[#E2E8F0] dark:border-[#2D2D50] rounded-2xl shadow-2xl overflow-hidden z-[110]">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-[#E2E8F0] dark:border-[#2D2D50]">
+                    <span className="font-black text-xs text-text-primary">{t('الإشعارات', 'Notifications')}</span>
+                    {unreadCount > 0 && (
+                      <span className="text-[10px] font-bold text-gold-deep">{unreadCount} {t('غير مقروءة', 'unread')}</span>
+                    )}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-xs font-bold text-text-muted">
+                        {t('لا توجد إشعارات حالياً', 'No notifications yet')}
+                      </div>
+                    ) : notifications.slice(0, 8).map((n: any) => (
+                      <button
+                        key={n.id}
+                        onClick={() => { if (!n.is_read) markNotificationRead(n.id); }}
+                        className="w-full text-start flex items-start gap-2.5 px-4 py-3 border-b border-[#E2E8F0]/60 dark:border-[#2D2D50]/60 last:border-0 hover:bg-gold-light/30 transition-colors"
+                        style={{ background: n.is_read ? 'transparent' : 'rgba(201,168,76,0.05)' }}
+                      >
+                        <span className="text-base shrink-0">{ALERT_ICONS[n.type] || ALERT_ICONS.info}</span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block font-bold text-[11px] text-text-primary truncate">{lang === 'ar' ? n.title : (n.title_en || n.title)}</span>
+                          <span className="block text-[10px] text-text-muted mt-0.5 line-clamp-2">{lang === 'ar' ? n.message : (n.message_en || n.message)}</span>
+                          <span className="block text-[9px] text-text-muted mt-1">{relativeTime(n.created_at, lang)}</span>
+                        </span>
+                        {!n.is_read && <span className="w-2 h-2 rounded-full shrink-0 mt-1" style={{ background: ALERT_COLORS[n.type] || ALERT_COLORS.info }} />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

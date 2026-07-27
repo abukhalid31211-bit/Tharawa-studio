@@ -6,12 +6,46 @@ import { Plus, Pencil, Trash2, Mail, Phone } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
 import { TeamMember, nextCode, ADMIN_KEYS, TEAM_SEED } from '@/lib/adminData';
 import { usePlatformDataState } from '@/lib/platformState';
+import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import {
   PageHeader, Panel, Pill, StatCard, Modal, ConfirmDialog, Field,
   TextInput, SelectBox, PrimaryBtn, GhostBtn, IconBtn, EmptyState, useToast, ClientAvatar,
 } from '@/components/admin/ui';
 
 const EMPTY = { name: '', nameEn: '', role: '', roleEn: '', experience: '', email: '', phone: '', status: 'active' as TeamMember['status'] };
+
+// The public /about page reads its "team" section from the `about` content
+// record (ContentSection('about').content_data.team), not from this page's
+// own platform_data store. This roster (managed here) is the intended
+// day-to-day source of truth for staff, so every mutation below also mirrors
+// the currently "available" members into the about-page content record —
+// otherwise changes made on this page would never appear anywhere publicly.
+async function syncTeamToAboutPage(nextTeam: TeamMember[]) {
+  try {
+    const current: any = await api.getContent('about');
+    const currentData = current?.data?.content_data && typeof current.data.content_data === 'object'
+      ? current.data.content_data
+      : {};
+    const publicTeam = nextTeam
+      .map(member => ({
+        avatar: (member.nameEn || member.name || 'T').charAt(0),
+        nameAr: member.name,
+        nameEn: member.nameEn || member.name,
+        roleAr: member.role,
+        roleEn: member.roleEn || member.role,
+        descAr: member.experience ? `${member.experience} خبرة` : '',
+        descEn: member.experience ? `${member.experience} experience` : '',
+      }));
+    await api.updateContent('about', {
+      title_ar: current?.data?.title_ar,
+      title_en: current?.data?.title_en,
+      content_data: { ...currentData, team: publicTeam },
+    });
+  } catch (error) {
+    logger.error('Failed to sync team roster to the public About page', error);
+  }
+}
 
 export function Team() {
   const { t, lang } = useLang();
@@ -33,16 +67,21 @@ export function Team() {
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     if (editing) {
-      setTeam(prev => prev.map(m => m.id === editing.id ? { ...m, ...form } : m));
+      const next = team.map(m => m.id === editing.id ? { ...m, ...form } : m);
+      setTeam(next);
+      void syncTeamToAboutPage(next);
       show(t('تم تحديث بيانات العضو', 'Member updated'));
     } else {
-      setTeam(prev => [...prev, { id: nextCode(team, 'TM'), ...form }]);
+      const next = [...team, { id: nextCode(team, 'TM'), ...form }];
+      setTeam(next);
+      void syncTeamToAboutPage(next);
       show(t('تمت إضافة العضو للفريق', 'Member added to team'));
     }
     setEditOpen(false);
   };
 
   const active = team.filter(m => m.status === 'active').length;
+
 
   return (
     <div className="space-y-5">
@@ -82,7 +121,11 @@ export function Team() {
               </div>
 
               <div className="flex items-center justify-between pt-3 border-t border-[#E2E8F0] dark:border-border-default mt-auto">
-                <GhostBtn onClick={() => setTeam(prev => prev.map(x => x.id === m.id ? { ...x, status: x.status === 'active' ? 'vacation' : 'active' } : x))}>
+                <GhostBtn onClick={() => {
+                  const next = team.map(x => x.id === m.id ? { ...x, status: (x.status === 'active' ? 'vacation' : 'active') as TeamMember['status'] } : x);
+                  setTeam(next);
+                  void syncTeamToAboutPage(next);
+                }}>
                   {m.status === 'active' ? t('تحويل لإجازة', 'Set Vacation') : t('إنهاء الإجازة', 'Set Active')}
                 </GhostBtn>
                 <div className="flex gap-0.5">
@@ -139,7 +182,12 @@ export function Team() {
       <ConfirmDialog
         open={!!deleting}
         onClose={() => setDeleting(null)}
-        onConfirm={() => { setTeam(prev => prev.filter(m => m.id !== deleting!.id)); show(t('تم حذف العضو', 'Member removed')); }}
+        onConfirm={() => {
+          const next = team.filter(m => m.id !== deleting!.id);
+          setTeam(next);
+          void syncTeamToAboutPage(next);
+          show(t('تم حذف العضو', 'Member removed'));
+        }}
         title={t('حذف عضو الفريق', 'Remove Team Member')}
         message={t(`هل أنت متأكد من حذف ${deleting?.name} من الفريق؟`, `Are you sure you want to remove ${deleting?.nameEn} from the team?`)}
         confirmText={t('حذف', 'Remove')}

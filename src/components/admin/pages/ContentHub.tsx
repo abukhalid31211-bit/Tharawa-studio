@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────
 import React from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Layout, Ticket, TrendingUp, HelpCircle, Star, Info, Palette, ShieldCheck, Newspaper } from 'lucide-react';
+import { Layout, Ticket, TrendingUp, HelpCircle, Star, Info, Palette, ShieldCheck, Newspaper, FileText } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
 import { useCmsServices, useCmsMarkets, useCmsFaq, useCmsTestimonials, useCmsPrivacy, useCmsAbout } from '@/lib/adminData';
 import { usePlatformDataState } from '@/lib/platformState';

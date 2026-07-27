@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SplatRouteImport } from './routes/$'
 import { Route as AkadminRouteImport } from './routes/Akadmin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -28,6 +29,7 @@ import { Route as AkadminFaq_mgrRouteImport } from './routes/Akadmin.faq_mgr'
 import { Route as AkadminHeroRouteImport } from './routes/Akadmin.hero'
 import { Route as AkadminMarkets_mgrRouteImport } from './routes/Akadmin.markets_mgr'
 import { Route as AkadminMessagesRouteImport } from './routes/Akadmin.messages'
+import { Route as AkadminNews_mgrRouteImport } from './routes/Akadmin.news_mgr'
 import { Route as AkadminNotificationsRouteImport } from './routes/Akadmin.notifications'
 import { Route as AkadminOverviewRouteImport } from './routes/Akadmin.overview'
 import { Route as AkadminPortfoliosRouteImport } from './routes/Akadmin.portfolios'
@@ -50,6 +52,11 @@ import { Route as AkadminClientsClientIdRouteImport } from './routes/Akadmin.cli
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SplatRoute = SplatRouteImport.update({
+  id: '/$',
+  path: '/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AkadminRoute = AkadminRouteImport.update({
@@ -140,6 +147,11 @@ const AkadminMarkets_mgrRoute = AkadminMarkets_mgrRouteImport.update({
 const AkadminMessagesRoute = AkadminMessagesRouteImport.update({
   id: '/messages',
   path: '/messages',
+  getParentRoute: () => AkadminRoute,
+} as any)
+const AkadminNews_mgrRoute = AkadminNews_mgrRouteImport.update({
+  id: '/news_mgr',
+  path: '/news_mgr',
   getParentRoute: () => AkadminRoute,
 } as any)
 const AkadminNotificationsRoute = AkadminNotificationsRouteImport.update({
@@ -235,6 +247,7 @@ const AkadminClientsClientIdRoute = AkadminClientsClientIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/Akadmin': typeof AkadminRouteWithChildren
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
@@ -253,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/Akadmin/hero': typeof AkadminHeroRoute
   '/Akadmin/markets_mgr': typeof AkadminMarkets_mgrRoute
   '/Akadmin/messages': typeof AkadminMessagesRoute
+  '/Akadmin/news_mgr': typeof AkadminNews_mgrRoute
   '/Akadmin/notifications': typeof AkadminNotificationsRoute
   '/Akadmin/overview': typeof AkadminOverviewRoute
   '/Akadmin/portfolios': typeof AkadminPortfoliosRoute
@@ -274,6 +288,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/Akadmin': typeof AkadminRouteWithChildren
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
@@ -292,6 +307,7 @@ export interface FileRoutesByTo {
   '/Akadmin/hero': typeof AkadminHeroRoute
   '/Akadmin/markets_mgr': typeof AkadminMarkets_mgrRoute
   '/Akadmin/messages': typeof AkadminMessagesRoute
+  '/Akadmin/news_mgr': typeof AkadminNews_mgrRoute
   '/Akadmin/notifications': typeof AkadminNotificationsRoute
   '/Akadmin/overview': typeof AkadminOverviewRoute
   '/Akadmin/portfolios': typeof AkadminPortfoliosRoute
@@ -314,6 +330,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/Akadmin': typeof AkadminRouteWithChildren
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
@@ -332,6 +349,7 @@ export interface FileRoutesById {
   '/Akadmin/hero': typeof AkadminHeroRoute
   '/Akadmin/markets_mgr': typeof AkadminMarkets_mgrRoute
   '/Akadmin/messages': typeof AkadminMessagesRoute
+  '/Akadmin/news_mgr': typeof AkadminNews_mgrRoute
   '/Akadmin/notifications': typeof AkadminNotificationsRoute
   '/Akadmin/overview': typeof AkadminOverviewRoute
   '/Akadmin/portfolios': typeof AkadminPortfoliosRoute
@@ -355,6 +373,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/$'
     | '/Akadmin'
     | '/about'
     | '/contact'
@@ -373,6 +392,7 @@ export interface FileRouteTypes {
     | '/Akadmin/hero'
     | '/Akadmin/markets_mgr'
     | '/Akadmin/messages'
+    | '/Akadmin/news_mgr'
     | '/Akadmin/notifications'
     | '/Akadmin/overview'
     | '/Akadmin/portfolios'
@@ -394,6 +414,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/$'
     | '/Akadmin'
     | '/about'
     | '/contact'
@@ -412,6 +433,7 @@ export interface FileRouteTypes {
     | '/Akadmin/hero'
     | '/Akadmin/markets_mgr'
     | '/Akadmin/messages'
+    | '/Akadmin/news_mgr'
     | '/Akadmin/notifications'
     | '/Akadmin/overview'
     | '/Akadmin/portfolios'
@@ -433,6 +455,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/$'
     | '/Akadmin'
     | '/about'
     | '/contact'
@@ -451,6 +474,7 @@ export interface FileRouteTypes {
     | '/Akadmin/hero'
     | '/Akadmin/markets_mgr'
     | '/Akadmin/messages'
+    | '/Akadmin/news_mgr'
     | '/Akadmin/notifications'
     | '/Akadmin/overview'
     | '/Akadmin/portfolios'
@@ -473,6 +497,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SplatRoute: typeof SplatRoute
   AkadminRoute: typeof AkadminRouteWithChildren
   AboutRoute: typeof AboutRoute
   ContactRoute: typeof ContactRoute
@@ -494,6 +519,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$': {
+      id: '/$'
+      path: '/$'
+      fullPath: '/$'
+      preLoaderRoute: typeof SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/Akadmin': {
@@ -620,6 +652,13 @@ declare module '@tanstack/react-router' {
       path: '/messages'
       fullPath: '/Akadmin/messages'
       preLoaderRoute: typeof AkadminMessagesRouteImport
+      parentRoute: typeof AkadminRoute
+    }
+    '/Akadmin/news_mgr': {
+      id: '/Akadmin/news_mgr'
+      path: '/news_mgr'
+      fullPath: '/Akadmin/news_mgr'
+      preLoaderRoute: typeof AkadminNews_mgrRouteImport
       parentRoute: typeof AkadminRoute
     }
     '/Akadmin/notifications': {
@@ -772,6 +811,7 @@ interface AkadminRouteChildren {
   AkadminHeroRoute: typeof AkadminHeroRoute
   AkadminMarkets_mgrRoute: typeof AkadminMarkets_mgrRoute
   AkadminMessagesRoute: typeof AkadminMessagesRoute
+  AkadminNews_mgrRoute: typeof AkadminNews_mgrRoute
   AkadminNotificationsRoute: typeof AkadminNotificationsRoute
   AkadminOverviewRoute: typeof AkadminOverviewRoute
   AkadminPortfoliosRoute: typeof AkadminPortfoliosRoute
@@ -798,6 +838,7 @@ const AkadminRouteChildren: AkadminRouteChildren = {
   AkadminHeroRoute: AkadminHeroRoute,
   AkadminMarkets_mgrRoute: AkadminMarkets_mgrRoute,
   AkadminMessagesRoute: AkadminMessagesRoute,
+  AkadminNews_mgrRoute: AkadminNews_mgrRoute,
   AkadminNotificationsRoute: AkadminNotificationsRoute,
   AkadminOverviewRoute: AkadminOverviewRoute,
   AkadminPortfoliosRoute: AkadminPortfoliosRoute,
@@ -820,6 +861,7 @@ const AkadminRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SplatRoute: SplatRoute,
   AkadminRoute: AkadminRouteWithChildren,
   AboutRoute: AboutRoute,
   ContactRoute: ContactRoute,

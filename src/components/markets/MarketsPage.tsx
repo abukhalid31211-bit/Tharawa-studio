@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { useCmsSection } from '@/lib/cms';
 import { isClientAuthed } from '@/lib/auth';
+import { api } from '@/lib/api';
 
 // ─── Types ───────────────────────────────────────────────
 type CategoryKey = 'all' | 'stocks' | 'crypto' | 'metals' | 'energy';

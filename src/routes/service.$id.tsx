@@ -3,7 +3,7 @@ import { useLang } from '@/contexts/LanguageContext';
 import { ArrowLeft, ShieldCheck, CheckCircle2, ChevronDown } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
-import { SERVICE_DETAILS, SERVICE_ICON_MAP, usePublicServices } from '@/lib/publicContent';
+import { SERVICE_DETAILS, SERVICE_ICON_MAP, GENERIC_SERVICE_DETAILS, usePublicServices } from '@/lib/publicContent';
 
 export const Route = createFileRoute('/service/$id')({
   component: ServiceDetailsPage,
@@ -16,7 +16,11 @@ function ServiceDetailsPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const service = useMemo(() => content.services.find((item) => item.id === id) || content.services[0], [content.services, id]);
-  const details = SERVICE_DETAILS[id] || SERVICE_DETAILS[service?.id || 'gulf-stocks'] || SERVICE_DETAILS['gulf-stocks'];
+  // Only use SERVICE_DETAILS for services that actually have matching hardcoded
+  // figures; any other service (e.g. newly added via /Akadmin/services_mgr with
+  // a custom id) gets an honest generic placeholder instead of silently
+  // borrowing another service's numbers.
+  const details = SERVICE_DETAILS[id] || SERVICE_DETAILS[service?.id || ''] || GENERIC_SERVICE_DETAILS;
   const isAr = lang === 'ar';
   const features = (isAr ? service?.featuresAr : service?.featuresEn) || [
     isAr ? 'تحليل يومي معمّق' : 'In-depth Daily Analysis',
@@ -95,9 +99,13 @@ function ServiceDetailsPage() {
             <div>
               <h2 className="text-2xl font-black mb-4">{isAr ? 'الأسواق المغطاة' : 'Markets Covered'}</h2>
               <div className="flex flex-wrap gap-2">
-                {(isAr ? details.marketsAr : details.marketsEn).map((m: string, i: number) => (
-                  <span key={i} className="px-3 py-1 rounded-full text-xs font-semibold bg-gold-subtle text-gold-deep border border-border-gold">{m}</span>
-                ))}
+                {(isAr ? details.marketsAr : details.marketsEn).length > 0 ? (
+                  (isAr ? details.marketsAr : details.marketsEn).map((m: string, i: number) => (
+                    <span key={i} className="px-3 py-1 rounded-full text-xs font-semibold bg-gold-subtle text-gold-deep border border-border-gold">{m}</span>
+                  ))
+                ) : (
+                  <span className="text-sm text-text-muted">{isAr ? 'تواصل مع فريقنا للاطلاع على الأسواق المتاحة لهذه الخدمة.' : 'Contact our team for the markets available under this service.'}</span>
+                )}
               </div>
             </div>
 

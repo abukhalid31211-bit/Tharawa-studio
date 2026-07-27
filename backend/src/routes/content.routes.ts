@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { AuthRequest, authenticateToken, requirePermission } from '../middleware/auth.middleware.js';
 import { prisma } from '../lib/prisma.js';
 import { broadcastAdminUpdate, broadcastPublicUpdate } from '../lib/socket.js';
+import { logAudit } from '../lib/audit.js';
+
 
 const router = Router();
 
@@ -58,6 +60,17 @@ router.put('/:key', authenticateToken, requirePermission('content:write'), async
 
     broadcastAdminUpdate({ action: 'content_updated', key: updated.section_key });
     broadcastPublicUpdate('content_updated', { key: updated.section_key, data: updated });
+
+    await logAudit({
+      actor_email: req.user!.email,
+      user_id: req.user!.userId,
+      action: `تحديث محتوى ${updated.section_key}`,
+      action_en: `Updated ${updated.section_key} content`,
+      resource_type: 'content',
+      resource_id: updated.id,
+      ip_address: req.ip,
+      user_agent: req.get('user-agent'),
+    });
 
     res.json({ data: updated, message: 'تم تحديث المحتوى' });
   } catch (err: any) {

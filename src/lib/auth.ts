@@ -7,7 +7,18 @@ import { signSession, verifySessionSignature, generateSecureToken } from './cryp
 import { createSecureSessionPayload, isSessionExpired, loginRateLimiter, sanitizeEmail } from './security';
 import { logger } from './logger';
 
+/**
+ * UI TAMPER-EVIDENCE ONLY — NOT A SECURITY BOUNDARY
+ * VITE_SESSION_SECRET is a public build-time value included in the JS bundle.
+ * The `signSession`/`verifySessionSignature` calls below (using this constant)
+ * do NOT provide cryptographic security guarantees — anyone with browser
+ * devtools can read this value and forge a matching signature. All real
+ * authorization is enforced server-side via JWT verification in
+ * `backend/src/middleware/auth.middleware.ts`. This exists only to detect
+ * accidental localStorage corruption, not to resist a motivated attacker.
+ */
 const SESSION_SECRET = (import.meta.env.VITE_SESSION_SECRET as string) || (import.meta.env.PROD ? '' : 'tharwah-dev-secret-change-in-production');
+
 
 // Access token: memory only — never in any browser storage — immune to XSS theft.
 // Refresh token: HttpOnly cookie managed exclusively by the backend — JS cannot read it.

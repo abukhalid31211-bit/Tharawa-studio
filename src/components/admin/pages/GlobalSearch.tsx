@@ -56,34 +56,25 @@ export function GlobalSearch() {
     const map = new Map<string, { group: string; groupEn: string; icon: any; color: string; hits: any[] }>();
     const icons: any = { client: Users, portfolio: Briefcase, transaction: CreditCard, message: MessageSquare };
     const colors: any = { client: '#3B82F6', portfolio: '#C9A84C', transaction: '#00D97E', message: '#8B5CF6' };
-    const labels: any = { 
-      client: { ar: 'العملاء', en: 'Clients' }, 
-      portfolio: { ar: 'المحافظ', en: 'Portfolios' }, 
-      transaction: { ar: 'المعاملات', en: 'Transactions' }, 
-      message: { ar: 'الرسائل', en: 'Messages' } 
+    const labels: any = {
+      client: { ar: 'العملاء', en: 'Clients' },
+      portfolio: { ar: 'المحافظ', en: 'Portfolios' },
+      transaction: { ar: 'المعاملات', en: 'Transactions' },
+      message: { ar: 'الرسائل', en: 'Messages' }
     };
 
     results.forEach(h => {
       const type = h.type;
       if (!map.has(type)) {
-        map.set(type, { 
-          group: labels[type]?.ar || type, 
-          groupEn: labels[type]?.en || type, 
-          icon: icons[type] || FileText, 
-          color: colors[type] || '#94A3B8', 
-          hits: [] 
+        map.set(type, {
+          group: labels[type]?.ar || type,
+          groupEn: labels[type]?.en || type,
+          icon: icons[type] || FileText,
+          color: colors[type] || '#94A3B8',
+          hits: []
         });
       }
       map.get(type)!.hits.push(h);
-    });
-    return Array.from(map.values());
-  }, [results]);
-
-  const groups = useMemo(() => {
-    const map = new Map<string, { group: string; groupEn: string; icon: any; color: string; hits: SearchHit[] }>();
-    results.forEach(h => {
-      if (!map.has(h.group)) map.set(h.group, { group: h.group, groupEn: h.groupEn, icon: h.icon, color: h.color, hits: [] });
-      map.get(h.group)!.hits.push(h);
     });
     return Array.from(map.values());
   }, [results]);

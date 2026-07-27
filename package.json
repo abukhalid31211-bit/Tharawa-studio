@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "vite --port=5173 --host=0.0.0.0",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsr generate && tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx --report-unused-disable-directives --max-warnings 50",
@@ -55,6 +55,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/router-cli": "^1.167.21",
     "@tanstack/router-devtools": "^1.167.0",
     "@tanstack/router-plugin": "^1.168.22",
     "@testing-library/jest-dom": "^6.4.8",
@@ -65,8 +66,8 @@
     "@typescript-eslint/eslint-plugin": "^8.65.0",
     "@typescript-eslint/parser": "^8.65.0",
     "@vitejs/plugin-react": "^6.0.3",
-    "eslint": "^9.11.0",
-    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint": "^10.8.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "jsdom": "^25.0.1",
     "prettier": "^3.3.3",
     "tailwindcss": "^4.3.3",

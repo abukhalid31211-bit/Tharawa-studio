@@ -198,6 +198,16 @@ export const SERVICE_DETAILS: Record<string, {
   },
 };
 
+// Honest, non-misleading placeholder used for any service the admin creates via
+// /Akadmin/services_mgr whose id has no matching entry in SERVICE_DETAILS above.
+// Previously the detail page silently fell back to the 'gulf-stocks' numbers for
+// any unknown id, which would show factually wrong figures for a new/renamed
+// service. This fallback instead shows an honest "contact us" placeholder.
+export const GENERIC_SERVICE_DETAILS: (typeof SERVICE_DETAILS)[string] = {
+  returnAr: 'تواصل معنا', returnEn: 'Contact us', riskAr: '—', riskEn: '—', minimum: 'يحدَّد عند الاستشارة', durationAr: '—', durationEn: '—', liquidityAr: '—', liquidityEn: '—', shariah: false,
+  marketsAr: [], marketsEn: [],
+};
+
 export const FALLBACK_FAQ_ITEMS: FaqItem[] = [
   {
     id: 'faq-1',
