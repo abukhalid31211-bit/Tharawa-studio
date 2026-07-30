@@ -334,3 +334,56 @@ export function useAdminStats() {
     refetchInterval: 5 * 60 * 1000,
   });
 }
+
+// Reports — server-side aggregated summaries and paginated data
+export function useReportsSummary(period?: string) {
+  return useQuery({
+    queryKey: ['reports-summary', period],
+    queryFn: () => api.getReportsSummary(period),
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useReportsClients(page?: number, limit?: number) {
+  return useQuery({
+    queryKey: ['reports-clients', page, limit],
+    queryFn: () => api.getReportsClients(page, limit),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useReportsTransactions(period?: string, page?: number) {
+  return useQuery({
+    queryKey: ['reports-transactions', period, page],
+    queryFn: () => api.getReportsTransactions(period, page),
+    staleTime: 30 * 1000,
+  });
+}
+
+// Sub-admins — delete mutation
+export function useDeleteSubAdmin() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteSubAdmin(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sub-admins'] }),
+  });
+}
+
+// Meetings — update mutation
+export function useUpdateMeeting() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => api.updateMeeting(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['meetings'] }),
+  });
+}
+
+// Global search
+export function useGlobalSearch(q: string) {
+  return useQuery({
+    queryKey: ['search', q],
+    queryFn: () => api.globalSearch(q),
+    enabled: q.trim().length >= 2,
+    staleTime: 30 * 1000,
+  });
+}

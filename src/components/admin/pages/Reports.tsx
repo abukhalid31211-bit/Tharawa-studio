@@ -7,6 +7,7 @@ import { FileBarChart2, Download, Play } from 'lucide-react';
 import { useLang } from '@/contexts/LanguageContext';
 import { useClients, useTransactions, usePortfolios, useMessages, ADMIN_KEYS, nextCode, addAuditEntry } from '@/lib/adminData';
 import { usePlatformDataState } from '@/lib/platformState';
+import { useReportsSummary } from '@/lib/queries';
 import {
   PageHeader, Panel, PanelHeader, Pill, StatCard, Field, SelectBox,
   PrimaryBtn, EmptyState, DataTable, Tr, Td, useToast, exportCSV,
@@ -44,6 +45,9 @@ export function Reports() {
   const [transactions] = useTransactions();
   const [portfolios] = usePortfolios();
   const [messages] = useMessages();
+  const [period, setPeriod] = useState('month');
+  const { data: summaryData } = useReportsSummary(period);
+  const summary = (summaryData as any)?.data;
   const [history, setHistory] = usePlatformDataState<ReportRecord[]>(ADMIN_KEYS.REPORTS_HISTORY, [
     { id: 'RPT-3', type: 'تقرير أداء المنصة الشامل', typeEn: 'Overall Platform Performance', period: 'الربع الحالي', createdAt: '2026-07-01 09:00', rows: 18, size: '42 KB', format: 'CSV' },
     { id: 'RPT-2', type: 'تقرير العملاء والأرصدة', typeEn: 'Clients & Balances Report', period: 'السنة الحالية', createdAt: '2026-06-15 13:30', rows: 9, size: '15 KB', format: 'CSV' },
@@ -52,17 +56,26 @@ export function Reports() {
   const { show, ToastView } = useToast();
 
   const [reportType, setReportType] = useState('platform');
-  const [period, setPeriod] = useState('month');
   const [generating, setGenerating] = useState(false);
   const [preview, setPreview] = useState<{ headers: string[]; rows: (string | number)[][] } | null>(null);
 
+  // KPIs: prefer server-side aggregation from /api/reports/summary; fall back to local calculation
   const kpis = useMemo(() => {
-    const aum = portfolios.reduce((s, p) => s + p.value, 0);
-    const active = clients.filter(c => c.status === 'active').length;
-    const pending = transactions.filter(x => x.status === 'pending').length;
-    const completion = transactions.length ? Math.round((transactions.filter(x => x.status === 'completed').length / transactions.length) * 100) : 0;
-    return { aum, active, pending, completion };
-  }, [clients, transactions, portfolios]);
+    if (summary) {
+      return {
+        aum: Number(summary.totalAum ?? summary.total_aum ?? 0),
+        active: Number(summary.activeClients ?? summary.active_clients ?? clients.filter(c => c.status === 'active').length),
+        pending: Number(summary.pendingTransactions ?? summary.pending_transactions ?? transactions.filter(x => x.status === 'pending').length),
+        completion: Number(summary.completionRate ?? summary.completion_rate ?? (transactions.length ? Math.round((transactions.filter(x => x.status === 'completed').length / transactions.length) * 100) : 0)),
+      };
+    }
+    return {
+      aum: portfolios.reduce((s, p) => s + p.value, 0),
+      active: clients.filter(c => c.status === 'active').length,
+      pending: transactions.filter(x => x.status === 'pending').length,
+      completion: transactions.length ? Math.round((transactions.filter(x => x.status === 'completed').length / transactions.length) * 100) : 0,
+    };
+  }, [summary, clients, transactions, portfolios]);
 
   const buildRows = (): { headers: string[]; rows: (string | number)[][]; count: number } => {
     switch (reportType) {
